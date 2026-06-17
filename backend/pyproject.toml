@@ -1,0 +1,14 @@
+[project]
+name = "ticket-booking-system"
+version = "0.0.1"
+description = "A system for creating events and booking tickets for them on FastAPI."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.135.1",
+    "SQLAlchemy==2.0.48",
+    "asyncpg==0.31.0",
+    "alembic==1.18.4",
+    "pydantic-settings==2.5.2",
+    "pydantic==2.12.5",
+    "uvicorn==0.41.0"
+]
