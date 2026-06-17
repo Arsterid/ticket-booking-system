@@ -1,5 +1,4 @@
 from typing import Optional
-from uuid import uuid5
 
 from pydantic import BaseModel, Field, field_validator, EmailStr
 

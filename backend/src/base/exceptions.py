@@ -1,6 +1,3 @@
-from typing import List
-
-
 class ServiceException(Exception):
     pass
 
@@ -45,7 +42,7 @@ class WrongStateException(ServiceException):
 class ParametersConflictException(ServiceException):
     def __init__(
             self,
-            options: List[str]
+            options: list[str]
     ):
         self.options = options
 
@@ -58,7 +55,7 @@ class ParametersConflictException(ServiceException):
 class MissingParameterException(ServiceException):
     def __init__(
             self,
-            options: List[str]
+            options: list[str]
     ):
         self.options = options
 
@@ -73,5 +70,5 @@ class RaceConditionException(ServiceException):
             self,
             table: str
     ):
-        message = f"Object in '{table}' was already changed by another actor concurrently."
+        message = f"Object in '{table}' does not exist or was already changed by another actor concurrently."
         super().__init__(message)

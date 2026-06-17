@@ -9,8 +9,3 @@ class IncorrectLoginDataException(ServiceException):
 class UserIsBannedException(ServiceException):
     def __init__(self):
         super().__init__('User is banned.')
-
-
-class InsufficientRightsException(ServiceException):
-    def __init__(self):
-        super().__init__('Insufficient rights.')

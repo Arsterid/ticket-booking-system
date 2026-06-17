@@ -1,10 +1,10 @@
 from typing import Optional
 
-from sqlalchemy import select, update, exists
+from sqlalchemy import select, update, exists, func
 from sqlalchemy.exc import IntegrityError
 
 from src.base.core.repository import GenericRepository
-from src.event.models import Event
+from src.event.models import Event, EventStatus
 from src.ticket.models import Ticket, TicketType, TicketStatus
 from src.user.models import user_ticket_table
 
@@ -15,16 +15,39 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             email: str,
             user_id: int,
     ) -> int:
-        stmt = (
-            update(self.model)
-            .where(self.model.anonymous_email == email)
-            .values(
-                user_id=user_id,
-                anonymous_email=None,
-            )
+        q = update(self.model).where(
+            self.model.anonymous_email == email
+        ).values(
+            user_id=user_id,
+            anonymous_email=None,
         )
-        result = await self.session.execute(stmt)
+        result = await self.session.execute(q)
         return result.rowcount()
+
+    async def get_available(
+            self,
+            offset: int = 0,
+            limit: int = 100,
+    ) -> tuple[list[Ticket], int]:
+        q = select(self.model).join(
+            Event
+        ).where(
+            (self.model.status == TicketStatus.AVAILABLE) &
+            (self.model.event.status == EventStatus.UPCOMING)
+        )
+
+        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)
+
+    async def get_by_user(
+            self,
+            user_id: int,
+            offset: int = 0,
+            limit: int = 100,
+    ) -> list[Ticket]:
+        q = select(self.model).where(
+            self.model.user_id == user_id
+        )
+        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)
 
     async def check_creation_allowed(
             self,
@@ -37,7 +60,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             (user_ticket_table.c.ticket_type_id == ticket_type_id)
         )
 
-        query = select(
+        q = select(
             Event.id.is_not(None),
             Event.status,
             Event.user_id == user_id,
@@ -53,7 +76,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             Event.id == event_id
         )
 
-        result = await self.session.execute(query)
+        result = await self.session.execute(q)
         row = result.first()
 
         if not row:
@@ -67,14 +90,13 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             user_id: int = None,
     ) -> bool:
         try:
-            q = update(Ticket).values(
+            q = update(self.model).values(
                 status=TicketStatus.BOOKED,
                 user_id=user_id,
             ).where(
-                (Ticket.id == ticket_id) &
-                (Ticket.status == TicketStatus.AVAILABLE)
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.AVAILABLE)
             )
-
             result = await self.session.execute(q)
 
             if result.rowcount() == 0:
@@ -89,14 +111,32 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             email: str,
     ) -> bool:
         try:
-            q = update(Ticket).values(
+            q = update(self.model).values(
                 status=TicketStatus.BOOKED,
                 anonymous_email=email,
             ).where(
-                (Ticket.id == ticket_id) &
-                (Ticket.status == TicketStatus.AVAILABLE)
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.AVAILABLE)
             )
-            await self.session.execute(q)
+            result = await self.session.execute(q)
+
+            if result.rowcount() == 0:
+                return False
+            return True
+        except IntegrityError:
+            return False
+
+    async def mark_as_purchased(
+            self,
+            ticket_id: int
+    ) -> bool:
+        try:
+            q = update(self.model).values(
+                status=TicketStatus.PURCHASED
+            ).where(
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.BOOKED)
+            )
             result = await self.session.execute(q)
 
             if result.rowcount() == 0:
@@ -134,14 +174,13 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
     async def get_by_user_id(
             self,
             user_id: int,
-            skip: int = 0,
+            offset: int = 0,
             limit: int = 100
     ) -> list[TicketType]:
-        query = (
+        q = (
             select(self.model)
             .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)
             .where(user_ticket_table.c.user_id == user_id)
-        ).offset(skip).limit(limit)
+        )
 
-        result = await self.session.execute(query)
-        return list(result.scalars().all())
+        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)

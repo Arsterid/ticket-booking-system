@@ -1,12 +1,12 @@
-from typing import List, Optional
+from typing import Optional
 
 from src.base.core.service import GenericService
 from src.base.exceptions import ObjectNotFoundException, WrongStateException, ParametersConflictException, \
     MissingParameterException, RaceConditionException
+from src.base.schema import PaginatedResponseSchema
 from src.event.models import EventStatus
 from src.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema
 from src.uow import AppUnitOfWork
-from src.user.exceptions import InsufficientRightsException
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -15,10 +15,58 @@ class TicketService(GenericService[AppUnitOfWork]):
             user_id: int,
             offset: int = 0,
             limit: int = 100,
-    ) -> List[TicketTypeResponseSchema]:
+    ) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
         async with self.uow:
-            objs = await self.uow.ticket_type.get_by_user_id(user_id, offset, limit)
-            return [TicketTypeResponseSchema.model_validate(ticket_type) for ticket_type in objs]
+            items, count = await self.uow.ticket_type.get_by_user_id(
+                user_id=user_id,
+                offset=offset,
+                limit=limit,
+            )
+
+            return self._paginate(
+                schema=TicketTypeResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
+    async def get_available(
+            self,
+            offset: int = 0,
+            limit: int = 100,
+    ) -> PaginatedResponseSchema[TicketResponseSchema]:
+        async with self.uow:
+            items, count = await self.uow.ticket.get_available(
+                offset=offset,
+                limit=limit
+            )
+
+            return self._paginate(
+                schema=TicketResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
+    async def get_by_user(
+            self,
+            user_id: int,
+            offset: int = 0,
+            limit: int = 100,
+    ) -> PaginatedResponseSchema[TicketResponseSchema]:
+        async with self.uow:
+            items, count = await self.uow.ticket.get_by_user(
+                user_id=user_id,
+                offset=offset,
+                limit=limit
+            )
+
+            return self._paginate(
+                schema=TicketResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
 
     async def create(
             self,
@@ -26,21 +74,18 @@ class TicketService(GenericService[AppUnitOfWork]):
             data: TicketCreateSchema
     ) -> TicketResponseSchema:
         async with self.uow:
-            event_exists, event_status, is_event_owner, type_exists, has_ticket_access = \
+            event_exists, event_status, is_event_owner, type_exists, has_ticket_type_access = \
                 await self.uow.ticket.check_creation_allowed(
                     user_id=user_id,
                     event_id=data.event_id,
                     ticket_type_id=data.type_id,
                 )
 
-            if not event_exists:
+            if not event_exists or not is_event_owner:
                 raise ObjectNotFoundException(
                     table=self.uow.event.model_name,
                     value=data.event_id
                 )
-
-            if not is_event_owner:
-                raise InsufficientRightsException()
 
             if event_status != EventStatus.DRAFT:
                 raise WrongStateException(
@@ -48,14 +93,11 @@ class TicketService(GenericService[AppUnitOfWork]):
                     expected=EventStatus.DRAFT,
                 )
 
-            if not type_exists:
+            if not type_exists or not has_ticket_type_access:
                 raise ObjectNotFoundException(
                     table=self.uow.ticket_type.model_name,
                     value=data.type_id
                 )
-
-            if not has_ticket_access:
-                raise InsufficientRightsException()
 
             ticket_data = data.model_dump()
             obj = await self.uow.ticket.create(**ticket_data)
@@ -96,6 +138,20 @@ class TicketService(GenericService[AppUnitOfWork]):
             if not is_booked:
                 raise RaceConditionException(table=self.uow.ticket.model_name)
 
+            await self.uow.commit()
+            return True
+
+    async def pay(
+            self,
+            ticket_id: int
+    ) -> bool:
+        async with self.uow:
+            is_paid = self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
+
+            if not is_paid:
+                raise RaceConditionException(table=self.uow.ticket.model_name)
+
+            await self.uow.commit()
             return True
 
 
@@ -106,8 +162,8 @@ class UserTicketService(GenericService[AppUnitOfWork]):
             name: str
     ) -> bool:
         async with self.uow:
-            ticket_type_obj = await self.uow.ticket_type.get_or_create(name)
-            is_success = await self.uow.user.assign_ticket_type(user_id, ticket_type_obj.id)
+            ticket_type_obj = await self.uow.ticket_type.get_or_create(name=name)
+            is_success = await self.uow.user.assign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_obj.id)
             if is_success:
                 await self.uow.commit()
             return is_success
@@ -118,7 +174,7 @@ class UserTicketService(GenericService[AppUnitOfWork]):
             ticket_type_id: int
     ) -> bool:
         async with self.uow:
-            is_success = await self.uow.user.unassign_ticket_type(user_id, ticket_type_id)
+            is_success = await self.uow.user.unassign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_id)
             if is_success:
                 await self.uow.commit()
             return is_success

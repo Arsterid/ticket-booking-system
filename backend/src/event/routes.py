@@ -1,6 +1,9 @@
+from typing import List
+
 from fastapi import APIRouter
 from starlette import status
 
+from src.base.dependencies import PaginationParamsDep
 from src.base.schema import GenericIdResponseSchema
 from src.event.dependencies import EventServiceDep
 from src.event.schemas import EventCreateSchema, EventResponseSchema
@@ -40,4 +43,36 @@ async def cancel(
     return GenericIdResponseSchema(id=event_id)
 
 
+@router.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    response_model=List[EventResponseSchema]
+)
+async def get_upcoming(
+        event_service: EventServiceDep,
+        pagination: PaginationParamsDep
+) -> List[EventResponseSchema]:
+    return await event_service.get_upcoming(
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )
 
+
+@router.get(
+    "/my",
+    status_code=status.HTTP_200_OK,
+    response_model=List[EventResponseSchema]
+)
+async def get_by_user(
+        event_service: EventServiceDep,
+        user_id: RequiredUserIdDep,
+        pagination: PaginationParamsDep
+) -> List[EventResponseSchema]:
+    return await event_service.get_by_user(
+        user_id=user_id,
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )
+
+
+# TODO add proper filtration?

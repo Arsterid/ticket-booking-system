@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from src.base.dependencies import PasswordManager
 from src.base.core.service import GenericService
 from src.base.exceptions import ObjectNotFoundException, UniqueFieldException
@@ -36,7 +34,7 @@ class UserService(GenericService[AppUnitOfWork]):
             data: UserLoginSchema,
             pwd_manager: PasswordManager,
             jwt_manager: JWTManager
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         async with self.uow:
             user = await self.uow.user.get_by_email(data.email)
 

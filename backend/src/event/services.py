@@ -1,8 +1,6 @@
-from typing import List
-
 from src.base.core.service import GenericService
 from src.base.exceptions import ObjectNotFoundException
-from src.user.exceptions import InsufficientRightsException
+from src.base.schema import PaginatedResponseSchema
 from src.event.schemas import EventCreateSchema, EventResponseSchema
 from src.uow import AppUnitOfWork
 
@@ -26,25 +24,35 @@ class EventService(GenericService[AppUnitOfWork]):
             user_id: int,
     ) -> int:
         async with self.uow:
-            obj = await self.uow.event.get_by_id(event_id)
-            if not obj:
+            is_canceled = await self.uow.event.cancel(event_id, user_id)
+            if not is_canceled:
                 raise ObjectNotFoundException(
                     table=self.uow.event.model_name,
                     value=event_id,
                 )
-
-            if obj.user_id != user_id:
-                raise InsufficientRightsException()
-
-            obj.is_canceled = True
             await self.uow.commit()
-            return obj.id
+            return True
 
-    async def get_all_events(
+    async def get_active_events(
             self,
             offset: int = 0,
             limit: int = 100,
-    ) -> List[EventResponseSchema]:
+    ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
-            objs = await self.uow.event.get_all(skip=offset, limit=limit)
+            items, count = await self.uow.event.get_upcoming(offset, limit)
+            return self._paginate(
+                schema=EventResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
+    async def get_by_user(
+            self,
+            user_id: int,
+            offset: int = 0,
+            limit: int = 100,
+    ) -> list[EventResponseSchema]:
+        async with self.uow:
+            objs = await self.uow.event.get_by_user(user_id, offset, limit)
             return [EventResponseSchema.model_validate(obj) for obj in objs]

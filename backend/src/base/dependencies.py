@@ -1,6 +1,7 @@
 from typing import Annotated
 from fastapi import Depends
 
+from src.base.schema import PaginationParamsSchema
 from src.base.security.jwt_tokens import JWTManager
 from src.base.security.passwords import PasswordManager
 from src.settings import AppConfig, settings
@@ -27,3 +28,4 @@ def get_password_manager(config: Annotated[AppConfig, Depends(get_config)]) -> P
 
 JWTManagerDep = Annotated[JWTManager, Depends(get_jwt_manager)]
 PasswordManagerDep = Annotated[PasswordManager, Depends(get_password_manager)]
+PaginationParamsDep = Annotated[PaginationParamsSchema, Depends(PaginationParamsSchema)]

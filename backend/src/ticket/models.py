@@ -44,8 +44,8 @@ class Ticket(AbstractModel):
         default=TicketStatus.AVAILABLE,
     )
 
-    owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("user.id"), nullable=True)
-    owner: Mapped[Optional[User]] = relationship("User", back_populates="tickets")
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("user.id"), nullable=True, index=True)
+    user: Mapped[Optional[User]] = relationship("User")
 
     anonymous_email: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
 

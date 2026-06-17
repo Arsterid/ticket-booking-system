@@ -1,14 +1,14 @@
 from abc import ABC
-from typing import Type, Generic, Optional, Sequence, Union, Dict
+from typing import Type, Generic, Optional, Sequence, Union, Any
 
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, func, Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.base.annotations import ModelType
 
 
 class GenericRepository(ABC, Generic[ModelType]):
-    _registry: Dict[str, Type['GenericRepository']] = {}
+    _registry: dict[str, Type['GenericRepository']] = {}
 
     model: Type[ModelType]
     id_field: str = "id"
@@ -58,3 +58,19 @@ class GenericRepository(ABC, Generic[ModelType]):
         q = select(self.model).offset(skip).limit(limit)
         result = await self.session.execute(q)
         return result.scalars().all()
+
+    async def _execute_and_paginate_query(
+            self,
+            q: Select[tuple[Any, ...]],
+            offset: int = 0,
+            limit: int = 100,
+    ) -> tuple[list[ModelType], int]:
+        count_q = select(func.count()).select_from(q.subquery())
+        total_result = await self.session.execute(count_q)
+        total_count = total_result.scalar_one()
+
+        paginated_q = q.offset(offset).limit(limit)
+        result = await self.session.execute(paginated_q)
+        items = list(result.scalars().all())
+
+        return items, total_count

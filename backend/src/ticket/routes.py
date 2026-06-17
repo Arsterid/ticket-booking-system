@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 from starlette import status
 
-from src.base.schema import GenericSuccessResponseSchema
+from src.base.dependencies import PaginationParamsDep
+from src.base.schema import GenericSuccessResponseSchema, PaginatedResponseSchema
 from src.ticket.dependencies import TicketServiceDep, UserTicketServiceDep
 from src.ticket.schemas import TicketTypeResponseSchema, TicketTypeCreateSchema, TicketCreateSchema, \
     TicketResponseSchema, TicketBookSchema
@@ -19,12 +20,12 @@ router = APIRouter(
 @router.get(
     "/types",
     status_code=status.HTTP_200_OK,
-    response_model=List[TicketTypeResponseSchema]
+    response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
 )
 async def get_types_by_user_id(
         ticket_service: TicketServiceDep,
         user_id: RequiredUserIdDep
-) -> List[TicketTypeResponseSchema]:
+) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
     return await ticket_service.get_types_by_user_id(
         user_id=user_id
     )
@@ -47,6 +48,31 @@ async def get_or_create_then_assign_to_user(
     return GenericSuccessResponseSchema(success=is_success)
 
 
+@router.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketResponseSchema]
+)
+async def get_available(
+        ticket_service: TicketServiceDep,
+        pagination: PaginationParamsDep
+) -> PaginatedResponseSchema[TicketResponseSchema]:
+    return await ticket_service.get_available(offset=pagination.offset, limit=pagination.limit)
+
+
+@router.get(
+    "/my",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketResponseSchema]
+)
+async def get_by_user(
+        ticket_service: TicketServiceDep,
+        user_id: RequiredUserIdDep,
+        pagination: PaginationParamsDep
+) -> PaginatedResponseSchema[TicketResponseSchema]:
+    return await ticket_service.get_by_user(user_id=user_id, offset=pagination.offset, limit=pagination.limit)
+
+
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
@@ -62,13 +88,9 @@ async def create(
         data=body
     )
 
-# add 1 and multi-add
-
-
-# book, pay
 
 @router.patch(
-    "/{ticket_id}",
+    "/{ticket_id}/book",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema
 )
@@ -83,5 +105,19 @@ async def book(
         user_id=user_id,
         anonymous_email=body.anonymous_email
     )
+
+    return GenericSuccessResponseSchema(success=True)
+
+
+@router.patch(
+    "/{ticket_id}/pay",
+    status_code=status.HTTP_200_OK,
+    response_model=GenericSuccessResponseSchema
+)
+async def pay(
+        ticket_service: TicketServiceDep,
+        ticket_id: int,
+) -> GenericSuccessResponseSchema:
+    await ticket_service.pay(ticket_id=ticket_id)
 
     return GenericSuccessResponseSchema(success=True)
