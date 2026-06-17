@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from starlette import status
 
-from src.base.schema import GenericIdResponseScheme
+from src.base.schema import GenericIdResponseSchema
 from src.event.dependencies import EventServiceDep
-from src.event.schemas import EventCreateSchema
+from src.event.schemas import EventCreateSchema, EventResponseSchema
 from src.user.dependencies import RequiredUserIdDep
 
 router = APIRouter(
@@ -16,29 +16,28 @@ router = APIRouter(
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    response_model=GenericIdResponseScheme
+    response_model=EventResponseSchema
 )
-async def create_event(
+async def create(
         event_service: EventServiceDep,
         body: EventCreateSchema,
         user_id: RequiredUserIdDep
-) -> GenericIdResponseScheme:
-    event_id = await event_service.create_event(data=body, user_id=user_id)
-    return GenericIdResponseScheme(id=event_id)
+) -> EventResponseSchema:
+    return await event_service.create(data=body, user_id=user_id)
 
 
 @router.patch(
     "/{event_id}",
     status_code=status.HTTP_200_OK,
-    response_model=GenericIdResponseScheme
+    response_model=GenericIdResponseSchema
 )
-async def cancel_event(
+async def cancel(
         event_service: EventServiceDep,
         event_id: int,
         user_id: RequiredUserIdDep
-) -> GenericIdResponseScheme:
-    await event_service.cancel_event(event_id=event_id, user_id=user_id)
-    return GenericIdResponseScheme(id=event_id)
+) -> GenericIdResponseSchema:
+    await event_service.cancel(event_id=event_id, user_id=user_id)
+    return GenericIdResponseSchema(id=event_id)
 
 
 

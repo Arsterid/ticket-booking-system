@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Type, Generic, Optional, Sequence, Union, Dict
 
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.base.annotations import ModelType
@@ -34,18 +34,23 @@ class GenericRepository(ABC, Generic[ModelType]):
         except AttributeError:
             raise AssertionError(f"Field {self.id_field} not found in {self.model.__name__}")
 
-    async def create(self, **kwargs) -> Union[int, str]:
+    async def create(self, **kwargs) -> ModelType:
         obj = self.model(**kwargs)
         self.session.add(obj)
         await self.session.flush()
         await self.session.refresh(obj)
-        return getattr(obj, self.id_field)
+        return obj
 
-    async def get_by_id(self, id: Union[str, int]) -> Optional[ModelType]:
+    async def get_by_id(self, obj_id: Union[str, int]) -> Optional[ModelType]:
         if self.id_field == "id":
-            return await self.session.get(self.model, id)
+            return await self.session.get(self.model, obj_id)
 
-        q = select(self.model).where(self._get_model_id_field() == id)
+        q = select(self.model).where(self._get_model_id_field() == obj_id)
+        result = await self.session.execute(q)
+        return result.scalar()
+
+    async def exists(self, obj_id: Union[str, int]) -> bool:
+        q = select(exists().where(self._get_model_id_field() == obj_id))
         result = await self.session.execute(q)
         return result.scalar()
 

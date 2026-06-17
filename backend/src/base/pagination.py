@@ -1,7 +1,7 @@
 from typing import List
 
 from src.base.annotations import T
-from src.base.schema import PaginatedResponseScheme
+from src.base.schema import PaginatedResponseSchema
 
 
 class Paginator:
@@ -10,7 +10,7 @@ class Paginator:
         items: List[T],
         page: int = 1,
         size: int = 20,
-    ) -> PaginatedResponseScheme[T]:
+    ) -> PaginatedResponseSchema[T]:
         total = len(items)
         max_pages = (total + size - 1) // size if size > 0 else 1
 
@@ -19,7 +19,7 @@ class Paginator:
 
         page_items = items[start:end]
 
-        return PaginatedResponseScheme[T](
+        return PaginatedResponseSchema[T](
             count=total,
             max_pages=max_pages,
             results=page_items,

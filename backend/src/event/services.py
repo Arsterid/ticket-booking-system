@@ -8,19 +8,19 @@ from src.uow import AppUnitOfWork
 
 
 class EventService(GenericService[AppUnitOfWork]):
-    async def create_event(
+    async def create(
             self,
             data: EventCreateSchema,
             user_id: int,
-    ) -> int:
+    ) -> EventResponseSchema:
         async with self.uow:
             event_data = data.model_dump()
             event_data['user_id'] = user_id
-            event_id = await self.uow.event.create(**event_data)
+            event_obj = await self.uow.event.create(**event_data)
             await self.uow.commit()
-            return event_id
+            return EventResponseSchema.model_validate(event_obj)
 
-    async def cancel_event(
+    async def cancel(
             self,
             event_id: int,
             user_id: int,

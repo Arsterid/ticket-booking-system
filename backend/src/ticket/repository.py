@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.base.core.repository import GenericRepository
 from src.event.models import Event
-from src.ticket.models import Ticket, TicketType
+from src.ticket.models import Ticket, TicketType, TicketStatus
 from src.user.models import user_ticket_table
 
 
@@ -26,7 +26,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
         result = await self.session.execute(stmt)
         return result.rowcount()
 
-    async def check_ticket_creation_allowed(
+    async def check_creation_allowed(
             self,
             user_id: int,
             event_id: int,
@@ -60,6 +60,50 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             return False, None, False, False, False
 
         return row[0], row[1], row[2], row[3], row[4]
+
+    async def book(
+            self,
+            ticket_id: int,
+            user_id: int = None,
+    ) -> bool:
+        try:
+            q = update(Ticket).values(
+                status=TicketStatus.BOOKED,
+                user_id=user_id,
+            ).where(
+                (Ticket.id == ticket_id) &
+                (Ticket.status == TicketStatus.AVAILABLE)
+            )
+
+            result = await self.session.execute(q)
+
+            if result.rowcount() == 0:
+                return False
+            return True
+        except IntegrityError:
+            return False
+
+    async def book_by_email(
+            self,
+            ticket_id: int,
+            email: str,
+    ) -> bool:
+        try:
+            q = update(Ticket).values(
+                status=TicketStatus.BOOKED,
+                anonymous_email=email,
+            ).where(
+                (Ticket.id == ticket_id) &
+                (Ticket.status == TicketStatus.AVAILABLE)
+            )
+            await self.session.execute(q)
+            result = await self.session.execute(q)
+
+            if result.rowcount() == 0:
+                return False
+            return True
+        except IntegrityError:
+            return False
 
 
 class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):

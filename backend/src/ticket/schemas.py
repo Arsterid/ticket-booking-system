@@ -36,3 +36,7 @@ class TicketResponseSchema(BaseModel):
     status: TicketStatus
     owner_id: Optional[int]
     anonymous_email: Optional[EmailStr]
+
+
+class TicketBookSchema(BaseModel):
+    email: Optional[EmailStr] = None

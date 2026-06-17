@@ -1,3 +1,6 @@
+from typing import List
+
+
 class ServiceException(Exception):
     pass
 
@@ -36,4 +39,39 @@ class WrongStateException(ServiceException):
             f"Current state: '{current}', expected: '{expected}'"
         )
 
+        super().__init__(message)
+
+
+class ParametersConflictException(ServiceException):
+    def __init__(
+            self,
+            options: List[str]
+    ):
+        self.options = options
+
+        options_str = ", ".join(str(opt) for opt in options)
+        message = f"Only one of the following parameters is allowed: {options_str}, but multiple were provided."
+
+        super().__init__(message)
+
+
+class MissingParameterException(ServiceException):
+    def __init__(
+            self,
+            options: List[str]
+    ):
+        self.options = options
+
+        options_str = ", ".join(str(opt) for opt in options)
+        message = f"At least one of the following parameters is required: {options_str}, but none were provided."
+
+        super().__init__(message)
+
+
+class RaceConditionException(ServiceException):
+    def __init__(
+            self,
+            table: str
+    ):
+        message = f"Object in '{table}' was already changed by another actor concurrently."
         super().__init__(message)
