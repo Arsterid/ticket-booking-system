@@ -1,7 +1,8 @@
 from abc import ABC
 from typing import Type, Generic, Optional, Sequence, Union, Any, Callable
 
-from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc
+from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.annotations import ModelType
@@ -125,3 +126,18 @@ class GenericRepository(ABC, Generic[ModelType]):
         items = list(result.scalars().all())
 
         return items, total_count
+
+    async def _execute_modification(self, q: Update | Delete) -> int:
+        try:
+            res = await self.session.execute(q)
+            return res.rowcount
+        except IntegrityError:
+            return 0
+
+    async def _execute_insert(self, q: Insert) -> Any | None:
+        try:
+            res = await self.session.execute(q)
+            return res.scalar()
+        except IntegrityError:
+            return None
+

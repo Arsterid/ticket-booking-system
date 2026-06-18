@@ -6,7 +6,7 @@ from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSc
 from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketTypeCreateSchema, TicketCreateSchema, \
     TicketResponseSchema, TicketBookSchema
-from src.modules.user.dependencies import RequiredUserIdDep, OptionalUserIdDep
+from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep
 
 router = APIRouter(
     prefix="/tickets",
@@ -22,7 +22,7 @@ router = APIRouter(
 )
 async def get_types_by_user_id(
         ticket_service: TicketServiceDep,
-        user_id: RequiredUserIdDep
+        user_id: AnyUserIdDep
 ) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
     return await ticket_service.get_types_by_user_id(
         user_id=user_id
@@ -37,7 +37,7 @@ async def get_types_by_user_id(
 async def get_or_create_then_assign_to_user(
         body: TicketTypeCreateSchema,
         user_ticket_service: UserTicketServiceDep,
-        user_id: RequiredUserIdDep,
+        user_id: AnyUserIdDep,
 ) -> GenericSuccessResponseSchema:
     is_success = await user_ticket_service.get_or_create_ticket_type_and_assign_to_user(
         user_id=user_id,
@@ -65,7 +65,7 @@ async def get_available(
 )
 async def get_by_user(
         ticket_service: TicketServiceDep,
-        user_id: RequiredUserIdDep,
+        user_id: AnyUserIdDep,
         pagination: PaginationParamsDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:
     return await ticket_service.get_by_user(user_id=user_id, offset=pagination.offset, limit=pagination.limit)
@@ -79,7 +79,7 @@ async def get_by_user(
 async def create(
         body: TicketCreateSchema,
         ticket_service: TicketServiceDep,
-        user_id: RequiredUserIdDep
+        user_id: AnyUserIdDep
 ) -> TicketResponseSchema:
     return await ticket_service.create(
         user_id=user_id,

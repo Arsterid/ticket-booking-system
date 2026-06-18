@@ -1,34 +1,50 @@
-from typing import Any, Optional
+from typing import Any
 
-from sqlalchemy import update, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import update
 
 from src.common.repositories import GenericRepository
-from src.modules.event.models import Event, EventStatus
+from src.modules.event.models import Event, EventStatus, EventCategory
+
+
+class EventCategoryRepository(GenericRepository[EventCategory], model=EventCategory):
+    async def create(  # TODO add logic where Category cannot be created if parents has events.
+            self,
+            **kwargs
+    ) -> EventCategory:
+        obj = self.model(**kwargs)
+        self.session.add(obj)
+        await self.session.flush()
+        await self.session.refresh(obj)
+        return obj
 
 
 class EventRepository(GenericRepository[Event], model=Event):
+    async def create(  # TODO add logic where Event cannot be created if category has children.
+            self,
+            **kwargs
+    ) -> Event:
+        obj = self.model(**kwargs)
+        self.session.add(obj)
+        await self.session.flush()
+        await self.session.refresh(obj)
+        return obj
+
     async def cancel(
             self,
             event_id: int,
             user_id: int,
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                id=event_id,
-                is_cancelled=True
-            ).where(
-                (self.model.id == event_id) &
-                (self.model.user_id == user_id) &
-                (self.model.status == EventStatus.UPCOMING)
-            )
-            res = await self.session.execute(q)
+        q = update(self.model).values(
+            id=event_id,
+            is_cancelled=True
+        ).where(
+            (self.model.id == event_id) &
+            (self.model.user_id == user_id) &
+            (self.model.status == EventStatus.UPCOMING)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if res.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
     async def update(
             self,
@@ -36,42 +52,32 @@ class EventRepository(GenericRepository[Event], model=Event):
             user_id: int,
             **kwargs
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                **kwargs
-            ).where(
-                (self.model.id == event_id) &
-                (self.model.user_id == user_id) &
-                (self.model.status == EventStatus.DRAFT)
-            )
-            res = await self.session.execute(q)
+        q = update(self.model).values(
+            **kwargs
+        ).where(
+            (self.model.id == event_id) &
+            (self.model.user_id == user_id) &
+            (self.model.status == EventStatus.DRAFT)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if res.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
     async def publish(
             self,
             event_id: int,
             user_id: int,
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                is_published=True
-            ).where(
-                (self.model.id == event_id) &
-                (self.model.user_id == user_id) &
-                (self.model.status == EventStatus.DRAFT)
-            )
-            res = await self.session.execute(q)
+        q = update(self.model).values(
+            is_published=True
+        ).where(
+            (self.model.id == event_id) &
+            (self.model.user_id == user_id) &
+            (self.model.status == EventStatus.DRAFT)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if res.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
     async def get_available(
             self,

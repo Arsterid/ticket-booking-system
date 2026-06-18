@@ -44,7 +44,12 @@ class UserService(GenericService[AppUnitOfWork]):
             if not user.is_active:
                 raise UserIsBannedException()
 
-            token = jwt_manager.create_access_token(data={"sub": str(user.id)})
+            token = jwt_manager.create_access_token(
+                data={
+                    "sub": str(user.id),
+                    "role": user.role.value,
+                }
+            )
 
             return token, "bearer"
 

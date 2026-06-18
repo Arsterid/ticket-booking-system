@@ -15,14 +15,16 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             email: str,
             user_id: int,
     ) -> int:
+
         q = update(self.model).where(
             self.model.anonymous_email == email
         ).values(
             user_id=user_id,
             anonymous_email=None,
         )
-        result = await self.session.execute(q)
-        return result.rowcount()
+        row_count = await self._execute_modification(q)
+
+        return row_count
 
     async def get_available(
             self,
@@ -89,61 +91,46 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             ticket_id: int,
             user_id: int = None,
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                status=TicketStatus.BOOKED,
-                user_id=user_id,
-            ).where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.AVAILABLE)
-            )
-            result = await self.session.execute(q)
+        q = update(self.model).values(
+            status=TicketStatus.BOOKED,
+            user_id=user_id,
+        ).where(
+            (self.model.id == ticket_id) &
+            (self.model.status == TicketStatus.AVAILABLE)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if result.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
     async def book_by_email(
             self,
             ticket_id: int,
             email: str,
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                status=TicketStatus.BOOKED,
-                anonymous_email=email,
-            ).where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.AVAILABLE)
-            )
-            result = await self.session.execute(q)
+        q = update(self.model).values(
+            status=TicketStatus.BOOKED,
+            anonymous_email=email,
+        ).where(
+            (self.model.id == ticket_id) &
+            (self.model.status == TicketStatus.AVAILABLE)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if result.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
     async def mark_as_purchased(
             self,
             ticket_id: int
     ) -> bool:
-        try:
-            q = update(self.model).values(
-                status=TicketStatus.PURCHASED
-            ).where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.BOOKED)
-            )
-            result = await self.session.execute(q)
+        q = update(self.model).values(
+            status=TicketStatus.PURCHASED
+        ).where(
+            (self.model.id == ticket_id) &
+            (self.model.status == TicketStatus.BOOKED)
+        )
+        rows_updated = await self._execute_modification(q=q)
 
-            if result.rowcount() == 0:
-                return False
-            return True
-        except IntegrityError:
-            return False
+        return rows_updated > 0
 
 
 class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
@@ -177,10 +164,8 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
             offset: int = 0,
             limit: int = 100
     ) -> tuple[list[TicketType], int]:
-        q = (
-            select(self.model)
-            .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)
-            .where(user_ticket_table.c.user_id == user_id)
-        )
+        q = select(self.model).join(
+            user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id.where(
+                user_ticket_table.c.user_id == user_id))
 
         return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)

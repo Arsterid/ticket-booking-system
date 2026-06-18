@@ -1,8 +1,7 @@
 from typing import Optional
 
 from pydantic import EmailStr
-from sqlalchemy import select, insert, delete, exists
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, insert, delete
 
 from src.common.repositories import GenericRepository
 from src.modules.user.models import User, user_ticket_table
@@ -19,42 +18,22 @@ class UserRepository(GenericRepository[User], model=User):
         user_id: int,
         ticket_type_id: int
     ) -> bool:
-        try:
-            q = insert(user_ticket_table).values(
-                user_id=user_id,
-                ticket_type_id=ticket_type_id
-            )
-            await self.session.execute(q)
-            return True
-        except IntegrityError:
-            return False
+        q = insert(user_ticket_table).values(
+            user_id=user_id,
+            ticket_type_id=ticket_type_id
+        )
+        res = await self._execute_insert(q.returning(user_ticket_table.c.user_id))
+        return bool(res)
 
     async def unassign_ticket_type(
         self,
         user_id: int,
         ticket_type_id: int
     ) -> bool:
-        try:
-            q = delete(user_ticket_table).where(
-                (user_ticket_table.c.user_id == user_id) &
-                (user_ticket_table.c.ticket_type_id == ticket_type_id)
-            )
-            await self.session.execute(q)
-            return True
-        except IntegrityError:
-            return False
-
-    async def check_if_has_access_to_ticket_type(
-            self,
-            user_id: int,
-            ticket_type_id: int
-    ) -> bool:
-        q = select(
-            exists().where(
-                (user_ticket_table.c.user_id == user_id) &
-                (user_ticket_table.c.ticket_type_id == ticket_type_id)
-            )
+        q = delete(user_ticket_table).where(
+            (user_ticket_table.c.user_id == user_id) &
+            (user_ticket_table.c.ticket_type_id == ticket_type_id)
         )
-        result = await self.session.execute(q)
-        is_exists = result.scalar()
-        return is_exists
+        row_count = await self._execute_modification(q.returning(user_ticket_table.c.user_id))
+
+        return row_count > 0

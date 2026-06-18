@@ -30,10 +30,16 @@ class TicketStatus(StrEnum):
 class Ticket(AbstractModel):
     __tablename__ = 'tickets'
 
-    event_id: Mapped[int] = mapped_column(ForeignKey("event.id"), index=True)
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("event.id", ondelete="RESTRICT"),
+        index=True
+    )
     event: Mapped[Event] = relationship("Event", back_populates="tickets")
 
-    type_id: Mapped[int] = mapped_column(ForeignKey("ticket_type.id"), index=True)
+    type_id: Mapped[int] = mapped_column(
+        ForeignKey("ticket_type.id", ondelete="RESTRICT"),
+        index=True
+    )
     type: Mapped[TicketType] = relationship("TicketType", back_populates="tickets")
 
     price: Mapped[float] = mapped_column(Float)
@@ -44,7 +50,11 @@ class Ticket(AbstractModel):
         default=TicketStatus.AVAILABLE,
     )
 
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("user.id"), nullable=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
     user: Mapped[Optional[User]] = relationship("User")
 
     anonymous_email: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)

@@ -79,6 +79,14 @@ class RaceConditionException(ServiceException):
         super().__init__(message)
 
 
+class ValidationException(ServiceException):
+    def __init__(
+            self,
+            message: str
+    ):
+        super().__init__(message)
+
+
 async def service_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,

@@ -3,7 +3,8 @@ from starlette import status
 
 from src.common.dependencies import PasswordManagerDep, JWTManagerDep
 from src.modules.user.dependencies import UserServiceDep
-from src.modules.user.schemas import UserCreateResponseSchema, UserCreateSchema, UserLoginResponseSchema, UserLoginSchema
+from src.modules.user.schemas import UserCreateResponseSchema, UserCreateSchema, UserLoginResponseSchema, \
+    UserLoginSchema
 
 router = APIRouter(
     prefix="/users",
@@ -18,8 +19,8 @@ router = APIRouter(
     response_model=UserCreateResponseSchema
 )
 async def register(
-    user_service: UserServiceDep,
-    body: UserCreateSchema,
+        user_service: UserServiceDep,
+        body: UserCreateSchema,
 ) -> UserCreateResponseSchema:
     user_id = await user_service.create_user(data=body)
     return UserCreateResponseSchema(id=user_id)

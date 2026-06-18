@@ -19,7 +19,27 @@ from src.common.orm.models import AbstractModel
 class EventCategory(AbstractModel):
     __tablename__ = 'event_category'
 
-    name: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String(100))
+
+    parent_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey('event_category.id', ondelete='CASCADE')
+    )
+    parent: Mapped[Optional["EventCategory"]] = relationship(
+        "EventCategory",
+        remote_side="EventCategory.id",
+        back_populates="children"
+    )
+
+    children: Mapped[list["EventCategory"]] = relationship(
+        "EventCategory",
+        back_populates="parent",
+        cascade="all, delete-orphan"
+    )
+
+    events: Mapped[list["Event"]] = relationship(
+        "Event",
+        back_populates="category"
+    )
 
 
 class EventType(StrEnum):
@@ -37,11 +57,17 @@ class EventStatus(StrEnum):
 class Event(AbstractModel):
     __tablename__ = 'events'
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'), index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey('user.id', ondelete='CASCADE'),
+        index=True
+    )
     user: Mapped[User] = relationship('User', back_populates='events')
 
     category: Mapped[EventCategory] = relationship('EventCategory', back_populates='events')
-    category_id: Mapped[int] = mapped_column(ForeignKey('event_category.id'), index=True)
+    category_id: Mapped[int] = mapped_column(
+        ForeignKey('event_category.id', ondelete='RESTRICT'),
+        index=True
+    )
 
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     is_canceled: Mapped[bool] = mapped_column(Boolean, default=False)

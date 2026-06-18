@@ -5,7 +5,7 @@ from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericIdResponseSchema, PaginatedResponseSchema, GenericSuccessResponseSchema
 from src.modules.event.dependencies import EventServiceDep
 from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema
-from src.modules.user.dependencies import RequiredUserIdDep
+from src.modules.user.dependencies import AnyUserIdDep
 
 router = APIRouter(
     prefix="/events",
@@ -24,7 +24,7 @@ router = APIRouter(
 async def create(
         event_service: EventServiceDep,
         body: EventCreateSchema,
-        user_id: RequiredUserIdDep
+        user_id: AnyUserIdDep
 ) -> EventResponseSchema:
     return await event_service.create(data=body, user_id=user_id)
 
@@ -37,7 +37,7 @@ async def create(
 async def update(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: RequiredUserIdDep,
+        user_id: AnyUserIdDep,
         body: EventUpdateSchema
 ) -> GenericSuccessResponseSchema:
     result = await event_service.update(event_id=event_id, user_id=user_id, body=body)
@@ -52,7 +52,7 @@ async def update(
 async def publish(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: RequiredUserIdDep
+        user_id: AnyUserIdDep
 ) -> GenericSuccessResponseSchema:
     result = await event_service.publish(event_id=event_id, user_id=user_id)
     return GenericSuccessResponseSchema(success=result)
@@ -66,7 +66,7 @@ async def publish(
 async def cancel(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: RequiredUserIdDep
+        user_id: AnyUserIdDep
 ) -> GenericIdResponseSchema:
     await event_service.cancel(event_id=event_id, user_id=user_id)
     return GenericIdResponseSchema(id=event_id)
@@ -94,7 +94,7 @@ async def get_upcoming(
 )
 async def get_by_user(
         event_service: EventServiceDep,
-        user_id: RequiredUserIdDep,
+        user_id: AnyUserIdDep,
         pagination: PaginationParamsDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
     return await event_service.get_by_user(
