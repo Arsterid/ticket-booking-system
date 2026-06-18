@@ -13,6 +13,10 @@ class GenericIdResponseSchema(BaseModel):
     id: int
 
 
+class GenericModerationSchema(BaseModel):
+    result: bool
+
+
 class GenericSuccessResponseSchema(BaseModel):
     success: bool
 

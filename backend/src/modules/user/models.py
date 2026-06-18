@@ -22,6 +22,7 @@ user_ticket_table = Table(
 
 class UserRole(StrEnum):
     USER = "user"
+    ON_VERIFICATION = "on_verification"
     VERIFIED_USER = "verified_user"
     MODERATOR = "moderator"
     ADMIN = "admin"
@@ -30,6 +31,7 @@ class UserRole(StrEnum):
     def _weight(self) -> int:
         weights = {
             UserRole.USER: 10,
+            UserRole.ON_VERIFICATION: 10,
             UserRole.VERIFIED_USER: 20,
             UserRole.MODERATOR: 30,
             UserRole.ADMIN: 40,

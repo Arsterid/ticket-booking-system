@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from src.common.services import GenericService
 from src.core.exceptions import ObjectNotFoundException, WrongStateException, ParametersConflictException, \
@@ -32,13 +32,17 @@ class TicketService(GenericService[AppUnitOfWork]):
 
     async def get_available(
             self,
+            filters: dict[str, Any] = None,
             offset: int = 0,
             limit: int = 100,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[TicketResponseSchema]:
         async with self.uow:
             items, count = await self.uow.ticket.get_available(
+                filters=filters,
                 offset=offset,
-                limit=limit
+                limit=limit,
+                order_by=order_by,
             )
 
             return self._paginate(
@@ -51,14 +55,18 @@ class TicketService(GenericService[AppUnitOfWork]):
     async def get_by_user(
             self,
             user_id: int,
+            filters: dict[str, Any] = None,
             offset: int = 0,
             limit: int = 100,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[TicketResponseSchema]:
         async with self.uow:
             items, count = await self.uow.ticket.get_by_user(
+                filters=filters,
                 user_id=user_id,
                 offset=offset,
-                limit=limit
+                limit=limit,
+                order_by=order_by,
             )
 
             return self._paginate(

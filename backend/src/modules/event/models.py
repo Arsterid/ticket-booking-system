@@ -10,7 +10,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 if TYPE_CHECKING:
     from src.modules.user.models import User
 
-from sqlalchemy import String, ForeignKey, Boolean, DateTime, case, func
+from sqlalchemy import String, ForeignKey, DateTime, case, func
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from src.common.orm.models import AbstractModel
@@ -47,8 +47,18 @@ class EventType(StrEnum):
     ONLINE = "online"
 
 
+class EventState(StrEnum):
+    DRAFT = "draft"
+    ON_MODERATION = "on_moderation"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELED = "canceled"
+
+
 class EventStatus(StrEnum):
     DRAFT = "draft"
+    ON_MODERATION = "on_moderation"
+    REJECTED = "rejected"
     CANCELED = "canceled"
     PAST = "past"
     UPCOMING = "upcoming"
@@ -69,8 +79,11 @@ class Event(AbstractModel):
         index=True
     )
 
-    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_canceled: Mapped[bool] = mapped_column(Boolean, default=False)
+    state: Mapped[EventState] = mapped_column(
+        SQLEnum(EventState, native_enum=False, length=20),
+        default=EventState.DRAFT,
+        index=True
+    )
 
     event_type: Mapped[EventType] = mapped_column(
         SQLEnum(EventType, native_enum=False, length=20),
@@ -82,10 +95,15 @@ class Event(AbstractModel):
 
     @hybrid_property
     def status(self) -> EventStatus:
-        if not self.is_published:
+        if self.state == EventState.DRAFT:
             return EventStatus.DRAFT
-        if self.is_canceled:
+        if self.state == EventState.ON_MODERATION:
+            return EventStatus.ON_MODERATION
+        if self.state == EventState.REJECTED:
+            return EventStatus.REJECTED
+        if self.state == EventState.CANCELED:
             return EventStatus.CANCELED
+
         if self.event_date < datetime.now():
             return EventStatus.PAST
         return EventStatus.UPCOMING
@@ -94,8 +112,10 @@ class Event(AbstractModel):
     @classmethod
     def _status_expression(cls):
         return case(
-            (cls.is_published == False, EventStatus.DRAFT.value),
-            (cls.is_canceled == True, EventStatus.CANCELED.value),
+            (cls.state == EventState.DRAFT, EventStatus.DRAFT.value),
+            (cls.state == EventState.ON_MODERATION, EventStatus.ON_MODERATION.value),
+            (cls.state == EventState.REJECTED, EventStatus.REJECTED.value),
+            (cls.state == EventState.CANCELED, EventStatus.CANCELED.value),
             (cls.event_date < func.now(), EventStatus.PAST.value),
             else_=EventStatus.UPCOMING.value
         )

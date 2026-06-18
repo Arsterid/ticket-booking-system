@@ -1,16 +1,28 @@
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import update, select, exists
 
 from src.common.repositories import GenericRepository
-from src.modules.event.models import Event, EventStatus, EventCategory
+from src.modules.event.models import Event, EventStatus, EventCategory, EventState
 
 
 class EventCategoryRepository(GenericRepository[EventCategory], model=EventCategory):
-    async def create(  # TODO add logic where Category cannot be created if parents has events.
+    async def create(
             self,
             **kwargs
-    ) -> EventCategory:
+    ) -> EventCategory | None:
+        parent_id = kwargs.get('parent_id', None)
+        if parent_id is not None:
+            q = select(
+                exists().where(
+                    (self.model.id == parent_id) &
+                    (~self.model.events.any())
+                )
+            )
+            res = await self.session.execute(q)
+            if not res.scalar():
+                return None
+
         obj = self.model(**kwargs)
         self.session.add(obj)
         await self.session.flush()
@@ -19,10 +31,21 @@ class EventCategoryRepository(GenericRepository[EventCategory], model=EventCateg
 
 
 class EventRepository(GenericRepository[Event], model=Event):
-    async def create(  # TODO add logic where Event cannot be created if category has children.
+    async def create(
             self,
             **kwargs
-    ) -> Event:
+    ) -> Event | None:
+        category_id = kwargs.get('category_id')
+        q = select(
+            exists().where(
+                (EventCategory.id == category_id) &
+                (~EventCategory.children.any())
+            )
+        )
+        res = await self.session.execute(q)
+        if not res.scalar():
+            return None
+
         obj = self.model(**kwargs)
         self.session.add(obj)
         await self.session.flush()
@@ -36,11 +59,11 @@ class EventRepository(GenericRepository[Event], model=Event):
     ) -> bool:
         q = update(self.model).values(
             id=event_id,
-            is_cancelled=True
+            state=EventState.CANCELED
         ).where(
             (self.model.id == event_id) &
             (self.model.user_id == user_id) &
-            (self.model.status == EventStatus.UPCOMING)
+            (self.model.state == EventState.APPROVED)
         )
         rows_updated = await self._execute_modification(q=q)
 
@@ -57,7 +80,7 @@ class EventRepository(GenericRepository[Event], model=Event):
         ).where(
             (self.model.id == event_id) &
             (self.model.user_id == user_id) &
-            (self.model.status == EventStatus.DRAFT)
+            (self.model.state == EventState.DRAFT)
         )
         rows_updated = await self._execute_modification(q=q)
 
@@ -69,17 +92,33 @@ class EventRepository(GenericRepository[Event], model=Event):
             user_id: int,
     ) -> bool:
         q = update(self.model).values(
-            is_published=True
+            state=EventState.ON_MODERATION
         ).where(
             (self.model.id == event_id) &
             (self.model.user_id == user_id) &
-            (self.model.status == EventStatus.DRAFT)
+            (self.model.state == EventState.DRAFT)
         )
         rows_updated = await self._execute_modification(q=q)
 
         return rows_updated > 0
 
-    async def get_available(
+    async def moderate(
+            self,
+            event_id: int,
+            result: bool
+    ) -> bool:
+        new_state = EventState.APPROVED if result else EventState.REJECTED
+
+        q = update(self.model).values(
+            state=new_state
+        ).where(
+            self.model.id == event_id
+        )
+        rows_updated = await self._execute_modification(q=q)
+
+        return rows_updated > 0
+
+    async def get_upcoming(
             self,
             offset: int = 0,
             limit: int = 100,
@@ -90,6 +129,25 @@ class EventRepository(GenericRepository[Event], model=Event):
             filters = {}
 
         filters["status"] = EventStatus.UPCOMING
+
+        return await self.get_all(
+            offset=offset,
+            limit=limit,
+            filters=filters,
+            order_by=order_by
+        )
+
+    async def get_for_moderation(
+            self,
+            offset: int = 0,
+            limit: int = 100,
+            filters: dict[str, Any] = None,
+            order_by: str | None = None
+    ) -> tuple[list[Event], int]:
+        if filters is None:
+            filters = {}
+
+        filters["state"] = EventState.ON_MODERATION
 
         return await self.get_all(
             offset=offset,

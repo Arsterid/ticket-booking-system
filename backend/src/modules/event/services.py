@@ -1,3 +1,5 @@
+from typing import Any
+
 from src.common.services import GenericService
 from src.core.exceptions import ObjectNotFoundException
 from src.common.schemas import PaginatedResponseSchema
@@ -65,9 +67,9 @@ class EventService(GenericService[AppUnitOfWork]):
             self,
             event_id: int,
             user_id: int,
-    ) -> int:
+    ) -> bool:
         async with self.uow:
-            is_canceled = await self.uow.event.cancel(event_id, user_id)
+            is_canceled = await self.uow.event.cancel(event_id=event_id, user_id=user_id)
             if not is_canceled:
                 raise ObjectNotFoundException(
                     table=self.uow.event.model_name,
@@ -76,13 +78,60 @@ class EventService(GenericService[AppUnitOfWork]):
             await self.uow.commit()
             return True
 
-    async def get_active_events(
+    async def moderate(
             self,
+            event_id: int,
+            result: bool
+    ) -> bool:
+        async with self.uow:
+            is_moderated = await self.uow.event.moderate(
+                event_id=event_id,
+                result=result
+            )
+            if not is_moderated:
+                raise ObjectNotFoundException(
+                    table=self.uow.event.model_name,
+                    value=event_id,
+                )
+            await self.uow.commit()
+            return True
+
+    async def get_for_moderation(
+            self,
+            filters: dict[str, Any],
             offset: int = 0,
             limit: int = 100,
+            order_by: str = None,
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.event.get_available(offset, limit)
+            items, count = await self.uow.event.get_for_moderation(
+                filters=filters,
+                offset=offset,
+                limit=limit,
+                order_by=order_by
+            )
+
+            return self._paginate(
+                schema=EventResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
+    async def get_upcoming(
+            self,
+            filters: dict[str, Any],
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str = None,
+    ) -> PaginatedResponseSchema[EventResponseSchema]:
+        async with self.uow:
+            items, count = await self.uow.event.get_upcoming(
+                filters=filters,
+                offset=offset,
+                limit=limit,
+                order_by=order_by
+            )
             return self._paginate(
                 schema=EventResponseSchema,
                 items=items,
@@ -92,12 +141,20 @@ class EventService(GenericService[AppUnitOfWork]):
 
     async def get_by_user(
             self,
+            filters: dict[str, Any],
             user_id: int,
             offset: int = 0,
             limit: int = 100,
+            order_by: str = None,
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.event.get_by_user(user_id, offset, limit)
+            items, count = await self.uow.event.get_by_user(
+                user_id=user_id,
+                filters=filters,
+                offset=offset,
+                limit=limit,
+                order_by=order_by
+            )
             return self._paginate(
                 schema=EventResponseSchema,
                 items=items,

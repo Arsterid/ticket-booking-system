@@ -1,11 +1,10 @@
 from fastapi import APIRouter
 from starlette import status
 
-from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericIdResponseSchema, PaginatedResponseSchema, GenericSuccessResponseSchema
-from src.modules.event.dependencies import EventServiceDep
+from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFiltersDep, EventsByUserFiltersDep
 from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema
-from src.modules.user.dependencies import AnyUserIdDep
+from src.modules.user.dependencies import VerifiedUserIdDep
 
 router = APIRouter(
     prefix="/events",
@@ -14,7 +13,7 @@ router = APIRouter(
 )
 
 
-# TODO category logic
+# TODO event category logic
 
 @router.post(
     "/",
@@ -24,7 +23,7 @@ router = APIRouter(
 async def create(
         event_service: EventServiceDep,
         body: EventCreateSchema,
-        user_id: AnyUserIdDep
+        user_id: VerifiedUserIdDep
 ) -> EventResponseSchema:
     return await event_service.create(data=body, user_id=user_id)
 
@@ -37,7 +36,7 @@ async def create(
 async def update(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: AnyUserIdDep,
+        user_id: VerifiedUserIdDep,
         body: EventUpdateSchema
 ) -> GenericSuccessResponseSchema:
     result = await event_service.update(event_id=event_id, user_id=user_id, body=body)
@@ -52,7 +51,7 @@ async def update(
 async def publish(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: AnyUserIdDep
+        user_id: VerifiedUserIdDep
 ) -> GenericSuccessResponseSchema:
     result = await event_service.publish(event_id=event_id, user_id=user_id)
     return GenericSuccessResponseSchema(success=result)
@@ -66,7 +65,7 @@ async def publish(
 async def cancel(
         event_service: EventServiceDep,
         event_id: int,
-        user_id: AnyUserIdDep
+        user_id: VerifiedUserIdDep
 ) -> GenericIdResponseSchema:
     await event_service.cancel(event_id=event_id, user_id=user_id)
     return GenericIdResponseSchema(id=event_id)
@@ -79,11 +78,13 @@ async def cancel(
 )
 async def get_upcoming(
         event_service: EventServiceDep,
-        pagination: PaginationParamsDep
+        filters: UpcomingEventsFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_active_events(
-        offset=pagination.offset,
-        limit=pagination.limit,
+    return await event_service.get_upcoming(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
     )
 
 
@@ -92,15 +93,15 @@ async def get_upcoming(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
 )
-async def get_by_user(
+async def get_by_current_user(
         event_service: EventServiceDep,
-        user_id: AnyUserIdDep,
-        pagination: PaginationParamsDep
+        user_id: VerifiedUserIdDep,
+        filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_by_user(
+    return await event_service.get_by_user_id(
         user_id=user_id,
-        offset=pagination.offset,
-        limit=pagination.limit,
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
     )
-
-# TODO add proper filtration?

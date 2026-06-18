@@ -3,30 +3,16 @@ from starlette import status
 
 from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSchema
-from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep
+from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep, TicketsFiltersDep
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketTypeCreateSchema, TicketCreateSchema, \
     TicketResponseSchema, TicketBookSchema
-from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep
+from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep, VerifiedUserIdDep
 
 router = APIRouter(
     prefix="/tickets",
     tags=["tickets"],
     responses={404: {"description": "Not found"}},
 )
-
-
-@router.get(
-    "/types",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
-)
-async def get_types_by_user_id(
-        ticket_service: TicketServiceDep,
-        user_id: AnyUserIdDep
-) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
-    return await ticket_service.get_types_by_user_id(
-        user_id=user_id
-    )
 
 
 @router.post(
@@ -37,7 +23,7 @@ async def get_types_by_user_id(
 async def get_or_create_then_assign_to_user(
         body: TicketTypeCreateSchema,
         user_ticket_service: UserTicketServiceDep,
-        user_id: AnyUserIdDep,
+        user_id: VerifiedUserIdDep,
 ) -> GenericSuccessResponseSchema:
     is_success = await user_ticket_service.get_or_create_ticket_type_and_assign_to_user(
         user_id=user_id,
@@ -45,30 +31,6 @@ async def get_or_create_then_assign_to_user(
     )
     return GenericSuccessResponseSchema(success=is_success)
 
-
-@router.get(
-    "/",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[TicketResponseSchema]
-)
-async def get_available(
-        ticket_service: TicketServiceDep,
-        pagination: PaginationParamsDep
-) -> PaginatedResponseSchema[TicketResponseSchema]:
-    return await ticket_service.get_available(offset=pagination.offset, limit=pagination.limit)
-
-
-@router.get(
-    "/my",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[TicketResponseSchema]
-)
-async def get_by_user(
-        ticket_service: TicketServiceDep,
-        user_id: AnyUserIdDep,
-        pagination: PaginationParamsDep
-) -> PaginatedResponseSchema[TicketResponseSchema]:
-    return await ticket_service.get_by_user(user_id=user_id, offset=pagination.offset, limit=pagination.limit)
 
 
 @router.post(
@@ -79,7 +41,7 @@ async def get_by_user(
 async def create(
         body: TicketCreateSchema,
         ticket_service: TicketServiceDep,
-        user_id: AnyUserIdDep
+        user_id: VerifiedUserIdDep
 ) -> TicketResponseSchema:
     return await ticket_service.create(
         user_id=user_id,
@@ -119,3 +81,56 @@ async def pay(
     await ticket_service.pay(ticket_id=ticket_id)
 
     return GenericSuccessResponseSchema(success=True)
+
+
+@router.get(
+    "/types",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
+)
+async def get_by_user_id(
+        ticket_service: TicketServiceDep,
+        user_id: VerifiedUserIdDep,
+        filters: PaginationParamsDep
+) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
+    return await ticket_service.get_types_by_user_id(
+        user_id=user_id,
+        offset=filters.offset,
+        limit=filters.limit
+    )
+
+
+@router.get(  # TODO add filters
+    "/",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketResponseSchema]
+)
+async def get_available(
+        ticket_service: TicketServiceDep,
+        filters: TicketsFiltersDep
+) -> PaginatedResponseSchema[TicketResponseSchema]:
+    return await ticket_service.get_available(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"offset", "limit", "order_by"})
+    )
+
+
+@router.get(  # TODO add filters
+    "/my",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketResponseSchema]
+)
+async def get_by_current_user(
+        ticket_service: TicketServiceDep,
+        user_id: VerifiedUserIdDep,
+        filters: TicketsFiltersDep
+) -> PaginatedResponseSchema[TicketResponseSchema]:
+    return await ticket_service.get_by_user(
+        user_id=user_id,
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"offset", "limit", "order_by"})
+    )

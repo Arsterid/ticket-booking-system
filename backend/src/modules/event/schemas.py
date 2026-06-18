@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import Field, AwareDatetime, model_validator, BaseModel
 
+from src.common.schemas import FilterParamsSchema
 from src.modules.event.models import EventType
 
 
@@ -56,3 +57,22 @@ class EventResponseSchema(BaseModel):
     event_date: AwareDatetime
     address: Optional[str]
     name: str
+
+
+class EventsByUserFilterParamsSchema(FilterParamsSchema):
+    category_id: Optional[int] = None
+    event_type: Optional[EventType] = None
+    address: Optional[Optional[str]] = None
+    event_date: Optional[AwareDatetime] = None
+    event_date__gte: Optional[AwareDatetime] = None
+    event_date__lte: Optional[AwareDatetime] = None
+
+
+class UpcomingEventsFilterParamsSchema(FilterParamsSchema):
+    category_id: Optional[int] = None
+    event_type: Optional[EventType] = None
+    address: Optional[Optional[str]] = None
+    event_date: Optional[AwareDatetime] = None
+    event_date__gte: Optional[AwareDatetime] = None
+    event_date__lte: Optional[AwareDatetime] = None
+    user_id: Optional[int] = None

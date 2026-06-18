@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import select, update, exists
 from sqlalchemy.exc import IntegrityError
@@ -30,26 +30,41 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             self,
             offset: int = 0,
             limit: int = 100,
+            filters: dict[str, Any] = None,
+            order_by: str | None = None
     ) -> tuple[list[Ticket], int]:
-        q = select(self.model).join(
-            Event
-        ).where(
-            (self.model.status == TicketStatus.AVAILABLE) &
-            (self.model.event.status == EventStatus.UPCOMING)
-        )
+        if filters is None:
+            filters = {}
 
-        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)
+        filters["status"] = TicketStatus.AVAILABLE
+        filters["event.status"] = EventStatus.UPCOMING
+
+        return await self.get_all(
+            offset=offset,
+            limit=limit,
+            filters=filters,
+            order_by=order_by,
+        )
 
     async def get_by_user(
             self,
             user_id: int,
             offset: int = 0,
             limit: int = 100,
+            filters: dict[str, Any] = None,
+            order_by: str | None = None
     ) -> tuple[list[Ticket], int]:
-        q = select(self.model).where(
-            self.model.user_id == user_id
+        if filters is None:
+            filters = {}
+
+        filters["user_id"] = user_id
+
+        return self.get_all(
+            offset=offset,
+            limit=limit,
+            filters=filters,
+            order_by=order_by,
         )
-        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)
 
     async def check_creation_allowed(
             self,

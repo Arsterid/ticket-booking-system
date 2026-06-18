@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, EmailStr
 
+from src.common.schemas import FilterParamsSchema
 from src.modules.ticket.models import TicketStatus
 
 
@@ -39,3 +40,10 @@ class TicketResponseSchema(BaseModel):
 
 class TicketBookSchema(BaseModel):
     email: Optional[EmailStr] = None
+
+
+class TicketsFilterParamsSchema(FilterParamsSchema):
+    event_id: Optional[int] = Field(None, description='Event id')
+    type_id: Optional[int] = Field(None, description='Type id')
+    price__gte: Optional[int] = Field(None, description='Price min')
+    price__lte: Optional[int] = Field(None, description='Price max')
