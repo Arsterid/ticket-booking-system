@@ -22,7 +22,7 @@ class UserRepository(GenericRepository[User], model=User):
             user_id=user_id,
             ticket_type_id=ticket_type_id
         )
-        res = await self._execute_insert(q.returning(user_ticket_table.c.user_id))
+        res = await super()._execute_insert(q.returning(user_ticket_table.c.user_id))
         return bool(res)
 
     async def unassign_ticket_type(
@@ -34,7 +34,7 @@ class UserRepository(GenericRepository[User], model=User):
             (user_ticket_table.c.user_id == user_id) &
             (user_ticket_table.c.ticket_type_id == ticket_type_id)
         )
-        row_count = await self._execute_modification(q.returning(user_ticket_table.c.user_id))
+        row_count = await super()._execute_modification(q.returning(user_ticket_table.c.user_id))
 
         return row_count > 0
 
@@ -49,7 +49,7 @@ class UserRepository(GenericRepository[User], model=User):
         ).values(
             role=UserRole.ON_VERIFICATION
         )
-        row_count = await self._execute_modification(q)
+        row_count = await super()._execute_modification(q)
 
         return bool(row_count)
 
@@ -63,7 +63,7 @@ class UserRepository(GenericRepository[User], model=User):
         ).values(
             is_active=False
         )
-        row_count = await self._execute_modification(q)
+        row_count = await super()._execute_modification(q)
 
         return bool(row_count)
 
@@ -77,7 +77,7 @@ class UserRepository(GenericRepository[User], model=User):
         ).values(
             is_active=True
         )
-        row_count = await self._execute_modification(q)
+        row_count = await super()._execute_modification(q)
 
         return bool(row_count)
 
@@ -95,7 +95,7 @@ class UserRepository(GenericRepository[User], model=User):
         ).values(
             role=new_role
         )
-        row_count = await self._execute_modification(q)
+        row_count = await super()._execute_modification(q)
 
         return bool(row_count)
 
@@ -111,7 +111,7 @@ class UserRepository(GenericRepository[User], model=User):
 
         filters["role"] = UserRole.ON_VERIFICATION
 
-        return await self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,

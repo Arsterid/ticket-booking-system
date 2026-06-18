@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Enum as SQLEnum, select
 from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
@@ -41,6 +41,16 @@ class EventCategory(AbstractModel):
         back_populates="category"
     )
 
+    @hybrid_property
+    def is_leaf(self) -> bool:
+        return len(self.children) == 0
+
+    @is_leaf.inplace.expression
+    @classmethod
+    def _is_leaf_expression(cls):
+        subq = select(cls.id).where(cls.parent_id == cls.id).exists()
+        return ~subq
+
 
 class EventType(StrEnum):
     OFFLINE = "offline"
@@ -52,14 +62,14 @@ class EventState(StrEnum):
     ON_MODERATION = "on_moderation"
     APPROVED = "approved"
     REJECTED = "rejected"
-    CANCELED = "canceled"
+    CANCELLED = "cancelled"
 
 
 class EventStatus(StrEnum):
     DRAFT = "draft"
     ON_MODERATION = "on_moderation"
     REJECTED = "rejected"
-    CANCELED = "canceled"
+    CANCELLED = "cancelled"
     PAST = "past"
     UPCOMING = "upcoming"
 
@@ -101,8 +111,8 @@ class Event(AbstractModel):
             return EventStatus.ON_MODERATION
         if self.state == EventState.REJECTED:
             return EventStatus.REJECTED
-        if self.state == EventState.CANCELED:
-            return EventStatus.CANCELED
+        if self.state == EventState.CANCELLED:
+            return EventStatus.CANCELLED
 
         if self.event_date < datetime.now():
             return EventStatus.PAST
@@ -115,7 +125,7 @@ class Event(AbstractModel):
             (cls.state == EventState.DRAFT, EventStatus.DRAFT.value),
             (cls.state == EventState.ON_MODERATION, EventStatus.ON_MODERATION.value),
             (cls.state == EventState.REJECTED, EventStatus.REJECTED.value),
-            (cls.state == EventState.CANCELED, EventStatus.CANCELED.value),
+            (cls.state == EventState.CANCELLED, EventStatus.CANCELLED.value),
             (cls.event_date < func.now(), EventStatus.PAST.value),
             else_=EventStatus.UPCOMING.value
         )

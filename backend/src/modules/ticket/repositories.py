@@ -22,7 +22,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             user_id=user_id,
             anonymous_email=None,
         )
-        row_count = await self._execute_modification(q)
+        row_count = await super()._execute_modification(q)
 
         return row_count
 
@@ -39,7 +39,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
         filters["status"] = TicketStatus.AVAILABLE
         filters["event.status"] = EventStatus.UPCOMING
 
-        return await self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,
@@ -59,7 +59,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
 
         filters["user_id"] = user_id
 
-        return self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,
@@ -101,35 +101,35 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
 
         return row[0], row[1], row[2], row[3], row[4]
 
-    async def book(
+    async def reserve(
             self,
             ticket_id: int,
             user_id: int = None,
     ) -> bool:
         q = update(self.model).values(
-            status=TicketStatus.BOOKED,
+            status=TicketStatus.RESERVED,
             user_id=user_id,
         ).where(
             (self.model.id == ticket_id) &
             (self.model.status == TicketStatus.AVAILABLE)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
-    async def book_by_email(
+    async def reserve_by_email(
             self,
             ticket_id: int,
             email: str,
     ) -> bool:
         q = update(self.model).values(
-            status=TicketStatus.BOOKED,
+            status=TicketStatus.RESERVED,
             anonymous_email=email,
         ).where(
             (self.model.id == ticket_id) &
             (self.model.status == TicketStatus.AVAILABLE)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
@@ -138,14 +138,30 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             ticket_id: int
     ) -> bool:
         q = update(self.model).values(
-            status=TicketStatus.PURCHASED
+            status=TicketStatus.PAID
         ).where(
             (self.model.id == ticket_id) &
-            (self.model.status == TicketStatus.BOOKED)
+            (self.model.status == TicketStatus.RESERVED)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
+
+    async def return_to_available_if_not_paid(
+            self,
+            ticket_id: int,
+    ) -> bool:
+        q = update(self.model).values(
+            user_id=None,
+            anonymous_email=None,
+            status=TicketStatus.AVAILABLE
+        ).where(
+            (self.model.id == ticket_id) &
+            (self.model.status == TicketStatus.RESERVED)
+        )
+        rows_updates = await super()._execute_modification(q=q)
+
+        return rows_updates > 0
 
 
 class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
@@ -162,11 +178,7 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
 
         try:
             async with self.session.begin_nested():
-                obj = self.model(name=name)
-                self.session.add(obj)
-                await self.session.flush()
-                await self.session.refresh(obj)
-            await self.session.refresh(obj)
+                obj = await super().create(name=name)
             return obj
         except IntegrityError:
             res = await self.session.execute(q)

@@ -23,8 +23,8 @@ class TicketType(AbstractModel):
 
 class TicketStatus(StrEnum):
     AVAILABLE = 'available'
-    BOOKED = "booked"
-    PURCHASED = "purchased"
+    RESERVED = "reserved"
+    PAID = "paid"
 
 
 class Ticket(AbstractModel):

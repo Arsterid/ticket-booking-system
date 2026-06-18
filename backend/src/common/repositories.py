@@ -4,6 +4,7 @@ from typing import Type, Generic, Optional, Sequence, Union, Any, Callable
 from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.interfaces import ORMOption
 
 from src.common.annotations import ModelType
 
@@ -70,9 +71,13 @@ class GenericRepository(ABC, Generic[ModelType]):
             offset: int = 0,
             limit: int = 100,
             filters: dict[str, Any] | None = None,
-            order_by: str | None = None
+            order_by: str | None = None,
+            *,
+            options: Sequence[ORMOption] | None = None,
     ) -> tuple[list[ModelType], int]:
         q = select(self.model)
+        if options is not None:
+            q = q.options(*options)
 
         if filters:
             for key, value in filters.items():
@@ -123,7 +128,8 @@ class GenericRepository(ABC, Generic[ModelType]):
 
         paginated_q = q.offset(offset).limit(limit)
         result = await self.session.execute(paginated_q)
-        items = list(result.scalars().all())
+
+        items = list(result.scalars().unique().all())
 
         return items, total_count
 

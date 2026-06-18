@@ -60,7 +60,7 @@ async def book(
         user_id: OptionalUserIdDep,
         ticket_id: int
 ) -> GenericSuccessResponseSchema:
-    await ticket_service.book(
+    await ticket_service.reserve(
         ticket_id=ticket_id,
         user_id=user_id,
         anonymous_email=body.anonymous_email
@@ -88,7 +88,7 @@ async def pay(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
 )
-async def get_by_user_id(
+async def by_user_id(
         ticket_service: TicketServiceDep,
         user_id: VerifiedUserIdDep,
         filters: PaginationParamsDep
@@ -100,12 +100,12 @@ async def get_by_user_id(
     )
 
 
-@router.get(  # TODO add filters
+@router.get(
     "/",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]
 )
-async def get_available(
+async def available(
         ticket_service: TicketServiceDep,
         filters: TicketsFiltersDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:
@@ -117,12 +117,12 @@ async def get_available(
     )
 
 
-@router.get(  # TODO add filters
+@router.get(
     "/my",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]
 )
-async def get_by_current_user(
+async def by_current_user(
         ticket_service: TicketServiceDep,
         user_id: VerifiedUserIdDep,
         filters: TicketsFiltersDep

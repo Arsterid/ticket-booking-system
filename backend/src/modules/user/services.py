@@ -8,6 +8,7 @@ from src.core.security.jwt_tokens import JWTManager
 from src.core.uow import AppUnitOfWork
 from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException
 from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema
+from src.modules.user.tasks import transfer_tickets_from_anonym_task
 
 
 class UserService(GenericService[AppUnitOfWork]):
@@ -30,6 +31,9 @@ class UserService(GenericService[AppUnitOfWork]):
 
             user_id = await self.uow.user.create(**user_data)
             await self.uow.commit()
+
+            await transfer_tickets_from_anonym_task.kiq(email=data.email)
+
             return user_id
 
     async def authenticate(

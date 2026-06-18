@@ -2,8 +2,10 @@ from fastapi import APIRouter
 from starlette import status
 
 from src.common.schemas import GenericIdResponseSchema, PaginatedResponseSchema, GenericSuccessResponseSchema
-from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFiltersDep, EventsByUserFiltersDep
-from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema
+from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFiltersDep, EventsByUserFiltersDep, \
+    EventCategoryFiltersDep
+from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema, \
+    EventCategoryResponseSchema
 from src.modules.user.dependencies import VerifiedUserIdDep
 
 router = APIRouter(
@@ -12,8 +14,6 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
-# TODO event category logic
 
 @router.post(
     "/",
@@ -72,11 +72,28 @@ async def cancel(
 
 
 @router.get(
+    "/categories",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
+)
+async def categories(
+        event_service: EventServiceDep,
+        filters: EventCategoryFiltersDep
+) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
+    return await event_service.get_categories(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+    )
+
+
+@router.get(
     "/",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
 )
-async def get_upcoming(
+async def upcoming(
         event_service: EventServiceDep,
         filters: UpcomingEventsFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
@@ -93,7 +110,7 @@ async def get_upcoming(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
 )
-async def get_by_current_user(
+async def by_current_user(
         event_service: EventServiceDep,
         user_id: VerifiedUserIdDep,
         filters: EventsByUserFiltersDep

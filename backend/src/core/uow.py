@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from src.core.database import async_session_maker
 
 if TYPE_CHECKING:
-    from src.modules.event.repositories import EventRepository
+    from src.modules.event.repositories import EventRepository, EventCategoryRepository
     from src.modules.ticket.repositories import TicketRepository, TicketTypeRepository
     from src.modules.user.repositories import UserRepository
 
@@ -19,6 +19,7 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
     """
     user: UserRepository
     event: EventRepository
+    event_category: EventCategoryRepository
     ticket: TicketRepository
     ticket_type: TicketTypeRepository
 

@@ -3,8 +3,8 @@ from starlette import status
 
 from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema, \
     GenericModerationSchema
-from src.modules.event.dependencies import EventServiceDep, EventsByUserFiltersDep
-from src.modules.event.schemas import EventResponseSchema
+from src.modules.event.dependencies import EventServiceDep, EventsByUserFiltersDep, EventCategoryFiltersDep
+from src.modules.event.schemas import EventResponseSchema, EventCategoryResponseSchema
 from src.modules.user.dependencies import ModeratorUserIdDep, AdminUserIdDep, UserFiltersDep, \
     UserServiceDep
 from src.modules.user.schemas import UserResponseSchema
@@ -93,6 +93,36 @@ admin_router = APIRouter(
 )
 
 
+@admin_router.post(
+    "/categories",
+    status_code=status.HTTP_201_CREATED,
+    response_model=GenericSuccessResponseSchema,
+)
+async def create(
+        event_service: EventServiceDep,
+) -> GenericSuccessResponseSchema:
+    return event_service.create_category(
+        data=event_service
+    )
+
+
+@admin_router.get(
+    "/categories",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
+)
+async def categories(
+        event_service: EventServiceDep,
+        filters: EventCategoryFiltersDep
+) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
+    return await event_service.get_categories(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+    )
+
+
 @admin_router.patch(
     "/users/{user_id}/ban",
     status_code=status.HTTP_200_OK,
@@ -122,4 +152,3 @@ async def unban_user(
     )
     return GenericSuccessResponseSchema(success=is_success)
 
-# TODO EventCategory creation logic

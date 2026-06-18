@@ -48,6 +48,18 @@ class EventUpdateSchema(BaseModel):
         return self
 
 
+class EventCategoryCreateSchema(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    parent_id: Optional[int] = None
+
+
+class EventCategoryResponseSchema(BaseModel):
+    id: int
+    name: str
+    parent_id: Optional[int] = None
+    is_leaf: bool
+
+
 class EventResponseSchema(BaseModel):
     id: int
     owner_id: int
@@ -57,6 +69,12 @@ class EventResponseSchema(BaseModel):
     event_date: AwareDatetime
     address: Optional[str]
     name: str
+
+
+class EventCategoryFilterParamsSchema(FilterParamsSchema):
+    name__ilike: Optional[str] = None
+    parent_id: Optional[int] = None
+    is_leaf: Optional[bool] = None
 
 
 class EventsByUserFilterParamsSchema(FilterParamsSchema):

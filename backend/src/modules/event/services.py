@@ -3,7 +3,8 @@ from typing import Any
 from src.common.services import GenericService
 from src.core.exceptions import ObjectNotFoundException
 from src.common.schemas import PaginatedResponseSchema
-from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema
+from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema, \
+    EventCategoryResponseSchema, EventCategoryCreateSchema
 from src.core.uow import AppUnitOfWork
 
 
@@ -14,11 +15,23 @@ class EventService(GenericService[AppUnitOfWork]):
             user_id: int,
     ) -> EventResponseSchema:
         async with self.uow:
-            event_data = data.model_dump()
-            event_data['user_id'] = user_id
-            event_obj = await self.uow.event.create(**event_data)
+            event_obj = await self.uow.event.create(
+                user_id=user_id,
+                **data.model_dump()
+            )
             await self.uow.commit()
             return EventResponseSchema.model_validate(event_obj)
+
+    async def create_category(
+            self,
+            data: EventCategoryCreateSchema
+    ) -> EventCategoryResponseSchema:
+        async with self.uow:
+            category_obj = await self.uow.event_category.create(
+                **data.model_dump()
+            )
+            await self.uow.commit()
+            return EventCategoryResponseSchema.model_validate(category_obj)
 
     async def publish(
             self,
@@ -157,6 +170,27 @@ class EventService(GenericService[AppUnitOfWork]):
             )
             return self._paginate(
                 schema=EventResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
+    async def get_categories(
+            self,
+            filters: dict[str, Any],
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str = None,
+    ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
+        async with self.uow:
+            items, count = await self.uow.event_category.get_all_with_children(
+                filters=filters,
+                offset=offset,
+                limit=limit,
+                order_by=order_by
+            )
+            return self._paginate(
+                schema=EventCategoryResponseSchema,
                 items=items,
                 total_items=count,
                 limit=limit,

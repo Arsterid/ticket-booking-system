@@ -1,6 +1,7 @@
 from typing import Any
 
 from sqlalchemy import update, select, exists
+from sqlalchemy.orm import selectinload
 
 from src.common.repositories import GenericRepository
 from src.modules.event.models import Event, EventStatus, EventCategory, EventState
@@ -11,23 +12,32 @@ class EventCategoryRepository(GenericRepository[EventCategory], model=EventCateg
             self,
             **kwargs
     ) -> EventCategory | None:
-        parent_id = kwargs.get('parent_id', None)
-        if parent_id is not None:
+        if (parent_id := kwargs.get('parent_id')) is not None:
             q = select(
                 exists().where(
                     (self.model.id == parent_id) &
                     (~self.model.events.any())
                 )
             )
-            res = await self.session.execute(q)
-            if not res.scalar():
+            if not (await self.session.execute(q)).scalar():
                 return None
 
-        obj = self.model(**kwargs)
-        self.session.add(obj)
-        await self.session.flush()
-        await self.session.refresh(obj)
-        return obj
+        return await super().create(**kwargs)
+
+    async def get_all_with_children(
+            self,
+            offset: int = 0,
+            limit: int = 100,
+            filters: dict[str, Any] | None = None,
+            order_by: str | None = None
+    ) -> tuple[list[EventCategory], int]:
+        return await super().get_all(
+            offset=offset,
+            limit=limit,
+            filters=filters,
+            order_by=order_by,
+            options=[selectinload(self.model.children)]
+        )
 
 
 class EventRepository(GenericRepository[Event], model=Event):
@@ -46,11 +56,7 @@ class EventRepository(GenericRepository[Event], model=Event):
         if not res.scalar():
             return None
 
-        obj = self.model(**kwargs)
-        self.session.add(obj)
-        await self.session.flush()
-        await self.session.refresh(obj)
-        return obj
+        return await super().create(**kwargs)
 
     async def cancel(
             self,
@@ -59,13 +65,13 @@ class EventRepository(GenericRepository[Event], model=Event):
     ) -> bool:
         q = update(self.model).values(
             id=event_id,
-            state=EventState.CANCELED
+            state=EventState.CANCELLED
         ).where(
             (self.model.id == event_id) &
             (self.model.user_id == user_id) &
             (self.model.state == EventState.APPROVED)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
@@ -82,7 +88,7 @@ class EventRepository(GenericRepository[Event], model=Event):
             (self.model.user_id == user_id) &
             (self.model.state == EventState.DRAFT)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
@@ -98,7 +104,7 @@ class EventRepository(GenericRepository[Event], model=Event):
             (self.model.user_id == user_id) &
             (self.model.state == EventState.DRAFT)
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
@@ -114,7 +120,7 @@ class EventRepository(GenericRepository[Event], model=Event):
         ).where(
             self.model.id == event_id
         )
-        rows_updated = await self._execute_modification(q=q)
+        rows_updated = await super()._execute_modification(q=q)
 
         return rows_updated > 0
 
@@ -130,7 +136,7 @@ class EventRepository(GenericRepository[Event], model=Event):
 
         filters["status"] = EventStatus.UPCOMING
 
-        return await self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,
@@ -149,7 +155,7 @@ class EventRepository(GenericRepository[Event], model=Event):
 
         filters["state"] = EventState.ON_MODERATION
 
-        return await self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,
@@ -169,7 +175,7 @@ class EventRepository(GenericRepository[Event], model=Event):
 
         filters["user_id"] = user_id
 
-        return await self.get_all(
+        return await super().get_all(
             offset=offset,
             limit=limit,
             filters=filters,

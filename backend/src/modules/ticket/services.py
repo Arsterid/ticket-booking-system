@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 
 from src.common.services import GenericService
@@ -7,6 +8,7 @@ from src.common.schemas import PaginatedResponseSchema
 from src.modules.event.models import EventStatus
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema
 from src.core.uow import AppUnitOfWork
+from src.modules.ticket.tasks import cancel_reservation_task
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -107,13 +109,14 @@ class TicketService(GenericService[AppUnitOfWork]):
                     value=data.type_id
                 )
 
-            ticket_data = data.model_dump()
-            obj = await self.uow.ticket.create(**ticket_data)
+            obj = await self.uow.ticket.create(
+                **data.model_dump()
+            )
 
             await self.uow.commit()
             return TicketResponseSchema.model_validate(obj)
 
-    async def book(
+    async def reserve(
             self,
             ticket_id: int,
             user_id: Optional[int] = None,
@@ -133,20 +136,25 @@ class TicketService(GenericService[AppUnitOfWork]):
                         table=self.uow.user.model_name,
                         value=user_id
                     )
-                is_booked = await self.uow.ticket.book(
+                is_reserved = await self.uow.ticket.reserve(
                     ticket_id=ticket_id,
                     user_id=user_id
                 )
             else:
-                is_booked = await self.uow.ticket.book_by_email(
+                is_reserved = await self.uow.ticket.reserve_by_email(
                     ticket_id=ticket_id,
                     email=anonymous_email
                 )
 
-            if not is_booked:
+            if not is_reserved:
                 raise RaceConditionException(table=self.uow.ticket.model_name)
 
             await self.uow.commit()
+
+            await cancel_reservation_task.kiq(ticket_id=ticket_id).schedule_by_time(
+                datetime.now(timezone.utc) + timedelta(minutes=15),
+            )
+
             return True
 
     async def pay(
@@ -154,13 +162,25 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket_id: int
     ) -> bool:
         async with self.uow:
-            is_paid = self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
+            is_paid = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
 
             if not is_paid:
                 raise RaceConditionException(table=self.uow.ticket.model_name)
 
             await self.uow.commit()
             return True
+
+    async def return_to_available_if_not_paid(
+            self,
+            ticket_id: int
+    ) -> bool:
+        async with self.uow:
+            is_cancelled = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
+
+            if is_cancelled:
+                await self.uow.commit()
+
+            return is_cancelled
 
 
 class UserTicketService(GenericService[AppUnitOfWork]):
