@@ -6,16 +6,16 @@ from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSc
 from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep, TicketsFiltersDep
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketTypeCreateSchema, TicketCreateSchema, \
     TicketResponseSchema, TicketBookSchema
-from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep, VerifiedUserIdDep
+from src.modules.user.dependencies import OptionalUserIdDep, VerifiedUserIdDep
 
-router = APIRouter(
+ticket_router = APIRouter(
     prefix="/tickets",
     tags=["tickets"],
     responses={404: {"description": "Not found"}},
 )
 
 
-@router.post(
+@ticket_router.post(
     "/types",
     status_code=status.HTTP_201_CREATED,
     response_model=GenericSuccessResponseSchema
@@ -33,7 +33,7 @@ async def get_or_create_then_assign_to_user(
 
 
 
-@router.post(
+@ticket_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
     response_model=TicketResponseSchema
@@ -49,7 +49,7 @@ async def create(
     )
 
 
-@router.patch(
+@ticket_router.patch(
     "/{ticket_id}/book",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema
@@ -69,7 +69,7 @@ async def book(
     return GenericSuccessResponseSchema(success=True)
 
 
-@router.patch(
+@ticket_router.patch(
     "/{ticket_id}/pay",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema
@@ -83,7 +83,7 @@ async def pay(
     return GenericSuccessResponseSchema(success=True)
 
 
-@router.get(
+@ticket_router.get(
     "/types",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
@@ -100,7 +100,7 @@ async def by_user_id(
     )
 
 
-@router.get(
+@ticket_router.get(
     "/",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]
@@ -117,7 +117,7 @@ async def available(
     )
 
 
-@router.get(
+@ticket_router.get(
     "/my",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]

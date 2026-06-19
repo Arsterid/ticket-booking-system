@@ -1,7 +1,7 @@
 import logging
 
 import taskiq_redis
-from taskiq import TaskiqScheduler, TaskiqEvents
+from taskiq import TaskiqScheduler, TaskiqEvents, InMemoryBroker
 from taskiq.schedule_sources import LabelScheduleSource
 from taskiq_redis import ListQueueBroker
 
@@ -9,14 +9,18 @@ from src.core.settings import settings
 
 logger = logging.getLogger("taskiq")
 
-redis_async_results = taskiq_redis.RedisAsyncResultBackend(
-    redis_url=settings.REDIS_URL,
-)
 
-broker = ListQueueBroker(
-    url=settings.REDIS_URL,
-    results_backend=redis_async_results
-)
+if settings.branch == "development":
+    redis_async_results = taskiq_redis.RedisAsyncResultBackend(
+        redis_url=settings.REDIS_URL,
+    )
+
+    broker = ListQueueBroker(
+        url=settings.REDIS_URL,
+        results_backend=redis_async_results
+    )
+else:
+    broker = InMemoryBroker()
 
 scheduler = TaskiqScheduler(
     broker=broker,

@@ -1,0 +1,38 @@
+x-db-env: &db_env
+  POSTGRES_USER: $POSTGRES_USER
+  POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+  POSTGRES_DB: $POSTGRES_DB
+
+
+x-backend-env: &backend_env
+  <<: *db_env
+  POSTGRES_HOST: $POSTGRES_HOST
+  POSTGRES_PORT: $POSTGRES_PORT
+  STATIC_API_KEY: $STATIC_API_KEY
+
+services:
+  postgres_db:
+    image: postgres:16
+    environment:
+      <<: *db_env
+    networks:
+      - fastapi_network
+
+  backend:
+    build: ./backend
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *backend_env
+    depends_on:
+      - postgres_db
+    networks:
+      - fastapi_network
+
+volumes:
+  postgres_data:
+
+networks:
+  fastapi_network:
+    driver: bridge

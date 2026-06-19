@@ -7,14 +7,14 @@ from src.modules.user.dependencies import UserServiceDep, AnyUserIdDep
 from src.modules.user.schemas import UserCreateResponseSchema, UserCreateSchema, UserLoginResponseSchema, \
     UserLoginSchema
 
-router = APIRouter(
+user_router = APIRouter(
     prefix="/users",
     tags=["users"],
     responses={404: {"description": "Not found"}},
 )
 
 
-@router.post(
+@user_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
     response_model=UserCreateResponseSchema
@@ -27,7 +27,7 @@ async def register(
     return UserCreateResponseSchema(id=user_id)
 
 
-@router.post(
+@user_router.post(
     "/login",
     status_code=status.HTTP_200_OK,
     response_model=UserLoginResponseSchema
@@ -46,7 +46,7 @@ async def login(
     return UserLoginResponseSchema(access_token=token, token_type=bearer)
 
 
-@router.post(
+@user_router.post(
     "/verification/apply",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema

@@ -2,11 +2,6 @@ from src.core.tiq import broker, logger
 from src.modules.ticket.dependencies import TicketServiceDep
 
 
-# TODO add task for transferring tickets after user registration.
-
-# TODO celery(?) task to mark unpaid tickets available again.
-
-
 @broker.task(name="cancel_reservation")
 async def cancel_reservation_task(
         ticket_service: TicketServiceDep,

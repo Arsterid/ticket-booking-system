@@ -8,14 +8,14 @@ from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, Ev
     EventCategoryResponseSchema
 from src.modules.user.dependencies import VerifiedUserIdDep
 
-router = APIRouter(
+event_router = APIRouter(
     prefix="/events",
     tags=["events"],
     responses={404: {"description": "Not found"}},
 )
 
 
-@router.post(
+@event_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
     response_model=EventResponseSchema
@@ -28,7 +28,7 @@ async def create(
     return await event_service.create(data=body, user_id=user_id)
 
 
-@router.patch(
+@event_router.patch(
     "/{event_id}",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema
@@ -43,7 +43,7 @@ async def update(
     return GenericSuccessResponseSchema(success=result)
 
 
-@router.patch(
+@event_router.patch(
     "/{event_id}/publish",
     status_code=status.HTTP_200_OK,
     response_model=GenericSuccessResponseSchema
@@ -57,7 +57,7 @@ async def publish(
     return GenericSuccessResponseSchema(success=result)
 
 
-@router.patch(
+@event_router.patch(
     "/{event_id}/cancel",
     status_code=status.HTTP_200_OK,
     response_model=GenericIdResponseSchema
@@ -71,7 +71,7 @@ async def cancel(
     return GenericIdResponseSchema(id=event_id)
 
 
-@router.get(
+@event_router.get(
     "/categories",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
@@ -88,7 +88,7 @@ async def categories(
     )
 
 
-@router.get(
+@event_router.get(
     "/",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
@@ -105,7 +105,7 @@ async def upcoming(
     )
 
 
-@router.get(
+@event_router.get(
     "/my",
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
