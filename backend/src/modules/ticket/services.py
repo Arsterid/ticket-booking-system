@@ -153,7 +153,7 @@ class TicketService(GenericService[AppUnitOfWork]):
 
             await cancel_reservation_task.kiq(ticket_id=ticket_id).schedule_by_time(
                 datetime.now(timezone.utc) + timedelta(minutes=15),
-            )
+            )  # TODO is there a better way?
 
             return True
 

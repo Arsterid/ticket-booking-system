@@ -140,6 +140,27 @@ class UserService(GenericService[AppUnitOfWork]):
             await self.uow.commit()
             return True
 
+    async def get_all(
+            self,
+            filters: dict[str, Any],
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str = None,
+    ) -> PaginatedResponseSchema[UserResponseSchema]:
+        async with self.uow:
+            items, count = await self.uow.user.get_all(
+                filters=filters,
+                offset=offset,
+                limit=limit,
+                order_by=order_by
+            )
+            return self._paginate(
+                schema=UserResponseSchema,
+                items=items,
+                total_items=count,
+                limit=limit,
+            )
+
     async def get_for_verification(
             self,
             filters: dict[str, Any],

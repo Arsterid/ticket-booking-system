@@ -1,4 +1,4 @@
-FROM python:3.14 AS builder
+FROM python:3.14-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.4 /uv /uvx /bin/
 
 WORKDIR /backend
@@ -11,7 +11,7 @@ RUN mv .venv .venv-prod
 
 RUN uv sync --frozen
 
-FROM python:3.14 as development
+FROM python:3.14-slim as development
 WORKDIR /backend
 
 COPY --from=builder /backend/.venv /backend/.venv
@@ -19,7 +19,7 @@ COPY . .
 
 ENV PATH="/backend/.venv/bin:$PATH"
 
-FROM python:3.14 AS final
+FROM python:3.14-slim AS final
 
 WORKDIR /backend
 

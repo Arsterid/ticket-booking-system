@@ -32,7 +32,6 @@ async def get_or_create_then_assign_to_user(
     return GenericSuccessResponseSchema(success=is_success)
 
 
-
 @ticket_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
@@ -63,7 +62,7 @@ async def book(
     await ticket_service.reserve(
         ticket_id=ticket_id,
         user_id=user_id,
-        anonymous_email=body.anonymous_email
+        anonymous_email=body.email
     )
 
     return GenericSuccessResponseSchema(success=True)

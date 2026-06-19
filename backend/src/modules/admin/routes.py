@@ -123,6 +123,23 @@ async def categories(
     )
 
 
+@admin_router.get(
+    "/users",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[UserResponseSchema],
+)
+async def get_users(
+        user_service: UserServiceDep,
+        filters: UserFiltersDep
+) -> PaginatedResponseSchema[UserResponseSchema]:
+    return await user_service.get_all(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+    )
+
+
 @admin_router.patch(
     "/users/{user_id}/ban",
     status_code=status.HTTP_200_OK,

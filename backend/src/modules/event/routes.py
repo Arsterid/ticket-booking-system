@@ -115,7 +115,7 @@ async def by_current_user(
         user_id: VerifiedUserIdDep,
         filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_by_user_id(
+    return await event_service.get_by_user(
         user_id=user_id,
         offset=filters.offset,
         limit=filters.limit,
