@@ -1,38 +1,133 @@
 x-db-env: &db_env
-  POSTGRES_USER: $POSTGRES_USER
-  POSTGRES_PASSWORD: $POSTGRES_PASSWORD
-  POSTGRES_DB: $POSTGRES_DB
+  POSTGRES_USER: $PG_USER
+  POSTGRES_PASSWORD: $PG_PASSWORD
+  POSTGRES_DB: $PG_DB
 
+x-test-db-env: &test_db_env
+  POSTGRES_USER: $TEST_PG_USER
+  POSTGRES_PASSWORD: $TEST_PG_PASSWORD
+  POSTGRES_DB: $TEST_PG_DB
 
 x-backend-env: &backend_env
-  <<: *db_env
-  POSTGRES_HOST: $POSTGRES_HOST
-  POSTGRES_PORT: $POSTGRES_PORT
-  STATIC_API_KEY: $STATIC_API_KEY
+  BRANCH: development
+  DB_USER: $PG_USER
+  DB_PASSWORD: $PG_PASSWORD
+  DB_NAME: $PG_DB
+  DB_HOST: db
+  DB_PORT: 5432
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_DB: 0
+  JWT_SECRET_KEY: $JWT_SECRET_KEY
+
+x-tests-env: &tests_env
+  BRANCH: testing
+  DB_USER: $TEST_PG_USER
+  DB_PASSWORD: $TEST_PG_PASSWORD
+  DB_NAME: $TEST_PG_DB
+  DB_HOST: test_db
+  DB_PORT: 5432
+  JWT_SECRET_KEY: $TEST_JWT_SECRET_KEY
 
 services:
-  postgres_db:
-    image: postgres:16
-    environment:
-      <<: *db_env
-    networks:
-      - fastapi_network
-
-  backend:
-    build: ./backend
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+  db:
+    image: postgres:16-alpine
+    container_name: db
+    environment: *db_env
     ports:
-      - "8000:8000"
-    environment:
-      <<: *backend_env
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test_db:
+    image: postgres:16-alpine
+    container_name: db_test
+    environment: *test_db_env
+    ports:
+      - "${TEST_DB_PORT}:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: eqalpha/keydb:x86_64_v6.3.4
+    container_name: redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "keydb-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: fastapi_api
+    command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "${BACKEND_PORT}:8000"
+    environment: *backend_env
+    volumes:
+      - ./backend/src:/backend/src
     depends_on:
-      - postgres_db
-    networks:
-      - fastapi_network
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  taskiq_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: taskiq_worker
+    command: taskiq worker src.core.tiq:broker
+    environment: *backend_env
+    volumes:
+      - ./backend/src:/backend/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  taskiq_scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: final
+    container_name: taskiq_scheduler
+    command: taskiq scheduler src.core.tiq:broker
+    environment: *backend_env
+    volumes:
+      - ./backend/src:/backend/src
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  tests:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: fastapi_test_runner
+    environment: *tests_env
+    command: sh -c "alembic upgrade head && pytest --cov=src tests/"
+    volumes:
+      - ./backend:/backend
+    depends_on:
+      test_db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
-
-networks:
-  fastapi_network:
-    driver: bridge
