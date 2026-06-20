@@ -2,11 +2,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, EmailStr
 
-from src.common.schemas import FilterParamsSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema
 from src.modules.ticket.models import TicketStatus
 
 
-class TicketTypeResponseSchema(BaseModel):
+class TicketTypeResponseSchema(GenericResponseSchema):
     id: int
     name: str
 
@@ -26,15 +26,16 @@ class TicketTypeCreateSchema(BaseModel):
 class TicketCreateSchema(BaseModel):
     event_id: int
     type_id: int
+    price: int
 
 
-class TicketResponseSchema(BaseModel):
+class TicketResponseSchema(GenericResponseSchema):
     id: int
     event_id: int
     type_id: int
     price: int
     status: TicketStatus
-    owner_id: Optional[int]
+    user_id: Optional[int]
     anonymous_email: Optional[EmailStr]
 
 

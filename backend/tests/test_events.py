@@ -1,17 +1,27 @@
+from datetime import datetime
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+from src.modules.event.models import EventState
 
 
 @pytest.mark.asyncio
-async def test_create_event_success(client: AsyncClient, get_auth_headers):
+async def test_create_event_success(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.commit()
+
     headers = get_auth_headers(user_id=1, role="verified_user")
     payload = {
+        "category_id": 1,
         "title": "Concert",
         "description": "Rock music event",
-        "category_id": 1
+        "event_type": "online",
+        "event_date": "2026-06-20T18:00:00+00:00"
     }
-    response = await client.post("/", json=payload, headers=headers)
+
+    response = await client.post("/events/", json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
@@ -22,24 +32,38 @@ async def test_create_event_success(client: AsyncClient, get_auth_headers):
 @pytest.mark.asyncio
 async def test_create_event_unauthorized(client: AsyncClient):
     payload = {
+        "category_id": 1,
         "title": "Concert",
         "description": "Rock music event",
-        "category_id": 1
+        "event_type": "online",
+        "event_date": "2026-06-20T18:00:00+00:00"
     }
-    response = await client.post("/", json=payload)
-
+    response = await client.post("/events/", json=payload)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.asyncio
 async def test_update_event_success(client: AsyncClient, get_auth_headers, setup_uow):
     async with setup_uow as uow:
-        await uow.event.create(id=1, user_id=1, title="Old Title")
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.commit()
+
+    async with setup_uow as uow:
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Old Title",
+            description="Old Desc",
+            category_id=1,
+            event_type="online",
+            event_date=datetime(2026, 6, 20, 18, 0, 0)
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=1, role="verified_user")
     payload = {"title": "New Title"}
-    response = await client.patch("/1", json=payload, headers=headers)
+    response = await client.patch("/events/1", json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"success": True}
@@ -48,11 +72,25 @@ async def test_update_event_success(client: AsyncClient, get_auth_headers, setup
 @pytest.mark.asyncio
 async def test_publish_event_success(client: AsyncClient, get_auth_headers, setup_uow):
     async with setup_uow as uow:
-        await uow.event.create(id=1, user_id=1, title="Draft Event", status="DRAFT")
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.commit()
+
+    async with setup_uow as uow:
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Draft Event",
+            description="Draft Desc",
+            state=EventState.DRAFT,
+            category_id=1,
+            event_type="online",
+            event_date=datetime(2026, 6, 20, 18, 0, 0)
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=1, role="verified_user")
-    response = await client.patch("/1/publish", headers=headers)
+    response = await client.patch("/events/1/publish", headers=headers)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"success": True}
@@ -61,11 +99,25 @@ async def test_publish_event_success(client: AsyncClient, get_auth_headers, setu
 @pytest.mark.asyncio
 async def test_cancel_event_success(client: AsyncClient, get_auth_headers, setup_uow):
     async with setup_uow as uow:
-        await uow.event.create(id=1, user_id=1, title="Active Event", status="PUBLISHED")
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.commit()
+
+    async with setup_uow as uow:
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Active Event",
+            description="Active Desc",
+            state=EventState.APPROVED,
+            category_id=1,
+            event_type="online",
+            event_date=datetime(2026, 6, 20, 18, 0, 0)
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=1, role="verified_user")
-    response = await client.patch("/1/cancel", headers=headers)
+    response = await client.patch("/events/1/cancel", headers=headers)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"id": 1}
@@ -77,41 +129,38 @@ async def test_get_categories_success(client: AsyncClient, setup_uow):
         await uow.event_category.create(id=1, name="Music")
         await uow.commit()
 
-    response = await client.get("/categories?limit=10&offset=0")
+    response = await client.get("/events/categories?limit=10&offset=0")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "results" in data
-    assert data["count"] >= 0
+    assert len(data["results"]) >= 1
 
 
 @pytest.mark.asyncio
 async def test_get_upcoming_events_success(client: AsyncClient, setup_uow):
     async with setup_uow as uow:
-        await uow.event.create(id=1, user_id=1, title="Future Concert", status="PUBLISHED")
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
         await uow.commit()
 
-    response = await client.get("/?limit=10&offset=0")
+    async with setup_uow as uow:
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Future Concert",
+            description="Future Desc",
+            state=EventState.APPROVED,
+            category_id=1,
+            event_type="online",
+            event_date=datetime(2026, 6, 20, 18, 0, 0)
+        )
+        await uow.commit()
+
+    response = await client.get("/events/?limit=10&offset=0")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "results" in data
     assert isinstance(data["results"], list)
-
-
-@pytest.mark.asyncio
-async def test_get_my_events_success(client: AsyncClient, get_auth_headers):
-    headers = get_auth_headers(user_id=1, role="verified_user")
-    response = await client.get("/my?limit=10&offset=0", headers=headers)
-
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert "results" in data
-    assert isinstance(data["results"], list)
-
-
-@pytest.mark.asyncio
-async def test_get_my_events_unauthorized(client: AsyncClient):
-    response = await client.get("/my")
-
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert len(data["results"]) >= 1

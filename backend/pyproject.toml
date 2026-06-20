@@ -9,7 +9,7 @@ dependencies = [
     "asyncpg==0.31.0",
     "alembic==1.18.4",
     "pydantic-settings==2.5.2",
-    "pydantic==2.12.5",
+    "pydantic[email]==2.12.5",
     "uvicorn==0.41.0",
     "taskiq==0.12.4",
     "taskiq-redis==1.0.1",
@@ -27,7 +27,8 @@ dev = [
 pythonpath = "."
 testpaths = ["tests"]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 filterwarnings = [
     "ignore::DeprecationWarning"
 ]

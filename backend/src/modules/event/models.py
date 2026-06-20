@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import Enum as SQLEnum, select
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 
@@ -17,12 +17,12 @@ from src.common.orm.models import AbstractModel
 
 
 class EventCategory(AbstractModel):
-    __tablename__ = 'event_category'
+    __tablename__ = 'event_categories'
 
     name: Mapped[str] = mapped_column(String(100))
 
     parent_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey('event_category.id', ondelete='CASCADE')
+        ForeignKey('event_categories.id', ondelete='CASCADE')
     )
     parent: Mapped[Optional["EventCategory"]] = relationship(
         "EventCategory",
@@ -77,15 +77,18 @@ class EventStatus(StrEnum):
 class Event(AbstractModel):
     __tablename__ = 'events'
 
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+
     user_id: Mapped[int] = mapped_column(
-        ForeignKey('user.id', ondelete='CASCADE'),
+        ForeignKey('users.id', ondelete='CASCADE'),
         index=True
     )
     user: Mapped[User] = relationship('User', back_populates='events')
 
     category: Mapped[EventCategory] = relationship('EventCategory', back_populates='events')
     category_id: Mapped[int] = mapped_column(
-        ForeignKey('event_category.id', ondelete='RESTRICT'),
+        ForeignKey('event_categories.id', ondelete='RESTRICT'),
         index=True
     )
 
@@ -101,7 +104,9 @@ class Event(AbstractModel):
     )
 
     address: Mapped[Optional[str]] = mapped_column(String(255), default=None)
-    event_date: Mapped[datetime] = mapped_column(DateTime)
+    event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    tickets = relationship("Ticket", back_populates="event")
 
     @hybrid_property
     def status(self) -> EventStatus:
@@ -114,7 +119,7 @@ class Event(AbstractModel):
         if self.state == EventState.CANCELLED:
             return EventStatus.CANCELLED
 
-        if self.event_date < datetime.now():
+        if self.event_date < datetime.now(timezone.utc):
             return EventStatus.PAST
         return EventStatus.UPCOMING
 

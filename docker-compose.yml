@@ -107,7 +107,7 @@ services:
       dockerfile: Dockerfile
       target: final
     container_name: taskiq_scheduler
-    command: taskiq scheduler src.core.tiq:broker
+    command: taskiq scheduler src.core.tiq:scheduler
     environment: *backend_env
     volumes:
       - ./backend/src:/backend/src
@@ -122,9 +122,7 @@ services:
       target: development
     container_name: fastapi_test_runner
     environment: *tests_env
-    command: sh -c "alembic upgrade head && pytest --cov=src tests/"
-    volumes:
-      - ./backend:/backend
+    command: sh -c "alembic upgrade head && pytest --color=yes --cov=src tests/"
     depends_on:
       test_db:
         condition: service_healthy

@@ -17,7 +17,7 @@ class AppConfig(BaseSettings):
 
     redis_host: str = "localhost"
     redis_port: int = 6379
-    redis_user: str = "user"
+    redis_user: Optional[str] = None
     redis_password: Optional[str] = None
     redis_db: int = 0
 
@@ -25,7 +25,7 @@ class AppConfig(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expires_in: int = 3600
 
-    password_algorithm: str = "HS256"
+    password_algorithm: str = "sha256"
     password_iterations: int = 600000
 
     @property

@@ -16,7 +16,7 @@ from src.common.orm.models import AbstractModel
 
 
 class TicketType(AbstractModel):
-    __tablename__ = 'ticket_type'
+    __tablename__ = 'ticket_types'
 
     name: Mapped[str] = Column(String(255))
 
@@ -31,16 +31,16 @@ class Ticket(AbstractModel):
     __tablename__ = 'tickets'
 
     event_id: Mapped[int] = mapped_column(
-        ForeignKey("event.id", ondelete="RESTRICT"),
+        ForeignKey("events.id", ondelete="RESTRICT"),
         index=True
     )
     event: Mapped[Event] = relationship("Event", back_populates="tickets")
 
     type_id: Mapped[int] = mapped_column(
-        ForeignKey("ticket_type.id", ondelete="RESTRICT"),
+        ForeignKey("ticket_types.id", ondelete="RESTRICT"),
         index=True
     )
-    type: Mapped[TicketType] = relationship("TicketType", back_populates="tickets")
+    type: Mapped[TicketType] = relationship("TicketType")
 
     price: Mapped[float] = mapped_column(Float)
 
@@ -51,7 +51,7 @@ class Ticket(AbstractModel):
     )
 
     user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
@@ -61,8 +61,9 @@ class Ticket(AbstractModel):
 
     __table_args__ = (
         CheckConstraint(
-            '(owner_id IS NOT NULL AND anonymous_email IS NULL) OR '
-            '(owner_id IS NULL AND anonymous_email IS NOT NULL)',
+            '(user_id IS NULL AND anonymous_email IS NULL) OR '
+            '(user_id IS NOT NULL AND anonymous_email IS NULL) OR '
+            '(user_id IS NULL AND anonymous_email IS NOT NULL)',
             name='check_ticket_owner'
         ),
     )

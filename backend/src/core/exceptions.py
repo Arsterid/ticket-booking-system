@@ -106,3 +106,10 @@ async def race_condition_handler(request: Request, exc: Exception):
         status_code=status.HTTP_409_CONFLICT,
         content={"detail": str(exc)}
     )
+
+
+async def incorrect_logic_data_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": str(exc)}
+    )

@@ -13,16 +13,16 @@ def get_config() -> AppConfig:
 
 def get_jwt_manager(config: Annotated[AppConfig, Depends(get_config)]) -> JWTManager:
     return JWTManager(
-        secret_key=config.JWT_SECRET_KEY,
-        algorithm=config.JWT_ALGORITHM,
-        expire_minutes=config.JWT_EXPIRE_MINUTES
+        secret_key=config.jwt_secret_key,
+        algorithm=config.jwt_algorithm,
+        expire_seconds=config.jwt_expires_in
     )
 
 
 def get_password_manager(config: Annotated[AppConfig, Depends(get_config)]) -> PasswordManager:
     return PasswordManager(
-        algorithm=config.PWD_ALGORITHM,
-        iterations=config.PWD_ITERATIONS
+        algorithm=config.password_algorithm,
+        iterations=config.password_iterations
     )
 
 

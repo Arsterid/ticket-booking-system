@@ -1,19 +1,21 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from starlette import status
 
 from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema, \
     GenericModerationSchema
 from src.modules.event.dependencies import EventServiceDep, EventsByUserFiltersDep, EventCategoryFiltersDep
-from src.modules.event.schemas import EventResponseSchema, EventCategoryResponseSchema
+from src.modules.event.schemas import EventResponseSchema, EventCategoryResponseSchema, EventCategoryCreateSchema
 from src.modules.user.dependencies import ModeratorUserIdDep, AdminUserIdDep, UserFiltersDep, \
     UserServiceDep
+from src.modules.user.models import UserRole
+from src.modules.user.roles import RoleChecker
 from src.modules.user.schemas import UserResponseSchema
 
 moderation_router = APIRouter(
     prefix="/moderation",
     tags=["moderation"],
     responses={404: {"description": "Not found"}},
-    dependencies=[ModeratorUserIdDep],
+    dependencies=[Depends(RoleChecker(required_role=UserRole.MODERATOR))],
 )
 
 
@@ -89,20 +91,21 @@ admin_router = APIRouter(
     prefix="/admin",
     tags=["admin"],
     responses={404: {"description": "Not found"}},
-    dependencies=[AdminUserIdDep],
+    dependencies=[Depends(RoleChecker(required_role=UserRole.ADMIN))],
 )
 
 
 @admin_router.post(
     "/categories",
     status_code=status.HTTP_201_CREATED,
-    response_model=GenericSuccessResponseSchema,
+    response_model=EventCategoryResponseSchema,
 )
 async def create(
         event_service: EventServiceDep,
-) -> GenericSuccessResponseSchema:
-    return event_service.create_category(
-        data=event_service
+        body: EventCategoryCreateSchema
+) -> EventCategoryResponseSchema:
+    return await event_service.create_category(
+        data=body
     )
 
 

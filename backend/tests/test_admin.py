@@ -6,16 +6,19 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_create_category_success(client: AsyncClient, get_auth_headers):
     headers = get_auth_headers(user_id=1, role="admin")
-    response = await client.post("/admin/categories", headers=headers)
+    payload = {"name": "New Category"}
+    response = await client.post("/admin/categories", json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.json() == {"success": True}
+    data = response.json()
+    assert data["name"] == "New Category"
 
 
 @pytest.mark.asyncio
 async def test_create_category_forbidden_for_user(client: AsyncClient, get_auth_headers):
     headers = get_auth_headers(user_id=1, role="user")
-    response = await client.post("/admin/categories", headers=headers)
+    payload = {"name": "New Category"}
+    response = await client.post("/admin/categories", json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -60,6 +63,8 @@ async def test_unban_user_success(client: AsyncClient, get_auth_headers, setup_u
         await uow.commit()
 
     headers = get_auth_headers(user_id=1, role="admin")
+
+    await client.patch("/admin/users/30/ban", headers=headers)
     response = await client.patch("/admin/users/30/unban", headers=headers)
 
     assert response.status_code == status.HTTP_200_OK

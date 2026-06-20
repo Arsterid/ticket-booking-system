@@ -39,7 +39,7 @@ async def update(
         user_id: VerifiedUserIdDep,
         body: EventUpdateSchema
 ) -> GenericSuccessResponseSchema:
-    result = await event_service.update(event_id=event_id, user_id=user_id, body=body)
+    result = await event_service.update(event_id=event_id, user_id=user_id, data=body)
     return GenericSuccessResponseSchema(success=result)
 
 

@@ -8,7 +8,6 @@ from src.common.schemas import PaginatedResponseSchema
 from src.modules.event.models import EventStatus
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema
 from src.core.uow import AppUnitOfWork
-from src.modules.ticket.tasks import cancel_reservation_task
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -122,7 +121,7 @@ class TicketService(GenericService[AppUnitOfWork]):
             user_id: Optional[int] = None,
             anonymous_email: Optional[str] = None,
     ) -> bool:
-        if user_id is None and anonymous_email is not None:
+        if user_id is not None and anonymous_email is not None:
             raise ParametersConflictException(options=["user_id", "anonymous_email"])
 
         if user_id is None and anonymous_email is None:
@@ -151,8 +150,10 @@ class TicketService(GenericService[AppUnitOfWork]):
 
             await self.uow.commit()
 
-            await cancel_reservation_task.kiq(ticket_id=ticket_id).schedule_by_time(
-                datetime.now(timezone.utc) + timedelta(minutes=15),
+            from src.modules.ticket.tasks import cancel_reservation_task
+            await cancel_reservation_task.kiq(
+                ticket_id=ticket_id,
+                labels={"delay": str(900)}
             )  # TODO is there a better way?
 
             return True

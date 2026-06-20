@@ -7,8 +7,8 @@ from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
 from src.core.security.jwt_tokens import JWTManager
 from src.core.uow import AppUnitOfWork
 from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException
-from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema
-from src.modules.user.tasks import transfer_tickets_from_anonym_task
+from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserCreateResponseSchema, \
+    UserLoginResponseSchema
 
 
 class UserService(GenericService[AppUnitOfWork]):
@@ -16,7 +16,7 @@ class UserService(GenericService[AppUnitOfWork]):
             self,
             pwd_manager: PasswordManager,
             data: UserCreateSchema
-    ) -> int:
+    ) -> UserCreateResponseSchema:
         async with self.uow:
             existing_obj = await self.uow.user.get_by_email(data.email)
             if existing_obj:
@@ -29,19 +29,20 @@ class UserService(GenericService[AppUnitOfWork]):
             user_data = data.model_dump()
             user_data["password"] = hashed_password
 
-            user_id = await self.uow.user.create(**user_data)
+            obj = await self.uow.user.create(**user_data)
             await self.uow.commit()
 
-            await transfer_tickets_from_anonym_task.kiq(email=data.email)
+            from src.modules.user.tasks import transfer_tickets_from_anonym_task
+            await transfer_tickets_from_anonym_task.kiq(email=data.email)  # TODO find a better way.
 
-            return user_id
+            return UserCreateResponseSchema.model_validate(obj)
 
     async def authenticate(
             self,
             data: UserLoginSchema,
             pwd_manager: PasswordManager,
             jwt_manager: JWTManager
-    ) -> tuple[str, str]:
+    ) -> UserLoginResponseSchema:
         async with self.uow:
             user = await self.uow.user.get_by_email(data.email)
 
@@ -58,7 +59,7 @@ class UserService(GenericService[AppUnitOfWork]):
                 }
             )
 
-            return token, "bearer"
+            return UserLoginResponseSchema(access_token=token, token_type="bearer")
 
     async def migrate_anonymous_tickets(
             self,

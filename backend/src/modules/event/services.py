@@ -20,6 +20,13 @@ class EventService(GenericService[AppUnitOfWork]):
                 **data.model_dump()
             )
             await self.uow.commit()
+
+            if event_obj is None:
+                raise ObjectNotFoundException(
+                    table=self.uow.event_category.model_name,
+                    value=data.category_name,
+                )
+
             return EventResponseSchema.model_validate(event_obj)
 
     async def create_category(
@@ -31,6 +38,7 @@ class EventService(GenericService[AppUnitOfWork]):
                 **data.model_dump()
             )
             await self.uow.commit()
+            await self.uow.refresh(category_obj, attribute_names=["children"])
             return EventCategoryResponseSchema.model_validate(category_obj)
 
     async def publish(

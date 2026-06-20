@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, EmailStr
 
-from src.common.schemas import FilterParamsSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema
 from src.modules.user.models import UserRole
 
 
@@ -16,7 +16,7 @@ class UserCreateSchema(BaseUserSchema):
     pass
 
 
-class UserCreateResponseSchema(BaseModel):
+class UserCreateResponseSchema(GenericResponseSchema):
     id: int
 
 
@@ -29,7 +29,7 @@ class UserLoginResponseSchema(BaseModel):
     token_type: str = "bearer"
 
 
-class UserResponseSchema(BaseModel):
+class UserResponseSchema(GenericResponseSchema):
     id: int
     role: UserRole
     username: str

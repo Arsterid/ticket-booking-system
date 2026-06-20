@@ -12,13 +12,12 @@ logger = logging.getLogger("taskiq")
 
 if settings.branch == "development":
     redis_async_results = taskiq_redis.RedisAsyncResultBackend(
-        redis_url=settings.REDIS_URL,
+        redis_url=settings.redis_url,
     )
 
     broker = ListQueueBroker(
-        url=settings.REDIS_URL,
-        results_backend=redis_async_results
-    )
+        url=settings.redis_url,
+    ).with_result_backend(redis_async_results)
 else:
     broker = InMemoryBroker()
 
@@ -29,10 +28,10 @@ scheduler = TaskiqScheduler(
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
-async def startup_event():
+async def startup_event(*args, **kwargs):
     logger.info("TaskIQ worker successfully started.")
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
-async def shutdown_event():
+async def shutdown_event(*args, **kwargs):
     logger.info("TaskIQ worker shutting down.")

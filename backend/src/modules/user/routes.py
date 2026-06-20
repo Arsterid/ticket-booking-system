@@ -21,10 +21,13 @@ user_router = APIRouter(
 )
 async def register(
         user_service: UserServiceDep,
+        pwd_manager: PasswordManagerDep,
         body: UserCreateSchema,
 ) -> UserCreateResponseSchema:
-    user_id = await user_service.create(data=body)
-    return UserCreateResponseSchema(id=user_id)
+    return await user_service.create(
+        pwd_manager=pwd_manager,
+        data=body
+    )
 
 
 @user_router.post(
@@ -38,12 +41,11 @@ async def login(
         pwd_manager: PasswordManagerDep,
         jwt_manager: JWTManagerDep
 ) -> UserLoginResponseSchema:
-    token, bearer = await user_service.authenticate(
+    return await user_service.authenticate(
         data=body,
         pwd_manager=pwd_manager,
         jwt_manager=jwt_manager
     )
-    return UserLoginResponseSchema(access_token=token, token_type=bearer)
 
 
 @user_router.post(

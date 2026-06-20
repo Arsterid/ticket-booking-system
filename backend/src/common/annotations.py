@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from typing import TypeVar
 
 T = TypeVar('T', bound=BaseModel)
-R = TypeVar("R", bound=GenericRepository)
-S = TypeVar("S", bound=GenericService)
-U = TypeVar("U", bound=AbstractUnitOfWork)
+R = TypeVar("R", bound="GenericRepository")
+S = TypeVar("S", bound="GenericService")
+U = TypeVar("U", bound="AbstractUnitOfWork")
 
 ModelType = TypeVar("ModelType", bound=BaseModel)

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class PaginatedResponseSchema[T](BaseModel):
@@ -31,3 +31,7 @@ class FilterParamsSchema(PaginationParamsSchema):
         default=None,
         description="Field to sort by. The '-' sign before the name means DESC."
     )
+
+
+class GenericResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)

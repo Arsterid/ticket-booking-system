@@ -1,8 +1,10 @@
-from typing import Any
+from typing import Any, Union, Sequence, Optional
 
 from sqlalchemy import update, select, exists
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.interfaces import ORMOption
 
+from src.common.annotations import ModelType
 from src.common.repositories import GenericRepository
 from src.modules.event.models import Event, EventStatus, EventCategory, EventState
 
@@ -23,6 +25,16 @@ class EventCategoryRepository(GenericRepository[EventCategory], model=EventCateg
                 return None
 
         return await super().create(**kwargs)
+
+    async def get_by_id_with_children(
+            self,
+            obj_id: Union[str, int],
+            options: Sequence[ORMOption] | None = None,
+    ) -> Optional[ModelType]:
+        return await super().get_by_id(
+            obj_id=obj_id,
+            options=options
+        )
 
     async def get_all_with_children(
             self,

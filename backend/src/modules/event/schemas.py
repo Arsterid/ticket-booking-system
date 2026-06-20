@@ -1,13 +1,15 @@
 from typing import Optional
 
-from pydantic import Field, AwareDatetime, model_validator, BaseModel
+from pydantic import Field, AwareDatetime, model_validator, BaseModel, ConfigDict
 
-from src.common.schemas import FilterParamsSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema
 from src.modules.event.models import EventType
 
 
 class EventCreateSchema(BaseModel):
     category_id: int
+    title: str
+    description: str
     event_type: EventType
     address: Optional[str] = Field(
         default=None,
@@ -29,6 +31,8 @@ class EventCreateSchema(BaseModel):
 
 class EventUpdateSchema(BaseModel):
     category_id: Optional[int] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
     event_type: Optional[EventType] = None
     address: Optional[str] = Field(
         default=None,
@@ -53,22 +57,22 @@ class EventCategoryCreateSchema(BaseModel):
     parent_id: Optional[int] = None
 
 
-class EventCategoryResponseSchema(BaseModel):
+class EventCategoryResponseSchema(GenericResponseSchema):
     id: int
     name: str
     parent_id: Optional[int] = None
     is_leaf: bool
 
 
-class EventResponseSchema(BaseModel):
+class EventResponseSchema(GenericResponseSchema):
     id: int
-    owner_id: int
+    title: str
+    user_id: int
     category_id: int
     status: str
     event_type: EventType
     event_date: AwareDatetime
     address: Optional[str]
-    name: str
 
 
 class EventCategoryFilterParamsSchema(FilterParamsSchema):
@@ -79,8 +83,9 @@ class EventCategoryFilterParamsSchema(FilterParamsSchema):
 
 class EventsByUserFilterParamsSchema(FilterParamsSchema):
     category_id: Optional[int] = None
+    title__ilike: Optional[str] = None
     event_type: Optional[EventType] = None
-    address: Optional[Optional[str]] = None
+    address: Optional[str] = None
     event_date: Optional[AwareDatetime] = None
     event_date__gte: Optional[AwareDatetime] = None
     event_date__lte: Optional[AwareDatetime] = None
@@ -88,6 +93,7 @@ class EventsByUserFilterParamsSchema(FilterParamsSchema):
 
 class UpcomingEventsFilterParamsSchema(FilterParamsSchema):
     category_id: Optional[int] = None
+    title__ilike: Optional[str] = None
     event_type: Optional[EventType] = None
     address: Optional[Optional[str]] = None
     event_date: Optional[AwareDatetime] = None

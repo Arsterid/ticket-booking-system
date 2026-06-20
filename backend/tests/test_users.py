@@ -11,7 +11,7 @@ async def test_register_success(client: AsyncClient):
         "password": "securepassword123"
     }
 
-    response = await client.post("/", json=payload)
+    response = await client.post("/users/", json=payload)
 
     assert response.status_code == status.HTTP_201_CREATED
     assert "id" in response.json()
@@ -25,9 +25,9 @@ async def test_register_invalid_data(client: AsyncClient):
         "password": "123"
     }
 
-    response = await client.post("/", json=payload)
+    response = await client.post("/users/", json=payload)
 
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 @pytest.mark.asyncio
@@ -37,13 +37,13 @@ async def test_login_success(client: AsyncClient):
         "username": "login_tester",
         "password": "correct_password"
     }
-    await client.post("/", json=payload_register)
+    await client.post("/users/", json=payload_register)
 
     payload_login = {
         "email": "login_test@example.com",
         "password": "correct_password"
     }
-    response = await client.post("/login", json=payload_login)
+    response = await client.post("/users/login", json=payload_login)
 
     assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.json()
@@ -57,20 +57,25 @@ async def test_login_wrong_password(client: AsyncClient):
         "username": "pwd_tester",
         "password": "correct_password"
     }
-    await client.post("/", json=payload_register)
+    await client.post("/users/", json=payload_register)
 
     payload_login = {
         "email": "wrong_pwd@example.com",
         "password": "incorrect_password"
     }
-    response = await client.post("/login", json=payload_login)
+    response = await client.post("/users/login", json=payload_login)
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.asyncio
-async def test_apply_for_verification_success(client: AsyncClient, auth_headers: dict):
-    response = await client.post("/verification/apply", headers=auth_headers)
+async def test_apply_for_verification_success(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="user@test.com", username="tester", password="pwd")
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="user")
+    response = await client.post("/users/verification/apply", headers=headers)
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"success": True}
@@ -78,6 +83,6 @@ async def test_apply_for_verification_success(client: AsyncClient, auth_headers:
 
 @pytest.mark.asyncio
 async def test_apply_for_verification_unauthorized(client: AsyncClient):
-    response = await client.post("/verification/apply")
+    response = await client.post("/users/verification/apply")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED

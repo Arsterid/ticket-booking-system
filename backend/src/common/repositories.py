@@ -1,7 +1,8 @@
+import re
 from abc import ABC
 from typing import Type, Generic, Optional, Sequence, Union, Any, Callable
 
-from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert
+from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert, insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.interfaces import ORMOption
@@ -10,7 +11,6 @@ from src.common.annotations import ModelType
 
 
 class GenericRepository(ABC, Generic[ModelType]):
-    _registry: dict[str, Type['GenericRepository']] = {}
     _OPERATORS: dict[str, Callable[[Any, Any], BinaryExpression]] = {
         "eq": lambda col, val: col == val,
         "ne": lambda col, val: col != val,
@@ -33,8 +33,6 @@ class GenericRepository(ABC, Generic[ModelType]):
 
         if model is not None:
             cls.model = model
-            repo_key = model.__name__.lower()
-            GenericRepository._registry[repo_key] = cls
 
     @property
     def model_name(self):
@@ -46,18 +44,19 @@ class GenericRepository(ABC, Generic[ModelType]):
         except AttributeError:
             raise AssertionError(f"Field {self.id_field} not found in {self.model.__name__}")
 
-    async def create(self, **kwargs) -> ModelType:
+    async def create(self, **kwargs) -> Optional[ModelType]:
         obj = self.model(**kwargs)
         self.session.add(obj)
-        await self.session.flush()
-        await self.session.refresh(obj)
-        return obj
+        return await self._execute_creation(obj)
 
-    async def get_by_id(self, obj_id: Union[str, int]) -> Optional[ModelType]:
-        if self.id_field == "id":
-            return await self.session.get(self.model, obj_id)
-
+    async def get_by_id(
+            self,
+            obj_id: Union[str, int],
+            options: Sequence[ORMOption] | None = None,
+    ) -> Optional[ModelType]:
         q = select(self.model).where(self._get_model_id_field() == obj_id)
+        if options is not None:
+            q = q.options(*options)
         result = await self.session.execute(q)
         return result.scalar()
 
@@ -139,6 +138,15 @@ class GenericRepository(ABC, Generic[ModelType]):
             return res.rowcount
         except IntegrityError:
             return 0
+
+    async def _execute_creation(self, instance: ModelType) -> Optional[ModelType]:
+        try:
+            await self.session.flush()
+            await self.session.refresh(instance)
+            return instance
+        except IntegrityError:
+            await self.session.rollback()
+            return None
 
     async def _execute_insert(self, q: Insert) -> Any | None:
         try:

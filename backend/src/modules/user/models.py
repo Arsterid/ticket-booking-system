@@ -75,6 +75,8 @@ class User(AbstractModel):
 
     ticket_types: Mapped[list["TicketType"]] = relationship(secondary=user_ticket_table)
 
+    events = relationship("Event", back_populates="user")
+
     __table_args__ = (
         CheckConstraint("email LIKE '%@%.%'", name="check_email_format"),
     )

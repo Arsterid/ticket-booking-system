@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-from sqlalchemy import select, update, exists
+from sqlalchemy import select, update, exists, func
 from sqlalchemy.exc import IntegrityError
 
 from src.common.repositories import GenericRepository
@@ -185,14 +185,25 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
             obj: Optional[TicketType] = res.scalar()
             return obj
 
-    async def get_by_user_id(
-            self,
-            user_id: int,
-            offset: int = 0,
-            limit: int = 100
-    ) -> tuple[list[TicketType], int]:
-        q = select(self.model).join(
-            user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id.where(
-                user_ticket_table.c.user_id == user_id))
+    async def get_by_user_id(self, user_id: int, offset: int, limit: int):
+        q = (
+            select(self.model)
+            .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)
+            .where(user_ticket_table.c.user_id == user_id)
+            .offset(offset)
+            .limit(limit)
+        )
 
-        return await self._execute_and_paginate_query(q=q, offset=offset, limit=limit)
+        res = await self.session.execute(q)
+        items = res.scalars().all()
+
+        count_q = (
+            select(func.count())
+            .select_from(self.model)
+            .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)
+            .where(user_ticket_table.c.user_id == user_id)
+        )
+        count_res = await self.session.execute(count_q)
+        count = count_res.scalar() or 0
+
+        return items, count
