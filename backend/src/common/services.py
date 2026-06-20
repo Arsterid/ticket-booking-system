@@ -2,11 +2,17 @@ from typing import Generic, Type, Any
 
 from src.common.annotations import U, T
 from src.common.schemas import PaginatedResponseSchema
+from src.common.tasks.managers.abstract import AbstractTaskManager
 
 
 class GenericService(Generic[U]):
-    def __init__(self, uow: U):
+    def __init__(
+            self,
+            uow: U,
+            tasks: AbstractTaskManager
+    ):
         self.uow = uow
+        self.tasks = tasks
 
     def _paginate(
             self,

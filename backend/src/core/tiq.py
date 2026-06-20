@@ -9,8 +9,9 @@ from src.core.settings import settings
 
 logger = logging.getLogger("taskiq")
 
-
-if settings.branch == "development":
+if settings.testing:
+    broker = InMemoryBroker()
+else:
     redis_async_results = taskiq_redis.RedisAsyncResultBackend(
         redis_url=settings.redis_url,
     )
@@ -18,8 +19,6 @@ if settings.branch == "development":
     broker = ListQueueBroker(
         url=settings.redis_url,
     ).with_result_backend(redis_async_results)
-else:
-    broker = InMemoryBroker()
 
 scheduler = TaskiqScheduler(
     broker=broker,

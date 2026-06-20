@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class PaginatedResponseSchema[T](BaseModel):
@@ -31,6 +31,15 @@ class FilterParamsSchema(PaginationParamsSchema):
         default=None,
         description="Field to sort by. The '-' sign before the name means DESC."
     )
+
+    @field_validator("order_by")
+    @classmethod
+    def validate_order_by(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            cleaned = v.lstrip("-").strip()
+            if not cleaned or not cleaned.isidentifier():
+                raise ValueError("Invalid order_by field name format")
+        return v
 
 
 class GenericResponseSchema(BaseModel):

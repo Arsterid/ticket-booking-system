@@ -139,6 +139,13 @@ class GenericRepository(ABC, Generic[ModelType]):
         except IntegrityError:
             return 0
 
+    async def _execute_modification_with_returning(self, q: Update | Delete) -> Optional[Any]:
+        try:
+            res = await self.session.execute(q)
+            return res.scalar_one_or_none()
+        except IntegrityError:
+            return None
+
     async def _execute_creation(self, instance: ModelType) -> Optional[ModelType]:
         try:
             await self.session.flush()

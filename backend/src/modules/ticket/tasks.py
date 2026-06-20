@@ -2,7 +2,7 @@ from src.core.tiq import broker, logger
 from src.modules.ticket.dependencies import TicketServiceDep
 
 
-@broker.task(name="cancel_reservation")
+@broker.task(task_name="ticket:cancel_reservation")
 async def cancel_reservation_task(
         ticket_service: TicketServiceDep,
         ticket_id: int

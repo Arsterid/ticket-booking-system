@@ -2,8 +2,8 @@ from src.core.tiq import broker, logger
 from src.modules.user.dependencies import UserServiceDep
 
 
-@broker.task(name="transfer_tickets_from_anonym")
-async def transfer_tickets_from_anonym_task(
+@broker.task(task_name="user:transfer_anonym_tickets")
+async def transfer_anonym_tickets_task(
         user_service: UserServiceDep,
         email: str,
 ) -> int:

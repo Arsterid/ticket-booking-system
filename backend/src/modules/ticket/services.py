@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 
 from src.common.services import GenericService
@@ -6,6 +5,7 @@ from src.core.exceptions import ObjectNotFoundException, WrongStateException, Pa
     MissingParameterException, RaceConditionException
 from src.common.schemas import PaginatedResponseSchema
 from src.modules.event.models import EventStatus
+from src.modules.ticket.models import TicketStatus
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema
 from src.core.uow import AppUnitOfWork
 
@@ -135,26 +135,32 @@ class TicketService(GenericService[AppUnitOfWork]):
                         table=self.uow.user.model_name,
                         value=user_id
                     )
-                is_reserved = await self.uow.ticket.reserve(
+                old_status = await self.uow.ticket.reserve(
                     ticket_id=ticket_id,
                     user_id=user_id
                 )
             else:
-                is_reserved = await self.uow.ticket.reserve_by_email(
+                old_status = await self.uow.ticket.reserve_by_email(
                     ticket_id=ticket_id,
                     email=anonymous_email
                 )
 
-            if not is_reserved:
+            if old_status is None:
+                is_ticket_exists = await self.uow.ticket.exists(obj_id=ticket_id)
+                if not is_ticket_exists:
+                    raise ObjectNotFoundException(
+                        table=self.uow.ticket.model_name,
+                        value=ticket_id
+                    )
                 raise RaceConditionException(table=self.uow.ticket.model_name)
 
             await self.uow.commit()
 
-            from src.modules.ticket.tasks import cancel_reservation_task
-            await cancel_reservation_task.kiq(
-                ticket_id=ticket_id,
-                labels={"delay": str(900)}
-            )  # TODO is there a better way?
+            await self.tasks.perform_task(
+                name="ticket:cancel_reservation",
+                delay=900,
+                ticket_id=ticket_id
+            )
 
             return True
 
@@ -163,9 +169,17 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket_id: int
     ) -> bool:
         async with self.uow:
-            is_paid = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
+            old_status = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
 
-            if not is_paid:
+            if old_status is None:
+                ticket = await self.uow.ticket.get_by_id(obj_id=ticket_id)
+
+                if ticket is None:
+                    raise ObjectNotFoundException(
+                        table=self.uow.ticket.model_name,
+                        value=ticket_id
+                    )
+
                 raise RaceConditionException(table=self.uow.ticket.model_name)
 
             await self.uow.commit()
@@ -176,12 +190,19 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket_id: int
     ) -> bool:
         async with self.uow:
-            is_cancelled = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
+            old_status = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
 
-            if is_cancelled:
+            if old_status is None:
+                raise ObjectNotFoundException(
+                    table=self.uow.ticket.model_name,
+                    value=ticket_id
+                )
+
+            if old_status == TicketStatus.RESERVED:
                 await self.uow.commit()
+                return True
 
-            return is_cancelled
+            return False
 
 
 class UserTicketService(GenericService[AppUnitOfWork]):
@@ -189,13 +210,19 @@ class UserTicketService(GenericService[AppUnitOfWork]):
             self,
             user_id: int,
             name: str
-    ) -> bool:
+    ) -> tuple[bool, bool]:
         async with self.uow:
-            ticket_type_obj = await self.uow.ticket_type.get_or_create(name=name)
-            is_success = await self.uow.user.assign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_obj.id)
+            ticket_type_obj, was_created = await self.uow.ticket_type.get_or_create(name=name)
+
+            is_success = await self.uow.user.assign_ticket_type(
+                user_id=user_id,
+                ticket_type_id=ticket_type_obj.id
+            )
+
             if is_success:
                 await self.uow.commit()
-            return is_success
+
+            return is_success, was_created
 
     async def unassign_ticket_type_from_user(
             self,

@@ -38,7 +38,7 @@ class UserRepository(GenericRepository[User], model=User):
 
         return row_count > 0
 
-    async def apply_to_verification(
+    async def apply_for_verification(
             self,
             user_id: int,
     ) -> bool:

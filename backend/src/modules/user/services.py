@@ -6,7 +6,8 @@ from src.common.services import GenericService
 from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
 from src.core.security.jwt_tokens import JWTManager
 from src.core.uow import AppUnitOfWork
-from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException
+from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException, \
+    UserVerificationConflictException
 from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserCreateResponseSchema, \
     UserLoginResponseSchema
 
@@ -32,8 +33,10 @@ class UserService(GenericService[AppUnitOfWork]):
             obj = await self.uow.user.create(**user_data)
             await self.uow.commit()
 
-            from src.modules.user.tasks import transfer_tickets_from_anonym_task
-            await transfer_tickets_from_anonym_task.kiq(email=data.email)  # TODO find a better way.
+            await self.tasks.perform_task(
+                name="user:transfer_anonym_tickets",
+                email=data.email
+            )
 
             return UserCreateResponseSchema.model_validate(obj)
 
@@ -86,15 +89,22 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def apply_for_verification(
             self,
-            user_id: int
+            user_id: int,
     ) -> bool:
         async with self.uow:
-            is_applied = await self.uow.user.apply_to_verification(user_id=user_id)
-            if not is_applied:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    value=user_id
-                )
+            is_success = await self.uow.user.apply_for_verification(user_id=user_id)
+
+            if not is_success:
+                user = await self.uow.user.get_by_id(obj_id=user_id)
+
+                if user is None:
+                    raise ObjectNotFoundException(
+                        table=self.uow.user.model_name,
+                        value=user_id
+                    )
+
+                raise UserVerificationConflictException()
+
             await self.uow.commit()
             return True
 

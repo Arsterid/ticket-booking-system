@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from starlette import status
+from starlette.responses import Response
 
 from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSchema
@@ -17,18 +18,24 @@ ticket_router = APIRouter(
 
 @ticket_router.post(
     "/types",
-    status_code=status.HTTP_201_CREATED,
     response_model=GenericSuccessResponseSchema
 )
 async def get_or_create_then_assign_to_user(
         body: TicketTypeCreateSchema,
         user_ticket_service: UserTicketServiceDep,
         user_id: VerifiedUserIdDep,
+        response: Response
 ) -> GenericSuccessResponseSchema:
-    is_success = await user_ticket_service.get_or_create_ticket_type_and_assign_to_user(
+    is_success, was_created = await user_ticket_service.get_or_create_ticket_type_and_assign_to_user(
         user_id=user_id,
         name=body.name
     )
+
+    if was_created:
+        response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
+
     return GenericSuccessResponseSchema(success=is_success)
 
 

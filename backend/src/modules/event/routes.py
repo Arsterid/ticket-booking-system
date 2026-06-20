@@ -60,15 +60,15 @@ async def publish(
 @event_router.patch(
     "/{event_id}/cancel",
     status_code=status.HTTP_200_OK,
-    response_model=GenericIdResponseSchema
+    response_model=GenericSuccessResponseSchema
 )
 async def cancel(
         event_service: EventServiceDep,
         event_id: int,
         user_id: VerifiedUserIdDep
-) -> GenericIdResponseSchema:
+) -> GenericSuccessResponseSchema:
     await event_service.cancel(event_id=event_id, user_id=user_id)
-    return GenericIdResponseSchema(id=event_id)
+    return GenericSuccessResponseSchema(success=True)
 
 
 @event_router.get(

@@ -24,9 +24,16 @@ class TicketTypeCreateSchema(BaseModel):
 
 
 class TicketCreateSchema(BaseModel):
-    event_id: int
-    type_id: int
-    price: int
+    event_id: int = Field(..., gt=0)
+    type_id: int = Field(..., gt=0)
+    price: int = Field(..., ge=0)
+
+    @field_validator("price")
+    @classmethod
+    def validate_price_limit(cls, v: int) -> int:
+        if v > 100_000_000:
+            raise ValueError("Price value is realistically too high")
+        return v
 
 
 class TicketResponseSchema(GenericResponseSchema):
@@ -44,7 +51,14 @@ class TicketBookSchema(BaseModel):
 
 
 class TicketsFilterParamsSchema(FilterParamsSchema):
-    event_id: Optional[int] = Field(None, description='Event id')
-    type_id: Optional[int] = Field(None, description='Type id')
-    price__gte: Optional[int] = Field(None, description='Price min')
-    price__lte: Optional[int] = Field(None, description='Price max')
+    event_id: Optional[int] = Field(None, gt=0, description="Event id")
+    type_id: Optional[int] = Field(None, gt=0, description="Type id")
+    price__gte: Optional[int] = Field(None, ge=0, description="Price min")
+    price__lte: Optional[int] = Field(None, ge=0, description="Price max")
+
+    @field_validator("price__gte", "price__lte")
+    @classmethod
+    def validate_prices(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v > 100_000_000:
+            raise ValueError("Price value is realistically too high")
+        return v

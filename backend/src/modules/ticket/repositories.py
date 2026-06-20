@@ -104,86 +104,105 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
     async def reserve(
             self,
             ticket_id: int,
-            user_id: int = None,
-    ) -> bool:
-        q = update(self.model).values(
-            status=TicketStatus.RESERVED,
-            user_id=user_id,
-        ).where(
-            (self.model.id == ticket_id) &
-            (self.model.status == TicketStatus.AVAILABLE)
+            user_id: Optional[int] = None,
+    ) -> Optional[TicketStatus]:
+        q = (
+            update(self.model)
+            .values(
+                status=TicketStatus.RESERVED,
+                user_id=user_id,
+            )
+            .where(
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.AVAILABLE)
+            )
+            .returning(self.model.status)
         )
-        rows_updated = await super()._execute_modification(q=q)
 
-        return rows_updated > 0
+        old_status = await self._execute_modification_with_returning(q=q)
+        return old_status
 
     async def reserve_by_email(
             self,
             ticket_id: int,
             email: str,
-    ) -> bool:
-        q = update(self.model).values(
-            status=TicketStatus.RESERVED,
-            anonymous_email=email,
-        ).where(
-            (self.model.id == ticket_id) &
-            (self.model.status == TicketStatus.AVAILABLE)
+    ) -> Optional[TicketStatus]:
+        q = (
+            update(self.model)
+            .values(
+                status=TicketStatus.RESERVED,
+                anonymous_email=email,
+            )
+            .where(
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.AVAILABLE)
+            )
+            .returning(self.model.status)
         )
-        rows_updated = await super()._execute_modification(q=q)
 
-        return rows_updated > 0
+        old_status = await self._execute_modification_with_returning(q=q)
+        return old_status
 
     async def mark_as_purchased(
             self,
             ticket_id: int
-    ) -> bool:
-        q = update(self.model).values(
-            status=TicketStatus.PAID
-        ).where(
-            (self.model.id == ticket_id) &
-            (self.model.status == TicketStatus.RESERVED)
+    ) -> Optional[TicketStatus]:
+        q = (
+            update(self.model)
+            .values(status=TicketStatus.PAID)
+            .where(
+                (self.model.id == ticket_id) &
+                (self.model.status == TicketStatus.RESERVED)
+            )
+            .returning(self.model.id)
         )
-        rows_updated = await super()._execute_modification(q=q)
 
-        return rows_updated > 0
+        updated_id = await self._execute_modification_with_returning(q=q)
+
+        if updated_id is not None:
+            return TicketStatus.RESERVED
+
+        return None
 
     async def return_to_available_if_not_paid(
             self,
             ticket_id: int,
-    ) -> bool:
-        q = update(self.model).values(
-            user_id=None,
-            anonymous_email=None,
-            status=TicketStatus.AVAILABLE
-        ).where(
-            (self.model.id == ticket_id) &
-            (self.model.status == TicketStatus.RESERVED)
+    ) -> Optional[TicketStatus]:
+        q = (
+            update(self.model)
+            .values(
+                user_id=None,
+                anonymous_email=None,
+                status=TicketStatus.AVAILABLE
+            )
+            .where(self.model.id == ticket_id)
+            .returning(self.model.status)
         )
-        rows_updates = await super()._execute_modification(q=q)
 
-        return rows_updates > 0
+        old_status = await self._execute_modification_with_returning(q=q)
+        return old_status
 
 
 class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
     async def get_or_create(
             self,
             name: str
-    ) -> Optional[TicketType]:
+    ) -> tuple[TicketType, bool]:
         q = select(self.model).where(self.model.name == name)
         res = await self.session.execute(q)
         obj: Optional[TicketType] = res.scalar()
 
         if obj is not None:
-            return obj
+            return obj, False
 
         try:
             async with self.session.begin_nested():
                 obj = await super().create(name=name)
-            return obj
+            return obj, True
         except IntegrityError:
             res = await self.session.execute(q)
-            obj: Optional[TicketType] = res.scalar()
-            return obj
+            obj: TicketType = res.scalar()
+            return obj, False
 
     async def get_by_user_id(self, user_id: int, offset: int, limit: int):
         q = (

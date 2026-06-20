@@ -9,7 +9,7 @@ x-test-db-env: &test_db_env
   POSTGRES_DB: $TEST_PG_DB
 
 x-backend-env: &backend_env
-  BRANCH: development
+  TESTING: false
   DB_USER: $PG_USER
   DB_PASSWORD: $PG_PASSWORD
   DB_NAME: $PG_DB
@@ -21,7 +21,7 @@ x-backend-env: &backend_env
   JWT_SECRET_KEY: $JWT_SECRET_KEY
 
 x-tests-env: &tests_env
-  BRANCH: testing
+  TESTING: true
   DB_USER: $TEST_PG_USER
   DB_PASSWORD: $TEST_PG_PASSWORD
   DB_NAME: $TEST_PG_DB
