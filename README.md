@@ -2,7 +2,7 @@
 
 Asynchronous backend package for event scheduling and concurrent ticket sales. Built with Python using Clean Architecture principles, Repository pattern, and Unit of Work.
 
-The system features advanced asynchronous task queuing, strict data validation pipelines, and security isolation designed to handle high-load traffic during peak ticket sales windows.
+The system features advanced asynchronous task queuing, strict data validation pipelines, infrastructure monitoring dashboards, and security isolation designed to handle high-load traffic during peak ticket sales windows.
 
 ## Technical Highlights
 
@@ -10,7 +10,8 @@ The system features advanced asynchronous task queuing, strict data validation p
 * Atomic State Mutations: Ticket reservation and payment use atomic UPDATE statements combined with PostgreSQL RETURNING clauses to prevent race conditions without excessive locks.
 * Encapsulated Domain Contexts: Strict domain partitioning into contexts (user, event, ticket). Modules are grouped as namespaces to prevent variable shadowing in the application code.
 * Asynchronous Background Processing: Native integration with Taskiq for non-blocking task orchestration and scheduled lock-releases for unpaid ticket reservations.
-* Security by Obscurity: Unauthorized mutations of external records dynamically mask resources with 404 Not Found statuses instead of 403 Forbidden to prevent ID harvesting.
+* Production Monitoring Stack: Native Prometheus metrics engine paired with Grafana dashboards to track latency percentiles, error rates, and request throughput in real time.
+* Network and API Security: Endpoint protection via dynamic token mapping and Docker Secrets isolation, combined with strategic 404 Not Found masking to prevent resource harvesting.
 * Comprehensive Integration Testing: Automated testing suite leveraging Taskiq in-memory scheduling running in await_inplace mode to catch side-effects within a single transaction.
 
 ## Tech Stack
@@ -21,6 +22,7 @@ The system features advanced asynchronous task queuing, strict data validation p
 * Validation: Pydantic v2
 * Task Queue: Taskiq and Taskiq-Redis
 * Distributed Cache: KeyDB (High-performance Redis multi-threaded alternative)
+* Telemetry Engine: Prometheus Client & Grafana UI
 * Testing: Pytest, Pytest-asyncio and Httpx
 * Containerization: Docker and Docker Compose
 * Environment: Python 3.12+, PostgreSQL, Redis
@@ -28,9 +30,10 @@ The system features advanced asynchronous task queuing, strict data validation p
 ## Features
 
 ### User and Access Management
-* Registration and authentication via cryptographically hashed passwords and JWT tokens.
+* Registration and authentication via cryptographically hashed passwords, and JWT tokens.
 * Weight-based role hierarchy including user, on_verification, verified_user, moderator, and admin.
 * Automated ticket migration transferring anonymous ticket holdings to a user profile upon official registration.
+* System Management CLI: Administrative commands executed within runtime containers to instantly seed privileged users.
 
 ### Event Orchestration
 * Multi-level event categorization with parent path validation.
@@ -46,7 +49,10 @@ The system features advanced asynchronous task queuing, strict data validation p
 
 ```text
 .
-├── docker-compose.yml          # Infrastructure container orchestration
+├── docker-compose.yml          # Infrastructure container orchestration (Development)
+├── docker-compose.prod.yml     # Production architecture, volumes, and network security
+├── docker-compose.test.yml     # Isolated test environment orchestration
+├── .env.example                # Blueprint for required local environment variables
 └── backend/                    # Core backend service directory
     ├── Dockerfile              # Multi-stage container build rules using uv
     ├── pyproject.toml          # Main project metadata and tool configurations
@@ -56,6 +62,7 @@ The system features advanced asynchronous task queuing, strict data validation p
     └── src/                    # Source root
         ├── app.py              # FastAPI application initialization setup
         ├── routes.py           # Global root router mounting point
+        ├── metrics.py          # Prometheus instrumentation bootstrapping logic
         ├── common/             # Shareable codebase, base classes and types
         │   ├── orm/            # Declarative base ORM model bindings
         │   ├── tasks/          # Distributed background task dispatchers contract
@@ -71,12 +78,12 @@ The system features advanced asynchronous task queuing, strict data validation p
 
 ## Infrastructure Design
 
-The runtime stack is orchestrated via Docker Compose, leveraging several production-ready container strategies:
+The application separates concerns into three distinct execution contexts via optimized container configurations:
 
-* Multi-Stage Builds: Dockerfile separates development dependencies from final production targets, optimizing cache layers and container size via uv.
-* KeyDB Engine: Implements KeyDB as a multi-threaded drop-in replacement for Redis, maximizing packet throughput for background processing workers.
-* Isolated Database Pools: Spawns two isolated PostgreSQL databases (`db` and `db_test`), entirely insulating production schemas from testing data purges.
-* Healthcheck Dependency Chains: Containers utilize strict healthchecks (`pg_isready` and `keydb-cli ping`), ensuring the API, Worker, and Scheduler start only after underlying databases and caches are completely ready.
+* Development Environment (`docker-compose.yml`): Exposed control interfaces for quick testing, including real-time hot-reloading (`--reload`) and debugging panels.
+* Production Environment (`docker-compose.prod.yml`): Hardened runtime configuration utilizing persistent storage volumes for telemetry time-series and database pools. All internal monitoring ports are dropped from host bindings to enforce complete private-network boundaries.
+* Telemetry Engine: Integrated Prometheus scraper pulling HTTP execution duration histograms, process memory footprints, and raw connection states. Metrics endpoints are protected from external polling by static Bearer Token gates mounted natively via Docker Secrets.
+* Healthcheck Dependency Chains: All containers utilize 24/7 internal healthcheck probes (`urllib.request`, `nc`, `pg_isready`). Orchestration constraints enforce strict initialization sequencing so dependent components only load after upstream databases, caches, and proxies return definitive health signals.
 
 ## Installation and Setup
 
@@ -87,42 +94,56 @@ cd event-ticket-system
 ```
 
 ### 2. Configure Environment Variables
-Create a .env file in the root directory using the following template:
-```env
-DB_PORT=5432
-TEST_DB_PORT=5433
-REDIS_PORT=6379
-BACKEND_PORT=8000
-
-PG_USER=postgres
-PG_PASSWORD=postgres
-PG_DB=event_db
-
-TEST_PG_USER=postgres
-TEST_PG_PASSWORD=postgres
-TEST_PG_DB=test_event_db
-
-JWT_SECRET_KEY=your-secure-jwt-secret-key
-TEST_JWT_SECRET_KEY=your-secure-test-jwt-secret-key
+Copy the template file to build your active configuration:
+```bash
+cp .env.example .env
 ```
+Fill in the secure values inside the newly created `.env` file.
 
-### 3. Run with Docker Compose
+### 3. Run Environments
+
+#### Run Local Development Environment
 ```bash
 docker compose up -d --build
 ```
+The interactive API documentation will be available at http://localhost:8000/docs
+The metrics dashboard will be available at http://localhost:3000
 
-The interactive API documentation will be available at http://127.0.0
+#### Run Hardened Production Environment
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+## System Administration Command Line
+
+Privileged user configuration bypasses raw database connection management through an abstracted CLI module inside the runtime engine.
+
+To securely create administrative accounts with automatic cryptographic password hashing, execute the Python module directly inside the active service container:
+
+```bash
+# Create an Administrator account
+docker exec -it fastapi_api python -m src.cli.create_user admin@ticket.com your_password admin
+
+# Create a Moderator account
+docker exec -it fastapi_api python -m src.cli.create_user moderator@ticket.com your_password moderator
+```
+
+#### Expected Terminal Output:
+```text
+Creating user admin@ticket.com with role admin...
+User admin@ticket.com successfully created with role admin
+```
 
 ## Testing Suite
 
 The application implements a zero-network dependent testing suite using isolated database transactions and Taskiq in-memory scheduling.
 
 ### Running Containerized Tests
-The container orchestration stack provides an automated `tests` runner service. It waits for the test database to pass healthchecks, executes database migrations, runs all testing files with code coverage tracking, and shuts down safely.
+The testing infrastructure is completely separated into an isolated project context to prevent environment state mutation or pipeline data pollution.
 
-To run the entire test pack inside Docker:
+To execute the test pack with code coverage reporting within a self-terminating container loop:
 ```bash
-docker compose run --rm tests
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 ```
 
 ## Implementation Notes
@@ -132,3 +153,4 @@ Core modules demonstrating engineering depth for review:
 1. `src/modules/ticket/repositories.py`: Contains atomic state transformations using SQL expressions combined with returning properties to prevent race conditions during high-volume purchasing bursts.
 2. `src/common/repositories.py` & `src/core/uow.py`: Demonstrates decoupling patterns, enabling developers to fully swap out data infrastructures or mock network layers without breaking core features.
 3. `src/modules/event/schemas.py`: Features multi-field dependent validation schemas, preventing runtime exceptions from parsing raw input variables.
+4. `src/metrics.py`: Abstracted dynamic interceptor registry preventing circular module references and enforcing unidirectional dependency hierarchies during boot cycles.

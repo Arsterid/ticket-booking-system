@@ -1,6 +1,4 @@
-from fastapi import APIRouter
-from starlette import status
-from starlette.responses import Response
+from fastapi import APIRouter, status, Response
 
 from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSchema

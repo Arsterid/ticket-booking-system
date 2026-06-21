@@ -1,7 +1,6 @@
-from fastapi import APIRouter
-from starlette import status
+from fastapi import APIRouter, status
 
-from src.common.schemas import GenericIdResponseSchema, PaginatedResponseSchema, GenericSuccessResponseSchema
+from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema
 from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFiltersDep, EventsByUserFiltersDep, \
     EventCategoryFiltersDep
 from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema, \

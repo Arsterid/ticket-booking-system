@@ -8,12 +8,11 @@ from src.modules.user.models import UserRole
 
 class BaseUserSchema(BaseModel):
     email: EmailStr = Field(min_length=3, max_length=50)
-    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=20)
 
 
 class UserCreateSchema(BaseUserSchema):
-    pass
+    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
 
 
 class UserCreateResponseSchema(GenericResponseSchema):

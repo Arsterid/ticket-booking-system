@@ -28,6 +28,8 @@ class AppConfig(BaseSettings):
     password_algorithm: str = "sha256"
     password_iterations: int = 600000
 
+    metrics_token: str = "<METRICS_TOKEN>"
+
     @property
     def redis_url(self) -> str:
         dsn = RedisDsn.build(
