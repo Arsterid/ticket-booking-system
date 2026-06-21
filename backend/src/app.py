@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 
-from src.modules.user.exceptions import IncorrectLoginDataException
+from src.core.exceptions import ServiceException, ObjectNotFoundException, \
+    service_exception_handler, object_not_found_handler, conflict_exception_handler, incorrect_logic_data_handler, \
+    ForbiddenException, forbidden_exception_handler, ConflictException, value_exception_handler
 from src.metrics import init_metrics
+from src.modules.user.exceptions import IncorrectLoginDataException
 from src.routes import api_v1_router
-from src.core.exceptions import ServiceException, ObjectNotFoundException, RaceConditionException, \
-    service_exception_handler, object_not_found_handler, race_condition_handler, incorrect_logic_data_handler
 
 app = FastAPI(
     title="Ticket Booking System",
@@ -12,9 +13,11 @@ app = FastAPI(
 )
 
 app.add_exception_handler(ServiceException, service_exception_handler)
+app.add_exception_handler(ValueError, value_exception_handler)
 app.add_exception_handler(ObjectNotFoundException, object_not_found_handler)
-app.add_exception_handler(RaceConditionException, race_condition_handler)
+app.add_exception_handler(ConflictException, conflict_exception_handler)
 app.add_exception_handler(IncorrectLoginDataException, incorrect_logic_data_handler)
+app.add_exception_handler(ForbiddenException, forbidden_exception_handler)
 
 app.include_router(api_v1_router)
 

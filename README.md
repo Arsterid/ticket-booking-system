@@ -57,6 +57,7 @@ The system features advanced asynchronous task queuing, strict data validation p
     ├── Dockerfile              # Multi-stage container build rules using uv
     ├── pyproject.toml          # Main project metadata and tool configurations
     ├── uv.lock                 # Strict dependency lockfile
+    ├── prometheus.yml          # Prometheus config file
     ├── alembic/                # Database migration scripts and environment
     ├── tests/                  # Integration test cases, fixtures, and conftest
     └── src/                    # Source root
@@ -67,6 +68,7 @@ The system features advanced asynchronous task queuing, strict data validation p
         │   ├── orm/            # Declarative base ORM model bindings
         │   ├── tasks/          # Distributed background task dispatchers contract
         │   └── uow/            # Transaction factory layer and SQLAlchemy contracts
+        ├── cli/                # CLI commands to execute in terminal
         ├── core/               # App configuration, security and database infrastructure
         │   └── security/       # JWT token utilities and cryptographic handlers
         └── modules/            # Isolated domain partitions
@@ -90,7 +92,7 @@ The application separates concerns into three distinct execution contexts via op
 ### 1. Clone the repository
 ```bash
 git clone https://github.com
-cd event-ticket-system
+cd ticket-booking-system
 ```
 
 ### 2. Configure Environment Variables

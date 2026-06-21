@@ -1,5 +1,6 @@
 from fastapi import APIRouter, status
 
+from src.common.annotations import Int32Path
 from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema
 from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFiltersDep, EventsByUserFiltersDep, \
     EventCategoryFiltersDep
@@ -34,7 +35,7 @@ async def create(
 )
 async def update(
         event_service: EventServiceDep,
-        event_id: int,
+        event_id: Int32Path,
         user_id: VerifiedUserIdDep,
         body: EventUpdateSchema
 ) -> GenericSuccessResponseSchema:
@@ -49,7 +50,7 @@ async def update(
 )
 async def publish(
         event_service: EventServiceDep,
-        event_id: int,
+        event_id: Int32Path,
         user_id: VerifiedUserIdDep
 ) -> GenericSuccessResponseSchema:
     result = await event_service.publish(event_id=event_id, user_id=user_id)
@@ -63,7 +64,7 @@ async def publish(
 )
 async def cancel(
         event_service: EventServiceDep,
-        event_id: int,
+        event_id: Int32Path,
         user_id: VerifiedUserIdDep
 ) -> GenericSuccessResponseSchema:
     await event_service.cancel(event_id=event_id, user_id=user_id)

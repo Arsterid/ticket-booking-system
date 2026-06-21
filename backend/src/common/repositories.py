@@ -1,16 +1,18 @@
-import re
 from abc import ABC
-from typing import Type, Generic, Optional, Sequence, Union, Any, Callable
+from dataclasses import fields
+from typing import Type, Generic, Optional, Sequence, Any, Callable
 
-from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert, insert
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert, inspect
+from sqlalchemy.exc import IntegrityError, ResourceClosedError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.interfaces import ORMOption
 
-from src.common.annotations import ModelType
+from src.common.annotations import ModelType, DTOType
+from src.common.data_objects import ModificationResult, CreationResult
 
 
-class GenericRepository(ABC, Generic[ModelType]):
+class GenericRepository(ABC, Generic[ModelType, DTOType]):
     _OPERATORS: dict[str, Callable[[Any, Any], BinaryExpression]] = {
         "eq": lambda col, val: col == val,
         "ne": lambda col, val: col != val,
@@ -20,50 +22,111 @@ class GenericRepository(ABC, Generic[ModelType]):
         "lt": lambda col, val: col < val,
         "in": lambda col, val: col.in_(val),
         "ilike": lambda col, val: col.ilike(f"%{val}%"),
+        "has_any": lambda col, val: col.any(),
+        "has_no": lambda col, val: ~col.any(),
     }
 
     model: Type[ModelType]
-    id_field: str = "id"
+    dto: Type[DTOType]
 
     def __init__(self, session: AsyncSession):
-        self.session = session
+        self._session = session
 
-    def __init_subclass__(cls, model: Type[ModelType] = None, **kwargs):
+    def __init_subclass__(cls, model: Type[ModelType] = None, dto: Type[DTOType] = None, **kwargs):
         super().__init_subclass__(**kwargs)
 
         if model is not None:
             cls.model = model
+        if dto is not None:
+            cls.dto = dto
 
     @property
     def model_name(self):
         return self.model.__name__.lower() or "unnamed table"
 
-    def _get_model_id_field(self):
-        try:
-            return getattr(self.model, self.id_field)
-        except AttributeError:
-            raise AssertionError(f"Field {self.id_field} not found in {self.model.__name__}")
+    def _to_dto(self, obj_orm: ModelType) -> DTOType:
+        allowed_fields = {f.name for f in fields(self.dto)}
+        mapper = inspect(obj_orm).mapper
 
-    async def create(self, **kwargs) -> Optional[ModelType]:
+        hybrid_fields = {
+            attr.__name__ for attr in mapper.all_orm_descriptors
+            if isinstance(attr, hybrid_property)
+        }
+
+        loaded_data = {}
+        for f in allowed_fields:
+            if f in obj_orm.__dict__:
+                loaded_data[f] = obj_orm.__dict__[f]
+            elif f in hybrid_fields:
+                loaded_data[f] = getattr(obj_orm, f)
+
+        return self.dto(**loaded_data)
+
+    async def create(self, **kwargs: Any) -> Optional[DTOType]:
         obj = self.model(**kwargs)
-        self.session.add(obj)
-        return await self._execute_creation(obj)
+        result = await self._execute_creation(obj)
 
-    async def get_by_id(
+        return result.dto
+
+    async def get(
             self,
-            obj_id: Union[str, int],
             options: Sequence[ORMOption] | None = None,
-    ) -> Optional[ModelType]:
-        q = select(self.model).where(self._get_model_id_field() == obj_id)
+            with_for_update: bool = False,
+            **filters: Any
+    ) -> Optional[DTOType]:
+        q = select(self.model)
+
+        if filters:
+            q = self._build_filtered_query(q, filters)
+
         if options is not None:
             q = q.options(*options)
-        result = await self.session.execute(q)
-        return result.scalar()
 
-    async def exists(self, obj_id: Union[str, int]) -> bool:
-        q = select(exists().where(self._get_model_id_field() == obj_id))
-        result = await self.session.execute(q)
-        return result.scalar()
+        if with_for_update:
+            q = q.with_for_update()
+
+        result = await self._session.execute(q)
+        obj_orm = result.scalar_one_or_none()
+
+        if not obj_orm:
+            return None
+
+        return self._to_dto(obj_orm)
+
+    async def get_or_create(self, **kwargs: Any) -> tuple[DTOType, bool]:
+        obj_dto = await self.get(**kwargs)
+        if obj_dto is not None:
+            return obj_dto, False
+
+        instance = self.model(**kwargs)
+
+        try:
+            async with self._session.begin_nested():
+                result = await self._execute_creation(instance)
+
+                if result.success and result.dto is not None:
+                    return result.dto, True
+
+                raise ValueError("Failed to create instance within get_or_create.")
+
+        except (IntegrityError, ValueError):
+            obj_dto = await self.get(**kwargs)
+
+            if obj_dto is not None:
+                return obj_dto, False
+
+            raise
+
+    async def exists(self, **filters: Any) -> bool:
+        if not filters:
+            return False
+
+        q = select(self.model)
+        q = self._build_filtered_query(q, filters)
+        q = select(exists(q.subquery()))
+
+        result = await self._session.execute(q)
+        return bool(result.scalar())
 
     async def get_all(
             self,
@@ -73,24 +136,31 @@ class GenericRepository(ABC, Generic[ModelType]):
             order_by: str | None = None,
             *,
             options: Sequence[ORMOption] | None = None,
-    ) -> tuple[list[ModelType], int]:
+    ) -> tuple[list[DTOType], int]:
         q = select(self.model)
         if options is not None:
             q = q.options(*options)
 
         if filters:
-            for key, value in filters.items():
-                if value is not None:
-                    q = self._apply_filter(q, key, value)
+            q = self._build_filtered_query(q, filters)
 
         if order_by:
             q = self._apply_sorting(q, order_by)
 
-        return await self._execute_and_paginate_query(
+        items_orm, total_count = await self._execute_and_paginate_query(
             q=q,
             limit=limit,
             offset=offset,
         )
+
+        items_dto = [self._to_dto(item) for item in items_orm]
+        return items_dto, total_count
+
+    def _build_filtered_query(self, query: select, filters: dict[str, Any]) -> select:
+        for key, value in filters.items():
+            if value is not None:
+                query = self._apply_filter(query, key, value)
+        return query
 
     def _apply_filter(self, query: select, key: str, value: Any) -> select:
         field_name, operator = key.split("__", 1) if "__" in key else (key, "eq")
@@ -113,7 +183,7 @@ class GenericRepository(ABC, Generic[ModelType]):
             column = getattr(self.model, field_name)
             return query.order_by(direction(column))
 
-        return query
+        raise ValueError(f"Invalid sort field '{field_name}' for model {self.model.__name__}")
 
     async def _execute_and_paginate_query(
             self,
@@ -122,43 +192,38 @@ class GenericRepository(ABC, Generic[ModelType]):
             limit: int = 100,
     ) -> tuple[list[ModelType], int]:
         count_q = select(func.count()).select_from(q.subquery())
-        total_result = await self.session.execute(count_q)
+        total_result = await self._session.execute(count_q)
         total_count = total_result.scalar_one()
 
         paginated_q = q.offset(offset).limit(limit)
-        result = await self.session.execute(paginated_q)
+        result = await self._session.execute(paginated_q)
 
         items = list(result.scalars().unique().all())
 
         return items, total_count
 
-    async def _execute_modification(self, q: Update | Delete) -> int:
+    async def _execute_modification(self, q: Update | Delete | Insert) -> ModificationResult:
         try:
-            res = await self.session.execute(q)
-            return res.rowcount
-        except IntegrityError:
-            return 0
+            conn = await self._session.connection()
+            res = await conn.execute(q)
 
-    async def _execute_modification_with_returning(self, q: Update | Delete) -> Optional[Any]:
+            returning_rows = list(res.all()) if res.returns_rows else []
+            rowcount = res.rowcount
+
+            return ModificationResult(
+                rowcount=rowcount,
+                returning_rows=returning_rows
+            )
+        except IntegrityError:
+            return ModificationResult(rowcount=0, returning_rows=[])
+
+    async def _execute_creation(self, instance: ModelType) -> CreationResult[DTOType]:
         try:
-            res = await self.session.execute(q)
-            return res.scalar_one_or_none()
-        except IntegrityError:
-            return None
+            self._session.add(instance)
+            await self._session.flush()
+            await self._session.refresh(instance)
 
-    async def _execute_creation(self, instance: ModelType) -> Optional[ModelType]:
-        try:
-            await self.session.flush()
-            await self.session.refresh(instance)
-            return instance
+            dto_obj = self._to_dto(instance)
+            return CreationResult(dto=dto_obj)
         except IntegrityError:
-            await self.session.rollback()
-            return None
-
-    async def _execute_insert(self, q: Insert) -> Any | None:
-        try:
-            res = await self.session.execute(q)
-            return res.scalar()
-        except IntegrityError:
-            return None
-
+            return CreationResult(dto=None)

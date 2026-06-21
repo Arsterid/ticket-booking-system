@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, status
 
+from src.common.annotations import Int32Path
 from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema, \
     GenericModerationSchema
 from src.modules.event.dependencies import EventServiceDep, EventsByUserFiltersDep, EventCategoryFiltersDep
 from src.modules.event.schemas import EventResponseSchema, EventCategoryResponseSchema, EventCategoryCreateSchema
 from src.modules.user.dependencies import UserFiltersDep, \
-    UserServiceDep
+    UserServiceDep, AdminUserIdDep
 from src.modules.user.models import UserRole
 from src.modules.user.roles import RoleChecker
 from src.modules.user.schemas import UserResponseSchema
@@ -43,7 +44,7 @@ async def get_events(
 async def moderate_event(
         event_service: EventServiceDep,
         body: GenericModerationSchema,
-        event_id: int,
+        event_id: Int32Path,
 ) -> GenericSuccessResponseSchema:
     is_success = await event_service.moderate(
         event_id=event_id,
@@ -77,7 +78,7 @@ async def get_users(
 async def moderate_user(
         user_service: UserServiceDep,
         body: GenericModerationSchema,
-        user_id: int,
+        user_id: Int32Path,
 ) -> GenericSuccessResponseSchema:
     is_success = await user_service.verify(
         user_id=user_id,
@@ -130,7 +131,7 @@ async def categories(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[UserResponseSchema],
 )
-async def get_users(
+async def users(
         user_service: UserServiceDep,
         filters: UserFiltersDep
 ) -> PaginatedResponseSchema[UserResponseSchema]:
@@ -149,10 +150,12 @@ async def get_users(
 )
 async def ban_user(
         user_service: UserServiceDep,
-        user_id: int,
+        user_id: Int32Path,
+        actor_id: AdminUserIdDep
 ) -> GenericSuccessResponseSchema:
     is_success = await user_service.ban(
-        user_id=user_id
+        user_id=user_id,
+        actor_id=actor_id
     )
     return GenericSuccessResponseSchema(success=is_success)
 
@@ -164,9 +167,11 @@ async def ban_user(
 )
 async def unban_user(
         user_service: UserServiceDep,
-        user_id: int,
+        user_id: Int32Path,
+        actor_id: AdminUserIdDep
 ) -> GenericSuccessResponseSchema:
     is_success = await user_service.unban(
-        user_id=user_id
+        user_id=user_id,
+        actor_id=actor_id
     )
     return GenericSuccessResponseSchema(success=is_success)

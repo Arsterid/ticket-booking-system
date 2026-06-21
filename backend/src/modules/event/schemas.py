@@ -2,11 +2,11 @@ from typing import Optional
 
 from pydantic import Field, AwareDatetime, model_validator, BaseModel, ConfigDict, field_validator
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
 from src.modules.event.models import EventType
 
 
-class EventCreateSchema(BaseModel):
+class EventCreateSchema(GenericRequestSchema):
     category_id: int = Field(..., gt=0)
     title: str = Field(..., min_length=1, max_length=150, strip_whitespace=True)
     description: str = Field(..., min_length=1, strip_whitespace=True)
@@ -30,7 +30,7 @@ class EventCreateSchema(BaseModel):
         return self
 
 
-class EventUpdateSchema(BaseModel):
+class EventUpdateSchema(GenericRequestSchema):
     category_id: Optional[int] = Field(None, gt=0)
     title: Optional[str] = Field(None, min_length=1, max_length=150, strip_whitespace=True)
     description: Optional[str] = Field(None, min_length=1, strip_whitespace=True)
@@ -54,7 +54,7 @@ class EventUpdateSchema(BaseModel):
         return self
 
 
-class EventCategoryCreateSchema(BaseModel):
+class EventCategoryCreateSchema(GenericRequestSchema):
     name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
     parent_id: Optional[int] = Field(None, gt=0)
 
@@ -70,7 +70,8 @@ class EventCategoryResponseSchema(GenericResponseSchema):
     id: int
     name: str
     parent_id: Optional[int] = None
-    is_leaf: bool
+    can_create_events: Optional[bool] = None
+    can_create_subcategories: Optional[bool] = None
 
 
 class EventResponseSchema(GenericResponseSchema):
@@ -116,7 +117,8 @@ class BaseEventFilterParamsSchema(FilterParamsSchema):
 class EventCategoryFilterParamsSchema(FilterParamsSchema):
     name__ilike: Optional[str] = Field(None, min_length=1, max_length=100, strip_whitespace=True)
     parent_id: Optional[int] = Field(None, gt=0)
-    is_leaf: Optional[bool] = None
+    can_create_events: Optional[bool] = None
+    can_create_subcategories: Optional[bool] = None
 
     @field_validator("name__ilike")
     @classmethod

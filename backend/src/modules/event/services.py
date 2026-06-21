@@ -1,8 +1,9 @@
 from typing import Any
 
 from src.common.services import GenericService
-from src.core.exceptions import ObjectNotFoundException
+from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
 from src.common.schemas import PaginatedResponseSchema
+from src.modules.event.exceptions import EventCategoryIsNotALeafException, EventCategoryHasEventsException
 from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema, \
     EventCategoryResponseSchema, EventCategoryCreateSchema
 from src.core.uow import AppUnitOfWork
@@ -15,35 +16,65 @@ class EventService(GenericService[AppUnitOfWork]):
             user_id: int,
     ) -> EventResponseSchema:
         async with self.uow:
-            event_obj = await self.uow.event.create(
+            is_leaf_category = await self.uow.event_category.exists(
+                id=data.category_id,
+                children__has_no=True,
+                with_for_update=True
+            )
+
+            if not is_leaf_category:
+                category_exists = await self.uow.event_category.exists(id=data.category_id)
+
+                if not category_exists:
+                    raise ObjectNotFoundException(
+                        table=self.uow.event_category.model_name,
+                        value=data.category_id,
+                    )
+
+                raise EventCategoryIsNotALeafException(id=data.category_id)
+
+            event_dto = await self.uow.event.create(
                 user_id=user_id,
                 **data.model_dump()
             )
+
             await self.uow.commit()
 
-            if event_obj is None:
-                raise ObjectNotFoundException(
-                    table=self.uow.event_category.model_name,
-                    value=data.category_id,
-                )
-
-            return EventResponseSchema.model_validate(event_obj)
+            return EventResponseSchema.model_validate(event_dto)
 
     async def create_category(
             self,
             data: EventCategoryCreateSchema
     ) -> EventCategoryResponseSchema:
         async with self.uow:
-            category_obj = await self.uow.event_category.create(
-                **data.model_dump()
-            )
-            if category_obj is None:
-                raise ObjectNotFoundException(
-                    table=self.uow.event_category.model_name,
-                    value=data.parent_id,
+            name_exists = await self.uow.event_category.exists(name=data.name)
+            if name_exists:
+                raise UniqueFieldException(
+                    field="name",
+                    value=data.name,
                 )
+
+            parent_id = data.parent_id
+            if parent_id is not None:
+                parent_is_valid = await self.uow.event_category.exists(
+                    id=parent_id,
+                    events__has_no=True
+                )
+
+                if not parent_is_valid:
+                    parent_exists = await self.uow.event_category.exists(id=parent_id)
+
+                    if not parent_exists:
+                        raise ObjectNotFoundException(
+                            table=self.uow.event_category.model_name,
+                            value=parent_id,
+                        )
+
+                    raise EventCategoryHasEventsException(id=parent_id)
+
+            category_obj = await self.uow.event_category.create(**data.model_dump())
+
             await self.uow.commit()
-            await self.uow.refresh(category_obj, attribute_names=["children"])
             return EventCategoryResponseSchema.model_validate(category_obj)
 
     async def publish(
@@ -57,10 +88,16 @@ class EventService(GenericService[AppUnitOfWork]):
                 user_id=user_id,
             )
             if not is_published:
-                raise ObjectNotFoundException(
-                    table=self.uow.event.model_name,
-                    value=event_id,
+                event_obj = await self.uow.event.get(
+                    id=event_id,
+                    user_id=user_id
                 )
+                if not event_obj:
+                    raise ObjectNotFoundException(
+                        table=self.uow.event.model_name,
+                        value=event_id,
+                    )
+                return True
             await self.uow.commit()
             return True
 
@@ -110,10 +147,9 @@ class EventService(GenericService[AppUnitOfWork]):
             result: bool
     ) -> bool:
         async with self.uow:
-            is_moderated = await self.uow.event.moderate(
-                event_id=event_id,
-                result=result
-            )
+            is_moderated = await self.uow.event.moderation_approve(event_id=event_id) \
+                if not result else await self.uow.event.moderation_decline(event_id=event_id)
+
             if not is_moderated:
                 raise ObjectNotFoundException(
                     table=self.uow.event.model_name,

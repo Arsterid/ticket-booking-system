@@ -4,6 +4,8 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from src.modules.user.models import UserRole
+
 
 @pytest.mark.asyncio
 async def test_register_success(client: AsyncClient):
@@ -198,7 +200,86 @@ async def test_register_success_triggers_and_executes_task(client: AsyncClient, 
     user_id = response.json()["id"]
 
     async with setup_uow as uow:
-        ticket = await uow.ticket.get_by_id(obj_id=10)
+        ticket = await uow.ticket.get(obj_id=10)
         assert ticket.user_id == user_id
         assert ticket.anonymous_email is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "initial_role",
+    [
+        "on_verification",
+        "verified_user",
+    ],
+)
+async def test_apply_for_verification_invalid_initial_role(client: AsyncClient, get_auth_headers, setup_uow,
+                                                           initial_role):
+    async with setup_uow as uow:
+        await uow.user.create(
+            id=10,
+            email="role_test@test.com",
+            username="role_user",
+            password="pwd",
+            role=initial_role
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=10, role=initial_role)
+    response = await client.post("/users/verification/apply", headers=headers)
+
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]
+
+
+@pytest.mark.asyncio
+async def test_register_whitespace_fields_fails(client: AsyncClient):
+    payload = {
+        "email": "whitespace@test.com",
+        "username": "   ",
+        "password": "securepassword123"
+    }
+
+    response = await client.post("/users/", json=payload)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.asyncio
+async def test_apply_for_verification_banned_user_fails(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(
+            id=15,
+            email="banned_apply@test.com",
+            username="banned_apply_user",
+            password="pwd",
+            is_active=False
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=15, role="user")
+    response = await client.post("/users/verification/apply", headers=headers)
+
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN]
+
+
+@pytest.mark.asyncio
+async def test_login_banned_user_fails(client: AsyncClient, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(
+            id=16,
+            email="banned_login@test.com",
+            username="banned_login_user",
+            password="securepassword123",
+            is_active=False
+        )
+        await uow.commit()
+
+    payload = {
+        "email": "banned_login@test.com",
+        "password": "securepassword123"
+    }
+
+    response = await client.post("/users/login", json=payload)
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN,
+                                    status.HTTP_401_UNAUTHORIZED]
+
 

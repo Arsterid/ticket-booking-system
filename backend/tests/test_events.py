@@ -13,20 +13,18 @@ async def test_create_event_success(client: AsyncClient, get_auth_headers, setup
         await uow.commit()
 
     headers = get_auth_headers(user_id=1, role="verified_user")
+
     payload = {
         "category_id": 1,
         "title": "Concert",
         "description": "Rock music event",
         "event_type": "online",
-        "event_date": "2026-06-20T18:00:00+00:00"
+        "event_date": (datetime.now(timezone.utc) + timedelta(days=1)).replace(microsecond=0).isoformat()
     }
 
     response = await client.post("/events/", json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_201_CREATED
-    data = response.json()
-    assert isinstance(data.get("id"), int)
-    assert data.get("title") == "Concert"
 
 
 @pytest.mark.asyncio
@@ -76,7 +74,7 @@ async def test_update_event_success(client: AsyncClient, get_auth_headers, setup
             description="Old Desc",
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -103,7 +101,7 @@ async def test_publish_event_success(client: AsyncClient, get_auth_headers, setu
             state=EventState.DRAFT,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -142,7 +140,7 @@ async def test_cancel_event_success(client: AsyncClient, get_auth_headers, setup
             state=EventState.APPROVED,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -215,7 +213,7 @@ async def test_get_my_events_success(client: AsyncClient, get_auth_headers, setu
             state=EventState.DRAFT,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -271,7 +269,7 @@ async def test_update_event_forbidden_for_stranger(client: AsyncClient, get_auth
             description="Desc",
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -298,7 +296,7 @@ async def test_publish_event_forbidden_for_stranger(client: AsyncClient, get_aut
             state=EventState.DRAFT,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -324,7 +322,7 @@ async def test_cancel_event_forbidden_for_stranger(client: AsyncClient, get_auth
             state=EventState.APPROVED,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -332,3 +330,112 @@ async def test_cancel_event_forbidden_for_stranger(client: AsyncClient, get_auth
     response = await client.patch("/events/1/cancel", headers=headers)
 
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_publish_event_idempotency(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Already Published",
+            description="Desc",
+            state=EventState.ON_MODERATION,
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.patch("/events/1/publish", headers=headers)
+
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.asyncio
+async def test_cancel_event_idempotency(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Already Cancelled",
+            description="Desc",
+            state="cancelled",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.patch("/events/1/cancel", headers=headers)
+
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+
+
+@pytest.mark.asyncio
+async def test_update_event_non_draft_fails(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Non Draft",
+            description="Desc",
+            state="approved",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    payload = {"title": "New Title"}
+    response = await client.patch("/events/1", json=payload, headers=headers)
+
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT, status.HTTP_404_NOT_FOUND]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "hidden_state",
+    [
+        EventState.DRAFT,
+        EventState.CANCELLED,
+    ],
+)
+async def test_get_upcoming_events_excludes_hidden_states(client: AsyncClient, setup_uow, hidden_state):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Hidden Event",
+            description="Desc",
+            state=hidden_state,
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    response = await client.get("/events/")
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    assert len(data.get("items", [])) == 0

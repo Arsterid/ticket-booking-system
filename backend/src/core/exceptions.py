@@ -7,6 +7,14 @@ class ServiceException(Exception):
     pass
 
 
+class ForbiddenException(ServiceException):
+    pass
+
+
+class ConflictException(ServiceException):
+    pass
+
+
 class ObjectNotFoundException(ServiceException):
     def __init__(
             self,
@@ -70,12 +78,14 @@ class MissingParameterException(ServiceException):
         super().__init__(message)
 
 
-class RaceConditionException(ServiceException):
+class RaceConditionException(ConflictException):
     def __init__(
             self,
-            table: str
+            table: str,
+            value: any,
+            field: str = "id"
     ):
-        message = f"Object in '{table}' does not exist or was already changed by another actor concurrently."
+        message = f"Object in '{table}' with {field} '{value}' was already changed by another actor concurrently."
         super().__init__(message)
 
 
@@ -85,6 +95,13 @@ class ValidationException(ServiceException):
             message: str
     ):
         super().__init__(message)
+
+
+async def value_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)}
+    )
 
 
 async def service_exception_handler(request: Request, exc: Exception):
@@ -101,7 +118,14 @@ async def object_not_found_handler(request: Request, exc: Exception):
     )
 
 
-async def race_condition_handler(request: Request, exc: Exception):
+async def forbidden_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": str(exc)}
+    )
+
+
+async def conflict_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
         content={"detail": str(exc)}

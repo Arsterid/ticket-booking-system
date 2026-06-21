@@ -2,12 +2,13 @@ from typing import Optional, Any
 
 from src.common.services import GenericService
 from src.core.exceptions import ObjectNotFoundException, WrongStateException, ParametersConflictException, \
-    MissingParameterException, RaceConditionException
+    MissingParameterException, RaceConditionException, ServiceException
 from src.common.schemas import PaginatedResponseSchema
 from src.modules.event.models import EventStatus
 from src.modules.ticket.models import TicketStatus
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema
 from src.core.uow import AppUnitOfWork
+from src.modules.ticket.exceptions import TicketAlreadyAssignedException
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -129,30 +130,35 @@ class TicketService(GenericService[AppUnitOfWork]):
 
         async with self.uow:
             if user_id is not None:
-                is_user_exists = await self.uow.user.exists(obj_id=user_id)
+                is_user_exists = await self.uow.user.exists(id=user_id)
                 if not is_user_exists:
                     raise ObjectNotFoundException(
                         table=self.uow.user.model_name,
                         value=user_id
                     )
-                old_status = await self.uow.ticket.reserve(
+
+                is_reserved = await self.uow.ticket.reserve(
                     ticket_id=ticket_id,
                     user_id=user_id
                 )
             else:
-                old_status = await self.uow.ticket.reserve_by_email(
+                is_reserved = await self.uow.ticket.reserve_by_email(
                     ticket_id=ticket_id,
                     email=anonymous_email
                 )
 
-            if old_status is None:
-                is_ticket_exists = await self.uow.ticket.exists(obj_id=ticket_id)
+            if not is_reserved:
+                is_ticket_exists = await self.uow.ticket.exists(id=ticket_id)
                 if not is_ticket_exists:
                     raise ObjectNotFoundException(
                         table=self.uow.ticket.model_name,
                         value=ticket_id
                     )
-                raise RaceConditionException(table=self.uow.ticket.model_name)
+
+                raise RaceConditionException(
+                    table=self.uow.ticket.model_name,
+                    value=ticket_id
+                )
 
             await self.uow.commit()
 
@@ -169,40 +175,54 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket_id: int
     ) -> bool:
         async with self.uow:
-            old_status = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
+            is_success = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
 
-            if old_status is None:
-                ticket = await self.uow.ticket.get_by_id(obj_id=ticket_id)
+            if is_success:
+                await self.uow.commit()
+                return True
 
-                if ticket is None:
-                    raise ObjectNotFoundException(
-                        table=self.uow.ticket.model_name,
-                        value=ticket_id
-                    )
+            ticket = await self.uow.ticket.get(id=ticket_id)
 
-                raise RaceConditionException(table=self.uow.ticket.model_name)
+            if ticket is None:
+                raise ObjectNotFoundException(
+                    table=self.uow.ticket.model_name,
+                    value=ticket_id
+                )
 
-            await self.uow.commit()
-            return True
+            if ticket.status != TicketStatus.RESERVED:
+                raise RaceConditionException(
+                    table=self.uow.ticket.model_name,
+                    value=ticket_id
+                )
+
+            raise ServiceException("Unable to mark ticket as paid.")
 
     async def return_to_available_if_not_paid(
             self,
             ticket_id: int
     ) -> bool:
         async with self.uow:
-            old_status = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
+            is_success = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
 
-            if old_status is None:
+            if is_success:
+                await self.uow.commit()
+                return True
+
+            ticket = await self.uow.ticket.get(id=ticket_id)
+
+            if ticket is None:
                 raise ObjectNotFoundException(
                     table=self.uow.ticket.model_name,
                     value=ticket_id
                 )
 
-            if old_status == TicketStatus.RESERVED:
-                await self.uow.commit()
-                return True
+            if ticket.status != TicketStatus.AVAILABLE:
+                raise RaceConditionException(
+                    table=self.uow.ticket.model_name,
+                    value=ticket_id
+                )
 
-            return False
+            raise ServiceException("Unable to return ticket to available state.")
 
 
 class UserTicketService(GenericService[AppUnitOfWork]):
@@ -219,9 +239,7 @@ class UserTicketService(GenericService[AppUnitOfWork]):
                 ticket_type_id=ticket_type_obj.id
             )
 
-            if is_success:
-                await self.uow.commit()
-
+            await self.uow.commit()
             return is_success, was_created
 
     async def unassign_ticket_type_from_user(
@@ -230,7 +248,17 @@ class UserTicketService(GenericService[AppUnitOfWork]):
             ticket_type_id: int
     ) -> bool:
         async with self.uow:
-            is_success = await self.uow.user.unassign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_id)
-            if is_success:
-                await self.uow.commit()
+            is_success = await self.uow.user.unassign_ticket_type(
+                user_id=user_id,
+                ticket_type_id=ticket_type_id
+            )
+
+            if not is_success:
+                raise ObjectNotFoundException(
+                    table="user_ticket",
+                    value=f"user:{user_id}, ticket:{ticket_type_id}"
+                )
+
+            await self.uow.commit()
             return is_success
+

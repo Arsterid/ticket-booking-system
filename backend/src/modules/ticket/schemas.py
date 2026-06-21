@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, EmailStr
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
 from src.modules.ticket.models import TicketStatus
 
 
@@ -11,7 +11,7 @@ class TicketTypeResponseSchema(GenericResponseSchema):
     name: str
 
 
-class TicketTypeCreateSchema(BaseModel):
+class TicketTypeCreateSchema(GenericRequestSchema):
     name: str = Field(..., min_length=1, max_length=32, description='Name of ticket type')
 
     @field_validator("name")
@@ -23,7 +23,7 @@ class TicketTypeCreateSchema(BaseModel):
         return normalized
 
 
-class TicketCreateSchema(BaseModel):
+class TicketCreateSchema(GenericRequestSchema):
     event_id: int = Field(..., gt=0)
     type_id: int = Field(..., gt=0)
     price: int = Field(..., ge=0)
@@ -46,7 +46,7 @@ class TicketResponseSchema(GenericResponseSchema):
     anonymous_email: Optional[EmailStr]
 
 
-class TicketBookSchema(BaseModel):
+class TicketBookSchema(GenericRequestSchema):
     email: Optional[EmailStr] = None
 
 

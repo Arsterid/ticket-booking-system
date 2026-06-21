@@ -2,13 +2,20 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, EmailStr, field_validator
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema
+from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
 from src.modules.user.models import UserRole
 
 
-class BaseUserSchema(BaseModel):
+class BaseUserSchema(GenericRequestSchema):
     email: EmailStr = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=20)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def strip_and_check_whitespaces(cls, v: any) -> any:
+        if isinstance(v, str):
+            v = v.strip()
+        return v
 
 
 class UserCreateSchema(BaseUserSchema):
