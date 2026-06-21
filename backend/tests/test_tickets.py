@@ -4,6 +4,8 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from src.modules.ticket.models import TicketStatus
+
 
 @pytest.mark.asyncio
 async def test_create_ticket_type_success(client: AsyncClient, get_auth_headers, setup_uow):
@@ -431,5 +433,91 @@ async def test_book_ticket_triggers_and_executes_cancel_task(client: AsyncClient
     assert response.status_code == status.HTTP_200_OK
 
     async with setup_uow as uow:
-        ticket = await uow.ticket.get_by_id(obj_id=100)
+        ticket = await uow.ticket.get(obj_id=100)
         assert ticket.status == "available"
+
+
+@pytest.mark.asyncio
+async def test_get_my_tickets_unauthorized(client: AsyncClient):
+    response = await client.get("/tickets/my")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query_params",
+    [
+        "limit=-1&offset=0",
+        "limit=10&offset=-5",
+        "limit=abc&offset=0",
+        "limit=10&offset=xyz",
+        "limit=10&offset=0&order_by=non_existent_column",
+    ],
+)
+async def test_get_my_tickets_invalid_params(client: AsyncClient, get_auth_headers, query_params):
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.get(f"/tickets/my?{query_params}", headers=headers)
+    assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_400_BAD_REQUEST]
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_type_returns_201_when_new(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test@test.com", username="user", password="pwd")
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    payload = {"name": "Brand New VIP Pass"}
+
+    response = await client.post("/tickets/types", json=payload, headers=headers)
+    assert response.status_code == status.HTTP_201_CREATED
+
+
+@pytest.mark.asyncio
+async def test_book_ticket_fails_without_user_and_email(client: AsyncClient, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="owner@test.com", username="owner", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1, user_id=1, state="approved", title="Event",
+            description="Desc", category_id=1, event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.ticket_type.create(id=1, name="Standard")
+        await uow.ticket.create(id=1, event_id=1, type_id=1, price=100, status="available")
+        await uow.commit()
+
+    payload = {"email": None}
+    response = await client.patch("/tickets/1/book", json=payload)
+
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
+
+
+@pytest.mark.asyncio
+async def test_book_ticket_does_not_overwrite_owner(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="owner@test.com", username="owner", password="pwd")
+        await uow.user.create(id=2, email="attacker@test.com", username="attacker", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1, user_id=1, state="approved", title="Event",
+            description="Desc", category_id=1, event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.ticket_type.create(id=1, name="Standard")
+        await uow.ticket.create(id=1, event_id=1, type_id=1, price=100, status=TicketStatus.RESERVED, user_id=1)
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=2, role="verified_user")
+    payload = {"email": "attacker@test.com"}
+    response = await client.patch("/tickets/1/book", json=payload, headers=headers)
+
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]
+
+    async with setup_uow as uow:
+        ticket = await uow.ticket.get(id=1)
+        assert ticket.user_id == 1

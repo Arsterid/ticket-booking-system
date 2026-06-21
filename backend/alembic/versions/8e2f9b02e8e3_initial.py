@@ -30,6 +30,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['parent_id'], ['event_categories.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_event_categories_name'), 'event_categories', ['name'], unique=True)
     op.create_table('ticket_types',
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),

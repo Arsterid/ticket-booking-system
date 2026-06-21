@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pytest
 from fastapi import status
 from httpx import AsyncClient
@@ -21,7 +21,8 @@ async def test_moderate_event_success(client: AsyncClient, get_auth_headers, set
             description="Pending Desc",
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            state=EventState.ON_MODERATION,
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -113,7 +114,7 @@ async def test_get_events_for_moderation_success(client: AsyncClient, get_auth_h
             state=EventState.ON_MODERATION,
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -142,7 +143,8 @@ async def test_moderate_event_reject_success(client: AsyncClient, get_auth_heade
             description="Pending Desc",
             category_id=1,
             event_type="online",
-            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            state=EventState.ON_MODERATION,
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
         )
         await uow.commit()
 
@@ -226,3 +228,37 @@ async def test_moderation_endpoints_forbidden_for_regular_user(
         response = await client.patch(url, json=payload, headers=headers)
 
     assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "already_moderated_state",
+    [
+        "approved",
+        "rejected",
+    ],
+)
+async def test_moderate_event_idempotency(client: AsyncClient, get_auth_headers, setup_uow, already_moderated_state):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="author@test.com", username="author", password="pwd")
+        await uow.user.create(id=2, email="mod@test.com", username="mod", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Moderated Event",
+            description="Desc",
+            category_id=1,
+            event_type="online",
+            state=already_moderated_state,
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=2, role="moderator")
+    payload = {"result": True}
+    response = await client.patch("/moderation/events/1", json=payload, headers=headers)
+
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]

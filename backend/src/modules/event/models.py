@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from src.modules.user.models import User
 
 from sqlalchemy import String, ForeignKey, DateTime, case, func
-from sqlalchemy.orm import Mapped, relationship, mapped_column
+from sqlalchemy.orm import Mapped, relationship, mapped_column, aliased
 
 from src.common.orm.models import AbstractModel
 
@@ -19,7 +19,7 @@ from src.common.orm.models import AbstractModel
 class EventCategory(AbstractModel):
     __tablename__ = 'event_categories'
 
-    name: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(100), unique=True)
 
     parent_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey('event_categories.id', ondelete='CASCADE')
@@ -40,16 +40,6 @@ class EventCategory(AbstractModel):
         "Event",
         back_populates="category"
     )
-
-    @hybrid_property
-    def is_leaf(self) -> bool:
-        return len(self.children) == 0
-
-    @is_leaf.inplace.expression
-    @classmethod
-    def _is_leaf_expression(cls):
-        subq = select(cls.id).where(cls.parent_id == cls.id).exists()
-        return ~subq
 
 
 class EventType(StrEnum):

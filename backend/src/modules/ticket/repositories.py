@@ -1,30 +1,34 @@
 from typing import Optional, Any
 
 from sqlalchemy import select, update, exists, func
-from sqlalchemy.exc import IntegrityError
 
 from src.common.repositories import GenericRepository
 from src.modules.event.models import Event, EventStatus
+from src.modules.ticket.data_objects import TicketDTO, TicketTypeDTO
 from src.modules.ticket.models import Ticket, TicketType, TicketStatus
 from src.modules.user.models import user_ticket_table
 
 
-class TicketRepository(GenericRepository[Ticket], model=Ticket):
-    async def bulk_migrate_from_anonymous_email_to_user(
+class TicketRepository(
+    GenericRepository[Ticket, TicketDTO],
+    model=Ticket,
+    dto=TicketDTO
+):
+    async def migrate_anonymous_records(
             self,
             email: str,
-            user_id: int,
+            user_id: int
     ) -> int:
-
-        q = update(self.model).where(
-            self.model.anonymous_email == email
-        ).values(
-            user_id=user_id,
-            anonymous_email=None,
+        q = (
+            update(self.model)
+            .where(self.model.anonymous_email == email)
+            .values(
+                user_id=user_id,
+                anonymous_email=None
+            )
         )
-        row_count = await super()._execute_modification(q)
-
-        return row_count
+        res = await self._execute_modification(q)
+        return res.rowcount
 
     async def get_available(
             self,
@@ -32,7 +36,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             limit: int = 100,
             filters: dict[str, Any] = None,
             order_by: str | None = None
-    ) -> tuple[list[Ticket], int]:
+    ) -> tuple[list[TicketDTO], int]:
         if filters is None:
             filters = {}
 
@@ -53,7 +57,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             limit: int = 100,
             filters: dict[str, Any] = None,
             order_by: str | None = None
-    ) -> tuple[list[Ticket], int]:
+    ) -> tuple[list[TicketDTO], int]:
         if filters is None:
             filters = {}
 
@@ -78,10 +82,10 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
         )
 
         q = select(
-            Event.id.is_not(None),
+            Event.id != None,
             Event.status,
             Event.user_id == user_id,
-            TicketType.id.is_not(None),
+            TicketType.id != None,
             has_access_subquery
         ).select_from(
             Event
@@ -93,8 +97,8 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             Event.id == event_id
         )
 
-        result = await self.session.execute(q)
-        row = result.first()
+        res = await self._session.execute(q)
+        row = res.first()
 
         if not row:
             return False, None, False, False, False
@@ -105,7 +109,7 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
             self,
             ticket_id: int,
             user_id: Optional[int] = None,
-    ) -> Optional[TicketStatus]:
+    ) -> bool:
         q = (
             update(self.model)
             .values(
@@ -113,20 +117,19 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
                 user_id=user_id,
             )
             .where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.AVAILABLE)
+                self.model.id == ticket_id,
+                self.model.status == TicketStatus.AVAILABLE
             )
-            .returning(self.model.status)
         )
 
-        old_status = await self._execute_modification_with_returning(q=q)
-        return old_status
+        res = await self._execute_modification(q=q)
+        return res.success
 
     async def reserve_by_email(
             self,
             ticket_id: int,
             email: str,
-    ) -> Optional[TicketStatus]:
+    ) -> bool:
         q = (
             update(self.model)
             .values(
@@ -134,40 +137,35 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
                 anonymous_email=email,
             )
             .where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.AVAILABLE)
+                self.model.id == ticket_id,
+                self.model.status == TicketStatus.AVAILABLE
             )
-            .returning(self.model.status)
         )
 
-        old_status = await self._execute_modification_with_returning(q=q)
-        return old_status
+        res = await self._execute_modification(q=q)
+        return res.success
 
     async def mark_as_purchased(
             self,
             ticket_id: int
-    ) -> Optional[TicketStatus]:
+    ) -> bool:
         q = (
             update(self.model)
             .values(status=TicketStatus.PAID)
             .where(
-                (self.model.id == ticket_id) &
-                (self.model.status == TicketStatus.RESERVED)
+                self.model.id == ticket_id,
+                self.model.status == TicketStatus.RESERVED
             )
-            .returning(self.model.id)
         )
 
-        updated_id = await self._execute_modification_with_returning(q=q)
+        res = await self._execute_modification(q=q)
 
-        if updated_id is not None:
-            return TicketStatus.RESERVED
-
-        return None
+        return res.success
 
     async def return_to_available_if_not_paid(
             self,
             ticket_id: int,
-    ) -> Optional[TicketStatus]:
+    ) -> bool:
         q = (
             update(self.model)
             .values(
@@ -176,34 +174,17 @@ class TicketRepository(GenericRepository[Ticket], model=Ticket):
                 status=TicketStatus.AVAILABLE
             )
             .where(self.model.id == ticket_id)
-            .returning(self.model.status)
         )
 
-        old_status = await self._execute_modification_with_returning(q=q)
-        return old_status
+        res = await self._execute_modification(q=q)
+        return res.success
 
 
-class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
-    async def get_or_create(
-            self,
-            name: str
-    ) -> tuple[TicketType, bool]:
-        q = select(self.model).where(self.model.name == name)
-        res = await self.session.execute(q)
-        obj: Optional[TicketType] = res.scalar()
-
-        if obj is not None:
-            return obj, False
-
-        try:
-            async with self.session.begin_nested():
-                obj = await super().create(name=name)
-            return obj, True
-        except IntegrityError:
-            res = await self.session.execute(q)
-            obj: TicketType = res.scalar()
-            return obj, False
-
+class TicketTypeRepository(
+    GenericRepository[TicketType, TicketTypeDTO],
+    model=TicketType,
+    dto=TicketTypeDTO
+):
     async def get_by_user_id(self, user_id: int, offset: int, limit: int):
         q = (
             select(self.model)
@@ -213,7 +194,7 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
             .limit(limit)
         )
 
-        res = await self.session.execute(q)
+        res = await self._session.execute(q)
         items = res.scalars().all()
 
         count_q = (
@@ -222,7 +203,7 @@ class TicketTypeRepository(GenericRepository[TicketType], model=TicketType):
             .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)
             .where(user_ticket_table.c.user_id == user_id)
         )
-        count_res = await self.session.execute(count_q)
+        count_res = await self._session.execute(count_q)
         count = count_res.scalar() or 0
 
         return items, count

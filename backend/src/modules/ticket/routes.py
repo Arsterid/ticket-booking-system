@@ -1,5 +1,6 @@
 from fastapi import APIRouter, status, Response
 
+from src.common.annotations import Int32Path
 from src.common.dependencies import PaginationParamsDep
 from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSchema
 from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep, TicketsFiltersDep
@@ -62,7 +63,7 @@ async def book(
         body: TicketBookSchema,
         ticket_service: TicketServiceDep,
         user_id: OptionalUserIdDep,
-        ticket_id: int
+        ticket_id: Int32Path
 ) -> GenericSuccessResponseSchema:
     await ticket_service.reserve(
         ticket_id=ticket_id,
@@ -80,7 +81,7 @@ async def book(
 )
 async def pay(
         ticket_service: TicketServiceDep,
-        ticket_id: int,
+        ticket_id: Int32Path,
 ) -> GenericSuccessResponseSchema:
     await ticket_service.pay(ticket_id=ticket_id)
 

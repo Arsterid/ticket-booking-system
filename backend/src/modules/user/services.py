@@ -3,11 +3,13 @@ from typing import Any
 from src.common.dependencies import PasswordManager
 from src.common.schemas import PaginatedResponseSchema
 from src.common.services import GenericService
-from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
+from src.core.exceptions import ObjectNotFoundException, UniqueFieldException, ServiceException
 from src.core.security.jwt_tokens import JWTManager
 from src.core.uow import AppUnitOfWork
 from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException, \
-    UserVerificationConflictException
+    UserVerificationConflictException, CannotBanAdminException, UserIsNotBannedException, \
+    UserIsNotAppliedToVerificationException, CannotUnbanYourselfException, CannotBanYourselfException
+from src.modules.user.models import UserRole
 from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserCreateResponseSchema, \
     UserLoginResponseSchema
 
@@ -78,11 +80,13 @@ class UserService(GenericService[AppUnitOfWork]):
                     value=email
                 )
 
-            updated_count = await self.uow.ticket.bulk_migrate_from_anonymous_email_to_user(
+            if not user.is_active:
+                raise UserIsBannedException()
+
+            updated_count = await self.uow.ticket.migrate_anonymous_records(
                 email=email,
                 user_id=user.id,
             )
-
             await self.uow.commit()
 
             return updated_count
@@ -92,21 +96,27 @@ class UserService(GenericService[AppUnitOfWork]):
             user_id: int,
     ) -> bool:
         async with self.uow:
-            is_success = await self.uow.user.apply_for_verification(user_id=user_id)
+            old_role = await self.uow.user.apply_for_verification(user_id=user_id)
 
-            if not is_success:
-                user = await self.uow.user.get_by_id(obj_id=user_id)
+            if old_role is not None:
+                await self.uow.commit()
+                return True
 
-                if user is None:
-                    raise ObjectNotFoundException(
-                        table=self.uow.user.model_name,
-                        value=user_id
-                    )
+            user = await self.uow.user.get(id=user_id)
 
+            if user is None:
+                raise ObjectNotFoundException(
+                    table=self.uow.user.model_name,
+                    value=user_id
+                )
+
+            if not user.is_active:
+                raise UserIsBannedException()
+
+            if user.role != UserRole.USER:
                 raise UserVerificationConflictException()
 
-            await self.uow.commit()
-            return True
+            raise ServiceException("Unable to send verification request.")
 
     async def verify(
             self,
@@ -114,42 +124,87 @@ class UserService(GenericService[AppUnitOfWork]):
             result: bool
     ) -> bool:
         async with self.uow:
-            is_success = await self.uow.user.verify(user_id=user_id, result=result)
-            if not is_success:
+            old_role = await self.uow.user.verification_approve(user_id=user_id) \
+                if result else await self.uow.user.verification_decline(user_id=user_id)
+
+            if old_role is not None:
+                await self.uow.commit()
+                return True
+
+            user = await self.uow.user.get(id=user_id)
+
+            if user is None:
                 raise ObjectNotFoundException(
                     table=self.uow.user.model_name,
                     value=user_id
                 )
-            await self.uow.commit()
-            return True
+
+            if not user.is_active:
+                raise UserIsBannedException()
+
+            if user.role != UserRole.ON_VERIFICATION:
+                raise UserIsNotAppliedToVerificationException()
+
+            raise ServiceException("Unable to verify user.")
 
     async def ban(
             self,
             user_id: int,
+            actor_id: int
     ) -> bool:
+        if user_id == actor_id:
+            raise CannotBanYourselfException()
+
         async with self.uow:
-            is_banned = await self.uow.user.ban(user_id=user_id)
-            if not is_banned:
+            previous_role, previous_is_active = await self.uow.user.ban(user_id=user_id)
+
+            if previous_role is not None:
+                await self.uow.commit()
+                return True
+
+            user = await self.uow.user.get(id=user_id)
+
+            if not user:
                 raise ObjectNotFoundException(
                     table=self.uow.user.model_name,
                     value=user_id
                 )
-            await self.uow.commit()
-            return True
+
+            if user.role == UserRole.ADMIN:
+                raise CannotBanAdminException()
+
+            if not user.is_active:
+                raise UserIsBannedException()
+
+            raise ServiceException("Unexpected user state.")
 
     async def unban(
             self,
             user_id: int,
+            actor_id: int
     ) -> bool:
+        if user_id == actor_id:
+            raise CannotUnbanYourselfException()
+
         async with self.uow:
-            is_unbanned = await self.uow.user.unban(user_id=user_id)
-            if not is_unbanned:
+            previous_is_active = await self.uow.user.unban(user_id=user_id)
+
+            if previous_is_active is not None:
+                await self.uow.commit()
+                return True
+
+            user = await self.uow.user.get(obj_id=user_id)
+
+            if not user:
                 raise ObjectNotFoundException(
                     table=self.uow.user.model_name,
                     value=user_id
                 )
-            await self.uow.commit()
-            return True
+
+            if user.is_active:
+                raise UserIsNotBannedException()
+
+            raise ServiceException("Unexpected user state.")
 
     async def get_all(
             self,

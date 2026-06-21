@@ -1,103 +1,138 @@
 from typing import Optional, Any
 
-from pydantic import EmailStr
-from sqlalchemy import select, insert, delete, update
+from sqlalchemy import insert, delete, update
 
 from src.common.repositories import GenericRepository
+from src.modules.user.data_objects import UserDTO
 from src.modules.user.models import User, user_ticket_table, UserRole
 
 
-class UserRepository(GenericRepository[User], model=User):
-    async def get_by_email(self, email: EmailStr) -> Optional[User]:
-        q = select(self.model).where(self.model.email == email)
-        result = await self.session.execute(q)
-        return result.scalar()
+class UserRepository(
+    GenericRepository[User, UserDTO],
+    model=User,
+    dto=UserDTO
+):
+    async def get_by_email(self, email: str) -> Optional[UserDTO]:
+        return await super().get(email=email)
 
     async def assign_ticket_type(
-        self,
-        user_id: int,
-        ticket_type_id: int
+            self,
+            user_id: int,
+            ticket_type_id: int
     ) -> bool:
-        q = insert(user_ticket_table).values(
-            user_id=user_id,
-            ticket_type_id=ticket_type_id
+        q = (
+            insert(user_ticket_table)
+            .values(user_id=user_id, ticket_type_id=ticket_type_id)
         )
-        res = await super()._execute_insert(q.returning(user_ticket_table.c.user_id))
-        return bool(res)
+
+        res = await self._execute_modification(q)
+
+        return res.success
 
     async def unassign_ticket_type(
-        self,
-        user_id: int,
-        ticket_type_id: int
+            self,
+            user_id: int,
+            ticket_type_id: int
     ) -> bool:
         q = delete(user_ticket_table).where(
-            (user_ticket_table.c.user_id == user_id) &
-            (user_ticket_table.c.ticket_type_id == ticket_type_id)
+            user_ticket_table.c.user_id == user_id,
+            user_ticket_table.c.ticket_type_id == ticket_type_id
         )
-        row_count = await super()._execute_modification(q.returning(user_ticket_table.c.user_id))
-
-        return row_count > 0
+        res = await super()._execute_modification(q)
+        return res.success
 
     async def apply_for_verification(
             self,
             user_id: int,
-    ) -> bool:
-        q = update(self.model).where(
-            (self.model.id == user_id) &
-            (self.model.role == UserRole.USER) &
-            (self.model.is_active == True)
-        ).values(
-            role=UserRole.ON_VERIFICATION
+    ) -> str | None:
+        q = (
+            update(self.model)
+            .where(
+                self.model.id == user_id,
+                self.model.role == UserRole.USER,
+                self.model.is_active
+            )
+            .values(
+                role=UserRole.ON_VERIFICATION,
+            )
+            .returning(self.model.role)
         )
-        row_count = await super()._execute_modification(q)
+        res = await super()._execute_modification(q)
 
-        return bool(row_count)
+        return res.scalar_returning
 
     async def ban(
             self,
             user_id: int,
-    ) -> bool:
-        q = update(self.model).where(
-            (self.model.id == user_id) &
-            (self.model.is_active == True)
-        ).values(
-            is_active=False
+    ) -> tuple[str, bool] | None:
+        q = (
+            update(self.model)
+            .where(
+                self.model.id == user_id,
+                self.model.role != UserRole.ADMIN,
+            )
+            .values(is_active=False)
+            .returning(self.model.role, self.model.is_active)
         )
-        row_count = await super()._execute_modification(q)
+        res = await super()._execute_modification(q)
 
-        return bool(row_count)
+        return res.first_returning or (None, None)
 
     async def unban(
             self,
             user_id: int,
-    ) -> bool:
-        q = update(self.model).where(
-            (self.model.id == user_id) &
-            (self.model.is_active == False)
-        ).values(
-            is_active=True
+    ) -> bool | None:
+        q = (
+            update(self.model)
+            .where(
+                self.model.id == user_id
+            )
+            .values(is_active=True)
+            .returning(self.model.is_active)
         )
-        row_count = await super()._execute_modification(q)
+        res = await super()._execute_modification(q)
 
-        return bool(row_count)
+        return res.scalar_returning
 
-    async def verify(
+    async def verification_approve(
             self,
             user_id: int,
-            result: bool
-    ) -> bool:
-        new_role = UserRole.VERIFIED_USER if result else UserRole.USER
-
-        q = update(self.model).where(
-            (self.model.id == user_id) &
-            (self.model.role == UserRole.ON_VERIFICATION) &
-            (self.model.is_active == True)
-        ).values(
-            role=new_role
+    ) -> str | None:
+        q = (
+            update(self.model)
+            .where(
+                self.model.id == user_id,
+                self.model.role == UserRole.ON_VERIFICATION,
+                self.model.is_active
+            )
+            .values(
+                role=UserRole.USER
+            )
+            .returning(self.model.role)
         )
-        row_count = await super()._execute_modification(q)
+        res = await super()._execute_modification(q)
 
-        return bool(row_count)
+        return res.scalar_returning
+
+    async def verification_decline(
+            self,
+            user_id: int,
+    ) -> str | None:
+        q = (
+            update(self.model)
+            .where(
+                self.model.id == user_id,
+                self.model.role == UserRole.ON_VERIFICATION,
+                self.model.is_active
+            )
+            .values(
+                role=UserRole.VERIFIED_USER
+            )
+            .returning(self.model.role)
+        )
+        res = await super()._execute_modification(q)
+
+        return res.scalar_returning
 
     async def get_for_verification(
             self,
@@ -105,15 +140,13 @@ class UserRepository(GenericRepository[User], model=User):
             limit: int = 100,
             filters: dict[str, Any] = None,
             order_by: str | None = None
-    ) -> tuple[list[User], int]:
-        if filters is None:
-            filters = {}
-
-        filters["role"] = UserRole.ON_VERIFICATION
+    ) -> tuple[list[UserDTO], int]:
+        query_filters = dict(filters) if filters is not None else {}
+        query_filters["role"] = UserRole.ON_VERIFICATION
 
         return await super().get_all(
             offset=offset,
             limit=limit,
-            filters=filters,
+            filters=query_filters,
             order_by=order_by
         )
