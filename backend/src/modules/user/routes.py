@@ -1,5 +1,4 @@
-from fastapi import APIRouter
-from starlette import status
+from fastapi import APIRouter, status
 
 from src.common.dependencies import PasswordManagerDep, JWTManagerDep
 from src.common.schemas import GenericSuccessResponseSchema

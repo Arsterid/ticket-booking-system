@@ -1,0 +1,13 @@
+services:
+  prometheus:
+    ports: !reset []
+    volumes:
+      - prometheus_data:/prometheus
+
+  grafana:
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  prometheus_data:
+  grafana_data:

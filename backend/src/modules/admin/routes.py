@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends
-from starlette import status
+from fastapi import APIRouter, Depends, status
 
 from src.common.schemas import PaginatedResponseSchema, GenericSuccessResponseSchema, \
     GenericModerationSchema
 from src.modules.event.dependencies import EventServiceDep, EventsByUserFiltersDep, EventCategoryFiltersDep
 from src.modules.event.schemas import EventResponseSchema, EventCategoryResponseSchema, EventCategoryCreateSchema
-from src.modules.user.dependencies import ModeratorUserIdDep, AdminUserIdDep, UserFiltersDep, \
+from src.modules.user.dependencies import UserFiltersDep, \
     UserServiceDep
 from src.modules.user.models import UserRole
 from src.modules.user.roles import RoleChecker
@@ -171,4 +170,3 @@ async def unban_user(
         user_id=user_id
     )
     return GenericSuccessResponseSchema(success=is_success)
-

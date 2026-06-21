@@ -1,14 +1,14 @@
 from fastapi import Depends, HTTPException, status
 from typing import Annotated
 
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from src.common.dependencies import JWTManagerDep
 from src.modules.user.models import UserRole
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="auth/login",
+user_auth_scheme = HTTPBearer(
+    scheme_name="User_JWT_Token",
     auto_error=False
 )
 
@@ -21,8 +21,10 @@ class RoleChecker:
     async def __call__(
             self,
             jwt_manager: JWTManagerDep,
-            token: Annotated[str | None, Depends(oauth2_scheme)] = None,
+            auth_creds: Annotated[HTTPAuthorizationCredentials | None, Depends(user_auth_scheme)] = None,
     ) -> int | None:
+        token = auth_creds.credentials if auth_creds else None
+
         if not token:
             if self.optional:
                 return None
