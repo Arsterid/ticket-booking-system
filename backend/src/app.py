@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from src.modules.user.exceptions import IncorrectLoginDataException
-from src.prometheus import init_metrics
+from src.metrics import init_metrics
 from src.routes import api_v1_router
 from src.core.exceptions import ServiceException, ObjectNotFoundException, RaceConditionException, \
     service_exception_handler, object_not_found_handler, race_condition_handler, incorrect_logic_data_handler
