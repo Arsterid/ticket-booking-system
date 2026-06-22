@@ -9,6 +9,7 @@ from src.modules.ticket.models import TicketStatus
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketResponseSchema, TicketCreateSchema, \
     TicketAllInfoResponseSchema
 from src.core.uow import AppUnitOfWork
+from src.modules.user.exceptions import AlreadyRegisteredException
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -162,8 +163,8 @@ class TicketService(GenericService[AppUnitOfWork]):
             raise ParametersConflictException(options=["user_id", "anonymous_email"])
 
         async with self.uow:
-            if anonymous_email and (user := await self.uow.user.get(email=anonymous_email)):
-                user_id = user.id
+            if anonymous_email and await self.uow.user.exists(email=anonymous_email):
+                raise AlreadyRegisteredException()
 
             if user_id is not None:
                 is_reserved = await self.uow.ticket.reserve(ticket_id=ticket_id, user_id=user_id)

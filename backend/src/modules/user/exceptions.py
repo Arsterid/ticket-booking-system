@@ -39,3 +39,8 @@ class CannotBanYourselfException(ForbiddenException):
 class CannotUnbanYourselfException(ForbiddenException):
     def __init__(self):
         super().__init__('You cannot ban yourself.')
+
+
+class AlreadyRegisteredException(ConflictException):
+    def __init__(self):
+        super().__init__('User with this email already registered, cannot reserve as anonym.')

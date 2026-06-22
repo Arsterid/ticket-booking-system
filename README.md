@@ -13,6 +13,9 @@ The system features advanced asynchronous task queuing, strict data validation p
 * Production Monitoring Stack: Native Prometheus metrics engine paired with Grafana dashboards to track latency percentiles, error rates, and request throughput in real time.
 * Network and API Security: Endpoint protection via dynamic token mapping and Docker Secrets isolation, combined with strategic 404 Not Found masking to prevent resource harvesting.
 * Comprehensive Integration Testing: Automated testing suite leveraging Taskiq in-memory scheduling running in await_inplace mode to catch side-effects within a single transaction.
+* Event-Driven Notification Engine: Asynchronous transactional email dispatch integrated with the background processing layer, eliminating I/O bottlenecks within the primary HTTP request-response cycle.
+* Deferred Ticket Reconciliation: Intelligent booking management that automatically aggregates and links prior anonymous reservations to a user's profile via email address matching immediately upon registration.
+
 
 ## Tech Stack
 
@@ -71,6 +74,7 @@ The system features advanced asynchronous task queuing, strict data validation p
         ├── cli/                # CLI commands to execute in terminal
         ├── core/               # App configuration, security and database infrastructure
         │   └── security/       # JWT token utilities and cryptographic handlers
+        │   └── mail/           # Core of the email sending system
         └── modules/            # Isolated domain partitions
             ├── admin/          # Administration and system control endpoints
             ├── event/          # Venues, category mappings, and event routes
