@@ -402,7 +402,7 @@ async def test_pay_ticket_invalid_status(client: AsyncClient, setup_uow):
 
     response = await client.patch("/tickets/1/pay")
 
-    assert response.status_code == status.HTTP_409_CONFLICT
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.asyncio
@@ -457,7 +457,7 @@ async def test_get_my_tickets_unauthorized(client: AsyncClient):
 async def test_get_my_tickets_invalid_params(client: AsyncClient, get_auth_headers, query_params):
     headers = get_auth_headers(user_id=1, role="verified_user")
     response = await client.get(f"/tickets/my?{query_params}", headers=headers)
-    assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_400_BAD_REQUEST]
+    assert response.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_400_BAD_REQUEST]
 
 
 @pytest.mark.asyncio
@@ -492,7 +492,7 @@ async def test_book_ticket_fails_without_user_and_email(client: AsyncClient, set
     payload = {"email": None}
     response = await client.patch("/tickets/1/book", json=payload)
 
-    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
+    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_CONTENT]
 
 
 @pytest.mark.asyncio

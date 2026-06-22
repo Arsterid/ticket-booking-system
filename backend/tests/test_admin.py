@@ -156,7 +156,7 @@ async def test_admin_endpoints_unauthorized(client: AsyncClient, method, url, pa
 async def test_create_category_validation_errors(client: AsyncClient, get_auth_headers, payload):
     headers = get_auth_headers(user_id=1, role="admin")
     response = await client.post("/admin/categories", json=payload, headers=headers)
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_create_category_validation_errors(client: AsyncClient, get_auth_h
 async def test_admin_pagination_and_sorting_errors(client: AsyncClient, get_auth_headers, url):
     headers = get_auth_headers(user_id=1, role="admin")
     response = await client.get(url, headers=headers)
-    assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_400_BAD_REQUEST]
+    assert response.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_400_BAD_REQUEST]
 
 
 @pytest.mark.asyncio
@@ -202,7 +202,7 @@ async def test_admin_filters_and_sql_injection(client: AsyncClient, get_auth_hea
     headers = get_auth_headers(user_id=1, role="admin")
     url = f"{base_url}?limit=10&offset=0&{injection_query}"
     response = await client.get(url, headers=headers)
-    assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY]
+    assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_CONTENT]
 
 
 @pytest.mark.asyncio
@@ -219,10 +219,10 @@ async def test_user_management_invalid_id(client: AsyncClient, get_auth_headers,
     headers = get_auth_headers(user_id=1, role="admin")
 
     response_ban = await client.patch(f"/admin/users/{invalid_id}/ban", headers=headers)
-    assert response_ban.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_404_NOT_FOUND]
+    assert response_ban.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_404_NOT_FOUND]
 
     response_unban = await client.patch(f"/admin/users/{invalid_id}/unban", headers=headers)
-    assert response_unban.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_404_NOT_FOUND]
+    assert response_unban.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_404_NOT_FOUND]
 
 
 @pytest.mark.asyncio

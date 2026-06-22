@@ -1,3 +1,4 @@
+from src.core.mail.service.factory import get_email_service
 from src.core.tiq import broker, logger
 from src.modules.ticket.dependencies import TicketServiceDep
 
@@ -24,4 +25,37 @@ async def cancel_reservation_task(
         return was_cancelled
     except Exception as e:
         logger.exception(f"Met a critical error while trying to process ticket {ticket_id}: {e}")
+        raise e
+
+
+@broker.task(task_name="ticket:send_confirmation_mail")
+async def send_confirmation_mail_task(
+        ticket_service: TicketServiceDep,
+        ticket_id: int
+) -> bool:
+    logger.info(f"Starting the process of sending confirmation mail for ticket '{ticket_id}'.")
+
+    try:
+        ticket = await ticket_service.get_for_confirmation_email(ticket_id=ticket_id)
+
+        if not ticket:
+            logger.warning(f"Ticket '{ticket_id}' not found. Confirmation email cannot be sent.")
+            return False
+
+        recipient_email = ticket.user.email if ticket.user else ticket.anonymous_email
+        email_service = get_email_service()
+
+        await email_service.send(
+            to_email=recipient_email,
+            subject=f"Ваш билет на мероприятие «{ticket.event.title}»",
+            body="",
+            template_name="ticket_confirmation.html",
+            lang="ru",
+            context={"ticket": ticket.model_dump()}
+        )
+
+        logger.info(f"Confirmation email for ticket '{ticket_id}' was successfully processed.")
+        return True
+    except Exception as e:
+        logger.exception(f"Met a critical error while trying to send confirmation mail for ticket {ticket_id}: {e}")
         raise e

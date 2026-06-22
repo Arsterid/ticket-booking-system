@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from src.common.uow.factory import UoWServiceFactory
 from src.core.tasks import task_manager
-from src.modules.ticket.schemas import TicketsFilterParamsSchema
+from src.modules.ticket.schemas import TicketsFilterParamsSchema, TicketsByEventFilterParamsSchema
 from src.modules.ticket.services import TicketService, UserTicketService
 from src.core.uow import create_sqlalchemy_uow
 
@@ -21,3 +21,4 @@ UserTicketServiceDep = Annotated[
         tasks=task_manager
     ))]
 TicketsFiltersDep = Annotated[TicketsFilterParamsSchema, Depends(TicketsFilterParamsSchema)]
+TicketsByEventFiltersDep = Annotated[TicketsByEventFilterParamsSchema, Depends(TicketsByEventFilterParamsSchema)]

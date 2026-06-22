@@ -46,7 +46,8 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
 
     def _to_dto(self, obj_orm: ModelType) -> DTOType:
         allowed_fields = {f.name for f in fields(self.dto)}
-        mapper = inspect(obj_orm).mapper
+        insp = inspect(obj_orm)
+        mapper = insp.mapper
 
         hybrid_fields = {
             attr.__name__ for attr in mapper.all_orm_descriptors
@@ -55,7 +56,10 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
 
         loaded_data = {}
         for f in allowed_fields:
-            if f in obj_orm.__dict__:
+            if f in mapper.relationships:
+                if f not in insp.unloaded:
+                    loaded_data[f] = getattr(obj_orm, f)
+            elif f in obj_orm.__dict__:
                 loaded_data[f] = obj_orm.__dict__[f]
             elif f in hybrid_fields:
                 loaded_data[f] = getattr(obj_orm, f)
@@ -130,11 +134,11 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
 
     async def get_all(
             self,
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            filters: dict[str, Any] | None = None,
             order_by: str | None = None,
-            *,
             options: Sequence[ORMOption] | None = None,
     ) -> tuple[list[DTOType], int]:
         q = select(self.model)
@@ -188,6 +192,7 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
     async def _execute_and_paginate_query(
             self,
             q: Select[tuple[Any, ...]],
+            *,
             offset: int = 0,
             limit: int = 100,
     ) -> tuple[list[ModelType], int]:

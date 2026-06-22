@@ -136,9 +136,10 @@ class UserRepository(
 
     async def get_for_verification(
             self,
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            filters: dict[str, Any] = None,
             order_by: str | None = None
     ) -> tuple[list[UserDTO], int]:
         query_filters = dict(filters) if filters is not None else {}

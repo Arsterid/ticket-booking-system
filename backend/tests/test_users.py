@@ -240,7 +240,7 @@ async def test_register_whitespace_fields_fails(client: AsyncClient):
     }
 
     response = await client.post("/users/", json=payload)
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 @pytest.mark.asyncio

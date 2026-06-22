@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 8e2f9b02e8e3
+Revision ID: 012dd508921f
 Revises:
-Create Date: 2026-06-20 13:11:26.009968
+Create Date: 2026-06-22 19:15:17.830591
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8e2f9b02e8e3'
+revision: str = '012dd508921f'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,15 +28,16 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['parent_id'], ['event_categories.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name')
     )
-    op.create_index(op.f('ix_event_categories_name'), 'event_categories', ['name'], unique=True)
     op.create_table('ticket_types',
-    sa.Column('name', sa.String(length=255), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name')
     )
     op.create_table('users',
     sa.Column('role', sa.Enum('USER', 'ON_VERIFICATION', 'VERIFIED_USER', 'MODERATOR', 'ADMIN', name='userrole', native_enum=False), nullable=False),

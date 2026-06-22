@@ -79,18 +79,18 @@ class EventService(GenericService[AppUnitOfWork]):
 
     async def publish(
             self,
+            actor_id: int,
             event_id: int,
-            user_id: int,
     ) -> bool:
         async with self.uow:
             is_published = await self.uow.event.publish(
                 event_id=event_id,
-                user_id=user_id,
+                user_id=actor_id,
             )
             if not is_published:
                 event_obj = await self.uow.event.get(
                     id=event_id,
-                    user_id=user_id
+                    user_id=actor_id
                 )
                 if not event_obj:
                     raise ObjectNotFoundException(
@@ -104,8 +104,8 @@ class EventService(GenericService[AppUnitOfWork]):
     async def update(
             self,
             data: EventUpdateSchema,
+            actor_id: int,
             event_id: int,
-            user_id: int,
     ) -> bool:
         update_data = data.model_dump(exclude_unset=True)
 
@@ -115,7 +115,7 @@ class EventService(GenericService[AppUnitOfWork]):
         async with self.uow:
             is_updated = await self.uow.event.update(
                 event_id=event_id,
-                user_id=user_id,
+                user_id=actor_id,
                 **update_data
             )
             if not is_updated:
@@ -160,10 +160,11 @@ class EventService(GenericService[AppUnitOfWork]):
 
     async def get_for_moderation(
             self,
-            filters: dict[str, Any],
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
             items, count = await self.uow.event.get_for_moderation(
@@ -182,10 +183,11 @@ class EventService(GenericService[AppUnitOfWork]):
 
     async def get_upcoming(
             self,
-            filters: dict[str, Any],
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
             items, count = await self.uow.event.get_upcoming(
@@ -201,16 +203,17 @@ class EventService(GenericService[AppUnitOfWork]):
                 limit=limit,
             )
 
-    async def get_by_user(
+    async def get_all_by_user(
             self,
-            filters: dict[str, Any],
             user_id: int,
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.event.get_by_user(
+            items, count = await self.uow.event.get_all_by_user(
                 user_id=user_id,
                 filters=filters,
                 offset=offset,
@@ -226,10 +229,11 @@ class EventService(GenericService[AppUnitOfWork]):
 
     async def get_categories(
             self,
-            filters: dict[str, Any],
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
         async with self.uow:
             items, count = await self.uow.event_category.get_all_with_children(

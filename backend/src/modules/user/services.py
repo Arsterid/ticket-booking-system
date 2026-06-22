@@ -208,10 +208,11 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def get_all(
             self,
-            filters: dict[str, Any],
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
             items, count = await self.uow.user.get_all(
@@ -229,10 +230,11 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def get_for_verification(
             self,
-            filters: dict[str, Any],
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            order_by: str = None,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
             items, count = await self.uow.user.get_for_verification(

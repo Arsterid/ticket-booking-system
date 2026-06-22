@@ -24,7 +24,7 @@ moderation_router = APIRouter(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema],
 )
-async def get_events(
+async def get_all_events_up_to_moderation(
         event_service: EventServiceDep,
         filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
@@ -32,7 +32,7 @@ async def get_events(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -58,7 +58,7 @@ async def moderate_event(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[UserResponseSchema],
 )
-async def get_users(
+async def get_all_users_up_to_verification(
         user_service: UserServiceDep,
         filters: UserFiltersDep
 ) -> PaginatedResponseSchema[UserResponseSchema]:
@@ -66,7 +66,7 @@ async def get_users(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -114,7 +114,7 @@ async def create(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
 )
-async def categories(
+async def get_all_categories(
         event_service: EventServiceDep,
         filters: EventCategoryFiltersDep
 ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
@@ -122,7 +122,7 @@ async def categories(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -131,7 +131,7 @@ async def categories(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[UserResponseSchema],
 )
-async def users(
+async def get_all_users(
         user_service: UserServiceDep,
         filters: UserFiltersDep
 ) -> PaginatedResponseSchema[UserResponseSchema]:
@@ -139,7 +139,7 @@ async def users(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 

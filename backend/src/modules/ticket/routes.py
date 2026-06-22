@@ -6,7 +6,7 @@ from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSc
 from src.modules.ticket.dependencies import TicketServiceDep, UserTicketServiceDep, TicketsFiltersDep
 from src.modules.ticket.schemas import TicketTypeResponseSchema, TicketTypeCreateSchema, TicketCreateSchema, \
     TicketResponseSchema, TicketBookSchema
-from src.modules.user.dependencies import OptionalUserIdDep, VerifiedUserIdDep
+from src.modules.user.dependencies import OptionalUserIdDep, VerifiedUserIdDep, AnyUserIdDep
 
 ticket_router = APIRouter(
     prefix="/tickets",
@@ -25,7 +25,7 @@ async def get_or_create_then_assign_to_user(
         user_id: VerifiedUserIdDep,
         response: Response
 ) -> GenericSuccessResponseSchema:
-    is_success, was_created = await user_ticket_service.get_or_create_ticket_type_and_assign_to_user(
+    is_success, was_created = await user_ticket_service.get_or_create_and_assign_to_user(
         user_id=user_id,
         name=body.name
     )
@@ -93,7 +93,7 @@ async def pay(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketTypeResponseSchema]
 )
-async def by_user_id(
+async def get_all_by_user_id(
         ticket_service: TicketServiceDep,
         user_id: VerifiedUserIdDep,
         filters: PaginationParamsDep
@@ -110,15 +110,15 @@ async def by_user_id(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]
 )
-async def available(
+async def get_all_available(
         ticket_service: TicketServiceDep,
         filters: TicketsFiltersDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:
-    return await ticket_service.get_available(
+    return await ticket_service.get_all_available(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"offset", "limit", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -127,15 +127,15 @@ async def available(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[TicketResponseSchema]
 )
-async def by_current_user(
+async def get_all_by_current_user(
         ticket_service: TicketServiceDep,
-        user_id: VerifiedUserIdDep,
+        user_id: AnyUserIdDep,
         filters: TicketsFiltersDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:
-    return await ticket_service.get_by_user(
+    return await ticket_service.get_all_by_user(
         user_id=user_id,
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"offset", "limit", "order_by"})
+        filters=filters.specific_filters
     )
