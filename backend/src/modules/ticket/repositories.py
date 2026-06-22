@@ -1,6 +1,7 @@
 from typing import Optional, Any
 
 from sqlalchemy import select, update, exists, func
+from sqlalchemy.orm import selectinload
 
 from src.common.repositories import GenericRepository
 from src.modules.event.models import Event, EventStatus
@@ -30,43 +31,73 @@ class TicketRepository(
         res = await self._execute_modification(q)
         return res.rowcount
 
-    async def get_available(
+    async def get_all_available(
             self,
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            filters: dict[str, Any] = None,
             order_by: str | None = None
     ) -> tuple[list[TicketDTO], int]:
-        if filters is None:
-            filters = {}
-
-        filters["status"] = TicketStatus.AVAILABLE
-        filters["event.status"] = EventStatus.UPCOMING
+        query_filters = dict(filters) if filters is not None else {}
+        query_filters["event.status"] = EventStatus.UPCOMING
+        query_filters["status"] = TicketStatus.AVAILABLE
 
         return await super().get_all(
             offset=offset,
             limit=limit,
-            filters=filters,
+            filters=query_filters,
             order_by=order_by,
         )
 
-    async def get_by_user(
+    async def get_all_by_user(
             self,
             user_id: int,
+            *,
+            filters: dict[str, Any] | None = None,
             offset: int = 0,
             limit: int = 100,
-            filters: dict[str, Any] = None,
             order_by: str | None = None
     ) -> tuple[list[TicketDTO], int]:
-        if filters is None:
-            filters = {}
-
-        filters["user_id"] = user_id
+        query_filters = dict(filters) if filters is not None else {}
+        query_filters["user_id"] = user_id
 
         return await super().get_all(
             offset=offset,
             limit=limit,
-            filters=filters,
+            filters=query_filters,
+            order_by=order_by,
+        )
+
+    async def get_with_user_and_event(
+            self,
+            ticket_id: int,
+    ) -> TicketDTO | None:
+        return await super().get(
+            id=ticket_id,
+            options=[
+                selectinload(self.model.event),
+                selectinload(self.model.user),
+                selectinload(self.model.type),
+            ]
+        )
+
+    async def get_all_by_event_id(
+            self,
+            event_id: int,
+            *,
+            filters: dict[str, Any] | None = None,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None
+    ) -> tuple[list[TicketDTO], int]:
+        query_filters = dict(filters) if filters is not None else {}
+        query_filters["event_id"] = event_id
+
+        return await super().get_all(
+            offset=offset,
+            limit=limit,
+            filters=query_filters,
             order_by=order_by,
         )
 
@@ -185,7 +216,7 @@ class TicketTypeRepository(
     model=TicketType,
     dto=TicketTypeDTO
 ):
-    async def get_by_user_id(self, user_id: int, offset: int, limit: int):
+    async def get_all_by_user_id(self, user_id: int, offset: int, limit: int):
         q = (
             select(self.model)
             .join(user_ticket_table, self.model.id == user_ticket_table.c.ticket_type_id)

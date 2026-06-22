@@ -6,6 +6,8 @@ from src.modules.event.dependencies import EventServiceDep, UpcomingEventsFilter
     EventCategoryFiltersDep
 from src.modules.event.schemas import EventCreateSchema, EventResponseSchema, EventUpdateSchema, \
     EventCategoryResponseSchema
+from src.modules.ticket.dependencies import TicketsByEventFiltersDep, TicketServiceDep
+from src.modules.ticket.schemas import TicketResponseSchema
 from src.modules.user.dependencies import VerifiedUserIdDep
 
 event_router = APIRouter(
@@ -39,7 +41,7 @@ async def update(
         user_id: VerifiedUserIdDep,
         body: EventUpdateSchema
 ) -> GenericSuccessResponseSchema:
-    result = await event_service.update(event_id=event_id, user_id=user_id, data=body)
+    result = await event_service.update(event_id=event_id, actor_id=user_id, data=body)
     return GenericSuccessResponseSchema(success=result)
 
 
@@ -53,7 +55,7 @@ async def publish(
         event_id: Int32Path,
         user_id: VerifiedUserIdDep
 ) -> GenericSuccessResponseSchema:
-    result = await event_service.publish(event_id=event_id, user_id=user_id)
+    result = await event_service.publish(event_id=event_id, actor_id=user_id)
     return GenericSuccessResponseSchema(success=result)
 
 
@@ -76,7 +78,7 @@ async def cancel(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
 )
-async def categories(
+async def get_categories(
         event_service: EventServiceDep,
         filters: EventCategoryFiltersDep
 ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
@@ -84,7 +86,7 @@ async def categories(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -93,7 +95,7 @@ async def categories(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
 )
-async def upcoming(
+async def get_all_upcoming(
         event_service: EventServiceDep,
         filters: UpcomingEventsFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
@@ -101,7 +103,7 @@ async def upcoming(
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
     )
 
 
@@ -110,15 +112,36 @@ async def upcoming(
     status_code=status.HTTP_200_OK,
     response_model=PaginatedResponseSchema[EventResponseSchema]
 )
-async def by_current_user(
+async def get_all_by_current_user(
         event_service: EventServiceDep,
         user_id: VerifiedUserIdDep,
         filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_by_user(
+    return await event_service.get_all_by_user(
         user_id=user_id,
         offset=filters.offset,
         limit=filters.limit,
         order_by=filters.order_by,
-        filters=filters.model_dump(exclude={"limit", "offset", "order_by"})
+        filters=filters.specific_filters
+    )
+
+
+@event_router.get(
+    "/{event_id}/tickets",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponseSchema[TicketResponseSchema]
+)
+async def get_all_tickets_for_current_users_event(
+        ticket_service: TicketServiceDep,
+        user_id: VerifiedUserIdDep,
+        event_id: int,
+        filters: TicketsByEventFiltersDep
+) -> PaginatedResponseSchema[TicketResponseSchema]:
+    return await ticket_service.get_all_by_event_id(
+        actor_id=user_id,
+        event_id=event_id,
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.specific_filters
     )

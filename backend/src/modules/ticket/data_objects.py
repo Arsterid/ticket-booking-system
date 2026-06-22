@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from src.modules.event.data_objects import EventDTO
 from src.modules.ticket.models import TicketStatus
+from src.modules.user.data_objects import UserDTO
 
 
 @dataclass(frozen=True)
@@ -18,3 +20,7 @@ class TicketDTO:
     status: TicketStatus
     user_id: int | None = None
     anonymous_email: str | None = None
+
+    user: UserDTO | None = None
+    event: EventDTO | None = None
+    type: TicketTypeDTO | None = None

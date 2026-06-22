@@ -159,7 +159,7 @@ class EventRepository(
         return await super().get_all(
             offset=offset,
             limit=limit,
-            filters=filters,
+            filters=query_filters,
             order_by=order_by
         )
 
@@ -180,7 +180,7 @@ class EventRepository(
             order_by=order_by
         )
 
-    async def get_by_user(
+    async def get_all_by_user(
             self,
             user_id: int,
             offset: int = 0,

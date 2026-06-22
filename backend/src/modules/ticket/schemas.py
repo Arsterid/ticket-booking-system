@@ -1,9 +1,11 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, EmailStr
+from pydantic import Field, field_validator, EmailStr
 
 from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
+from src.modules.event.schemas import EventResponseSchema
 from src.modules.ticket.models import TicketStatus
+from src.modules.user.schemas import UserWithEmailResponseSchema
 
 
 class TicketTypeResponseSchema(GenericResponseSchema):
@@ -46,12 +48,17 @@ class TicketResponseSchema(GenericResponseSchema):
     anonymous_email: Optional[EmailStr]
 
 
+class TicketAllInfoResponseSchema(TicketResponseSchema):
+    user: Optional[UserWithEmailResponseSchema] = None
+    event: EventResponseSchema
+    type: TicketTypeResponseSchema
+
+
 class TicketBookSchema(GenericRequestSchema):
     email: Optional[EmailStr] = None
 
 
-class TicketsFilterParamsSchema(FilterParamsSchema):
-    event_id: Optional[int] = Field(None, gt=0, description="Event id")
+class BaseTicketsFilterParamsSchema(FilterParamsSchema):
     type_id: Optional[int] = Field(None, gt=0, description="Type id")
     price__gte: Optional[int] = Field(None, ge=0, description="Price min")
     price__lte: Optional[int] = Field(None, ge=0, description="Price max")
@@ -62,3 +69,12 @@ class TicketsFilterParamsSchema(FilterParamsSchema):
         if v is not None and v > 100_000_000:
             raise ValueError("Price value is realistically too high")
         return v
+
+
+class TicketsFilterParamsSchema(BaseTicketsFilterParamsSchema):
+    event_id: Optional[int] = Field(None, gt=0, description="Event id")
+
+
+class TicketsByEventFilterParamsSchema(BaseTicketsFilterParamsSchema):
+    status: Optional[TicketStatus] = Field(None, description="Ticket status")
+

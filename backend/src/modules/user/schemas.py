@@ -42,6 +42,10 @@ class UserResponseSchema(GenericResponseSchema):
     username: str
 
 
+class UserWithEmailResponseSchema(UserResponseSchema):
+    email: EmailStr
+
+
 class UsersFilterParamsSchema(FilterParamsSchema):
     role: Optional[UserRole] = None
     email: Optional[EmailStr] = None

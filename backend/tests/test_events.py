@@ -4,6 +4,8 @@ from src.modules.event.models import EventState
 import pytest
 from httpx import AsyncClient
 
+from src.modules.ticket.models import TicketStatus
+
 
 @pytest.mark.asyncio
 async def test_create_event_success(client: AsyncClient, get_auth_headers, setup_uow):
@@ -439,3 +441,128 @@ async def test_get_upcoming_events_excludes_hidden_states(client: AsyncClient, s
 
     data = response.json()
     assert len(data.get("items", [])) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_all_tickets_for_event_success(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Concert",
+            description="Rock",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.session.flush()
+
+        await uow.ticket_type.create(id=1, name="Standard")
+        await uow.session.flush()
+
+        await uow.ticket.create(id=101, event_id=1, type_id=1, price=100.0, status=TicketStatus.AVAILABLE)
+        await uow.ticket.create(id=102, event_id=1, type_id=1, price=150.0, status=TicketStatus.AVAILABLE)
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.get("/events/1/tickets?limit=10&offset=0", headers=headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "results" in data
+    assert isinstance(data["results"], list)
+    assert len(data["results"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_all_tickets_for_event_pagination(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Concert",
+            description="Rock",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.session.flush()
+
+        await uow.ticket_type.create(id=1, name="Standard")
+        await uow.session.flush()
+
+        await uow.ticket.create(id=101, event_id=1, type_id=1, price=100.0, status=TicketStatus.AVAILABLE)
+        await uow.ticket.create(id=102, event_id=1, type_id=1, price=150.0, status=TicketStatus.AVAILABLE)
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.get("/events/1/tickets?limit=1&offset=0", headers=headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_all_tickets_for_event_empty_list(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="test1@test.com", username="user1", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Concert",
+            description="Rock",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=1, role="verified_user")
+    response = await client.get("/events/1/tickets?limit=10&offset=0", headers=headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data["results"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_all_tickets_for_event_forbidden(client: AsyncClient, get_auth_headers, setup_uow):
+    async with setup_uow as uow:
+        await uow.user.create(id=1, email="owner@test.com", username="owner", password="pwd")
+        await uow.user.create(id=2, email="stranger@test.com", username="stranger", password="pwd")
+        await uow.event_category.create(id=1, name="Music")
+        await uow.session.flush()
+
+        await uow.event.create(
+            id=1,
+            user_id=1,
+            title="Concert",
+            description="Rock",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+        )
+        await uow.commit()
+
+    headers = get_auth_headers(user_id=2, role="verified_user")
+    response = await client.get("/events/1/tickets?limit=10&offset=0", headers=headers)
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_get_all_tickets_for_event_unauthorized(client: AsyncClient):
+    response = await client.get("/events/1/tickets?limit=10&offset=0")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

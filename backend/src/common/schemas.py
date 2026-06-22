@@ -62,3 +62,11 @@ class FilterParamsSchema(PaginationParamsSchema):
             if not cleaned or not cleaned.isidentifier():
                 raise ValueError("Invalid order_by field name format")
         return v
+
+    @property
+    def specific_filters(self) -> dict[str, Any]:
+        base_fields = set(FilterParamsSchema.model_fields.keys())
+        return self.model_dump(
+            exclude=base_fields,
+            exclude_none=True,
+        )

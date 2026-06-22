@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 from sqlalchemy import Enum as SQLEnum, CheckConstraint
 
-from sqlalchemy import String, ForeignKey, Column, Float
+from sqlalchemy import String, ForeignKey, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.common.orm.models import AbstractModel
@@ -18,7 +18,7 @@ from src.common.orm.models import AbstractModel
 class TicketType(AbstractModel):
     __tablename__ = 'ticket_types'
 
-    name: Mapped[str] = Column(String(255))
+    name: Mapped[str] = mapped_column(String(255), unique=True)
 
 
 class TicketStatus(StrEnum):

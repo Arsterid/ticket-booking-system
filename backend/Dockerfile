@@ -19,6 +19,7 @@ WORKDIR /backend
 COPY --from=builder /backend/.venv-dev /backend/.venv
 
 COPY . .
+COPY tests/ ./tests/
 
 ENV PATH="/backend/.venv/bin:$PATH"
 
