@@ -34,3 +34,4 @@ asyncio_default_test_loop_scope = "session"
 filterwarnings = [
     "ignore::DeprecationWarning"
 ]
+addopts = "--import-mode=importlib"
