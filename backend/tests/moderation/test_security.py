@@ -13,7 +13,7 @@ from fastapi import status
     ],
 )
 async def test_moderation_endpoints_forbidden_for_regular_user(
-        client, get_auth_headers, setup_uow, create_model_factory, method, url, payload
+    client, get_auth_headers, setup_uow, create_model_factory, method, url, payload
 ):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=1, email="user@test.com", username="user", password="pwd")

@@ -1,4 +1,5 @@
 from typing import Annotated
+
 from fastapi import Depends
 
 from src.common.schemas import PaginationParamsSchema
@@ -13,17 +14,12 @@ def get_config() -> AppConfig:
 
 def get_jwt_manager(config: Annotated[AppConfig, Depends(get_config)]) -> JWTManager:
     return JWTManager(
-        secret_key=config.jwt_secret_key,
-        algorithm=config.jwt_algorithm,
-        expire_seconds=config.jwt_expires_in
+        secret_key=config.jwt_secret_key, algorithm=config.jwt_algorithm, expire_seconds=config.jwt_expires_in
     )
 
 
 def get_password_manager(config: Annotated[AppConfig, Depends(get_config)]) -> PasswordManager:
-    return PasswordManager(
-        algorithm=config.password_algorithm,
-        iterations=config.password_iterations
-    )
+    return PasswordManager(algorithm=config.password_algorithm, iterations=config.password_iterations)
 
 
 JWTManagerDep = Annotated[JWTManager, Depends(get_jwt_manager)]

@@ -24,9 +24,7 @@ async def test_admin_pagination_schema_integrity(admin_client, url):
         ("PATCH", "/admin/users/30/unban", None),
     ],
 )
-async def test_admin_endpoints_forbidden_for_regular_user(
-        client, user_headers, method, url, payload
-):
+async def test_admin_endpoints_forbidden_for_regular_user(client, user_headers, method, url, payload):
     if method == "POST":
         response = await client.post(url, json=payload, headers=user_headers)
     elif method == "GET":

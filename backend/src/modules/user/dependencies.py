@@ -11,11 +11,9 @@ from src.modules.user.schemas import UsersFilterParamsSchema
 from src.modules.user.services import UserService
 
 UserServiceDep = Annotated[
-    UserService, Depends(UoWServiceFactory(
-        service_cls=UserService,
-        uow_factory=create_sqlalchemy_uow,
-        tasks=task_manager
-    ))]
+    UserService,
+    Depends(UoWServiceFactory(service_cls=UserService, uow_factory=create_sqlalchemy_uow, tasks=task_manager)),
+]
 
 OptionalUserIdDep = Annotated[Optional[int], Depends(RoleChecker(optional=True))]
 AnyUserIdDep = Annotated[int, Depends(RoleChecker())]

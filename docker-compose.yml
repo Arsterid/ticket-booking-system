@@ -59,7 +59,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: final
+      target: backend
     container_name: fastapi_api
     command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
     ports:

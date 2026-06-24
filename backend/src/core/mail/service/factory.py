@@ -1,5 +1,3 @@
-from typing import Optional
-
 from src.core.mail.service.services.abstract import BaseEmailService
 from src.core.mail.service.services.fast_mail import FastMailService
 from src.core.mail.service.services.mock import MockEmailService
@@ -14,7 +12,7 @@ def get_email_service() -> BaseEmailService:
         settings.mail_password,
         settings.mail_from,
         settings.mail_server,
-        settings.mail_port
+        settings.mail_port,
     ]
 
     if not all(required_fields):

@@ -21,11 +21,13 @@ async def test_apply_for_verification_unauthorized(client):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("initial_role", ["on_verification", "verified_user"])
-async def test_apply_for_verification_invalid_initial_role(client, get_auth_headers, setup_uow, create_model_factory,
-                                                           initial_role):
+async def test_apply_for_verification_invalid_initial_role(
+    client, get_auth_headers, setup_uow, create_model_factory, initial_role
+):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", id=10, email="role_test@test.com", username="role_user", password="pwd",
-                                   role=initial_role)
+        await create_model_factory(
+            uow, "user", id=10, email="role_test@test.com", username="role_user", password="pwd", role=initial_role
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=10, role=initial_role)
@@ -43,8 +45,15 @@ async def test_apply_for_verification_user_not_found(client, get_auth_headers):
 @pytest.mark.asyncio
 async def test_apply_for_verification_banned_user_fails(client, get_auth_headers, setup_uow, create_model_factory):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", id=15, email="banned_apply@test.com", username="banned_apply_user",
-                                   password="pwd", is_active=False)
+        await create_model_factory(
+            uow,
+            "user",
+            id=15,
+            email="banned_apply@test.com",
+            username="banned_apply_user",
+            password="pwd",
+            is_active=False,
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=15, role="user")

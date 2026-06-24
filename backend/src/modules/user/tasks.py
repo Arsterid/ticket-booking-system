@@ -4,8 +4,8 @@ from src.modules.user.dependencies import UserServiceDep
 
 @broker.task(task_name="user:transfer_anonym_tickets")
 async def transfer_anonym_tickets_task(
-        user_service: UserServiceDep,
-        email: str,
+    user_service: UserServiceDep,
+    email: str,
 ) -> int:
     """
     A task that transfers tickets purchased by an anonymous user to their email address upon registration.

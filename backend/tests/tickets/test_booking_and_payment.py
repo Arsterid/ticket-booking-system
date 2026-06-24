@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import status
@@ -42,8 +42,9 @@ async def test_book_ticket_already_reserved(client, setup_uow, seed_ticket_env, 
 
 
 @pytest.mark.asyncio
-async def test_book_ticket_triggers_and_executes_cancel_task(client, get_auth_headers, setup_uow, seed_ticket_env,
-                                                             create_model_factory):
+async def test_book_ticket_triggers_and_executes_cancel_task(
+    client, get_auth_headers, setup_uow, seed_ticket_env, create_model_factory
+):
     async with setup_uow as uow:
         await seed_ticket_env(uow, event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc))
         await create_model_factory(uow, "ticket", id=100, event_id=1, type_id=1, price=100, status="available")
@@ -76,12 +77,21 @@ async def test_book_ticket_does_not_overwrite_owner(client, get_auth_headers, se
         await create_model_factory(uow, "user", id=2, email="attacker@test.com", username="attacker", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=1, state="approved", title="Event", description="Desc",
-            category_id=1, event_type="online", event_date=datetime.now(timezone.utc) + timedelta(days=1)
+            uow,
+            "event",
+            id=1,
+            user_id=1,
+            state="approved",
+            title="Event",
+            description="Desc",
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
         await create_model_factory(uow, "ticket_type", id=1, name="Standard")
-        await create_model_factory(uow, "ticket", id=1, event_id=1, type_id=1, price=100, status=TicketStatus.RESERVED,
-                                   user_id=1)
+        await create_model_factory(
+            uow, "ticket", id=1, event_id=1, type_id=1, price=100, status=TicketStatus.RESERVED, user_id=1
+        )
         await uow.commit()
 
     headers = get_auth_headers(user_id=2, role="verified_user")

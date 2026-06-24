@@ -31,10 +31,26 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
-    container_name: fastapi_test_runner
+      target: tests
+    container_name: backend_test_runner
     environment: *tests_env
     command: sh -c "alembic upgrade head && pytest --color=yes --cov=src tests/"
     depends_on:
       test_db:
         condition: service_healthy
+
+  lint:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: lint
+    container_name: backend_linter
+    volumes:
+      - ./backend:/backend
+      - /backend/.venv
+    command: sh -c "ruff check --fix . && ruff format . && mypy ."
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

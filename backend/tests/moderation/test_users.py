@@ -6,8 +6,9 @@ from fastapi import status
 async def test_get_users_for_verification_success(moderator_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
-        await create_model_factory(uow, "user", id=10, email="user@test.com", username="user", password="pwd",
-                                   role="on_verification")
+        await create_model_factory(
+            uow, "user", id=10, email="user@test.com", username="user", password="pwd", role="on_verification"
+        )
         await uow.commit()
 
     response = await moderator_client.get("/moderation/users?limit=10&offset=0")
@@ -22,8 +23,15 @@ async def test_get_users_for_verification_success(moderator_client, setup_uow, c
 async def test_moderate_user_success(moderator_client, setup_uow, create_model_factory, result):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
-        await create_model_factory(uow, "user", id=10, email="mod_target@test.com", username="mod_user",
-                                   password="hash_password", role="on_verification")
+        await create_model_factory(
+            uow,
+            "user",
+            id=10,
+            email="mod_target@test.com",
+            username="mod_user",
+            password="hash_password",
+            role="on_verification",
+        )
         await uow.commit()
 
     payload = {"result": result}
@@ -36,8 +44,9 @@ async def test_moderate_user_success(moderator_client, setup_uow, create_model_f
 async def test_moderate_user_without_application_fails(moderator_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
-        await create_model_factory(uow, "user", id=10, email="no_app@test.com", username="no_app_user", password="pwd",
-                                   role="user")
+        await create_model_factory(
+            uow, "user", id=10, email="no_app@test.com", username="no_app_user", password="pwd", role="user"
+        )
         await uow.commit()
 
     payload = {"result": True}

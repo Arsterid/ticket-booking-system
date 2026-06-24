@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 
+
 @pytest.mark.asyncio
 async def test_create_ticket_type_success(user_client, setup_uow, create_model_factory):
     async with setup_uow as uow:

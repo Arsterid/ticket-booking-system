@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any, Optional
 
 
 class BaseEmailService(ABC):
@@ -11,6 +11,6 @@ class BaseEmailService(ABC):
         body: str,
         template_name: Optional[str] = None,
         lang: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None
+        context: Optional[dict[str, Any]] = None,
     ) -> None:
         pass

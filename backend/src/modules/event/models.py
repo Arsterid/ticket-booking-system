@@ -1,45 +1,36 @@
 from __future__ import annotations
 
-from sqlalchemy import Enum as SQLEnum, select
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.ext.hybrid import hybrid_property
 
 if TYPE_CHECKING:
     from src.modules.user.models import User
 
-from sqlalchemy import String, ForeignKey, DateTime, case, func
-from sqlalchemy.orm import Mapped, relationship, mapped_column, aliased
+from sqlalchemy import DateTime, ForeignKey, String, case, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.common.orm.models import AbstractModel
 
 
 class EventCategory(AbstractModel):
-    __tablename__ = 'event_categories'
+    __tablename__ = "event_categories"
 
     name: Mapped[str] = mapped_column(String(100), unique=True)
 
-    parent_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey('event_categories.id', ondelete='CASCADE')
-    )
+    parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("event_categories.id", ondelete="CASCADE"))
     parent: Mapped[Optional["EventCategory"]] = relationship(
-        "EventCategory",
-        remote_side="EventCategory.id",
-        back_populates="children"
+        "EventCategory", remote_side="EventCategory.id", back_populates="children"
     )
 
     children: Mapped[list["EventCategory"]] = relationship(
-        "EventCategory",
-        back_populates="parent",
-        cascade="all, delete-orphan"
+        "EventCategory", back_populates="parent", cascade="all, delete-orphan"
     )
 
-    events: Mapped[list["Event"]] = relationship(
-        "Event",
-        back_populates="category"
-    )
+    events: Mapped[list["Event"]] = relationship("Event", back_populates="category")
 
 
 class EventType(StrEnum):
@@ -65,33 +56,22 @@ class EventStatus(StrEnum):
 
 
 class Event(AbstractModel):
-    __tablename__ = 'events'
+    __tablename__ = "events"
 
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey('users.id', ondelete='CASCADE'),
-        index=True
-    )
-    user: Mapped[User] = relationship('User', back_populates='events')
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user: Mapped[User] = relationship("User", back_populates="events")
 
-    category: Mapped[EventCategory] = relationship('EventCategory', back_populates='events')
-    category_id: Mapped[int] = mapped_column(
-        ForeignKey('event_categories.id', ondelete='RESTRICT'),
-        index=True
-    )
+    category: Mapped[EventCategory] = relationship("EventCategory", back_populates="events")
+    category_id: Mapped[int] = mapped_column(ForeignKey("event_categories.id", ondelete="RESTRICT"), index=True)
 
     state: Mapped[EventState] = mapped_column(
-        SQLEnum(EventState, native_enum=False, length=20),
-        default=EventState.DRAFT,
-        index=True
+        SQLEnum(EventState, native_enum=False, length=20), default=EventState.DRAFT, index=True
     )
 
-    event_type: Mapped[EventType] = mapped_column(
-        SQLEnum(EventType, native_enum=False, length=20),
-        index=True
-    )
+    event_type: Mapped[EventType] = mapped_column(SQLEnum(EventType, native_enum=False, length=20), index=True)
 
     address: Mapped[Optional[str]] = mapped_column(String(255), default=None)
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -122,5 +102,5 @@ class Event(AbstractModel):
             (cls.state == EventState.REJECTED, EventStatus.REJECTED.value),
             (cls.state == EventState.CANCELLED, EventStatus.CANCELLED.value),
             (cls.event_date < func.now(), EventStatus.PAST.value),
-            else_=EventStatus.UPCOMING.value
+            else_=EventStatus.UPCOMING.value,
         )

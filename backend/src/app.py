@@ -1,8 +1,17 @@
 from fastapi import FastAPI
 
-from src.core.exceptions import ServiceException, ObjectNotFoundException, \
-    service_exception_handler, object_not_found_handler, conflict_exception_handler, incorrect_logic_data_handler, \
-    ForbiddenException, forbidden_exception_handler, ConflictException, value_exception_handler
+from src.core.exceptions import (
+    ConflictException,
+    ForbiddenException,
+    ObjectNotFoundException,
+    ServiceException,
+    conflict_exception_handler,
+    forbidden_exception_handler,
+    incorrect_logic_data_handler,
+    object_not_found_handler,
+    service_exception_handler,
+    value_exception_handler,
+)
 from src.metrics import init_metrics
 from src.modules.user.exceptions import IncorrectLoginDataException
 from src.routes import api_v1_router

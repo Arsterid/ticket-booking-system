@@ -26,8 +26,16 @@ async def test_create_ticket_forbidden_for_stranger_event(user_client, setup_uow
         await create_model_factory(uow, "user", id=2, email="stranger@test.com", username="stranger", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=2, state="draft", title="Stranger Event", description="Desc",
-            category_id=1, event_type="online", event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc)
+            uow,
+            "event",
+            id=1,
+            user_id=2,
+            state="draft",
+            title="Stranger Event",
+            description="Desc",
+            category_id=1,
+            event_type="online",
+            event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc),
         )
         await create_model_factory(uow, "ticket_type", id=1, name="Standard")
         await uow.commit()

@@ -4,12 +4,7 @@ from fastapi import status
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "action_url, method",
-    [
-        ("/tickets/types", "POST"),
-        ("/tickets/my", "GET"),
-        ("/tickets/types", "GET")
-    ]
+    "action_url, method", [("/tickets/types", "POST"), ("/tickets/my", "GET"), ("/tickets/types", "GET")]
 )
 async def test_ticket_endpoints_unauthorized(client, action_url, method):
     if method == "POST":

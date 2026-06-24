@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, get_type_hints, Type, get_origin
+from typing import Any, Type, get_origin, get_type_hints
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,

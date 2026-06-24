@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import status
@@ -13,9 +13,16 @@ async def test_get_events_for_moderation_success(moderator_client, setup_uow, cr
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=1, title="Pending Event", description="Pending Desc",
-            state=EventState.ON_MODERATION, category_id=1, event_type="online",
-            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+            uow,
+            "event",
+            id=1,
+            user_id=1,
+            title="Pending Event",
+            description="Pending Desc",
+            state=EventState.ON_MODERATION,
+            category_id=1,
+            event_type="online",
+            event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
         await uow.commit()
 
@@ -34,9 +41,16 @@ async def test_moderate_event_success(moderator_client, setup_uow, create_model_
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=1, title="Pending Event", description="Pending Desc",
-            category_id=1, event_type="online", state=EventState.ON_MODERATION,
-            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+            uow,
+            "event",
+            id=1,
+            user_id=1,
+            title="Pending Event",
+            description="Pending Desc",
+            category_id=1,
+            event_type="online",
+            state=EventState.ON_MODERATION,
+            event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
         await uow.commit()
 
@@ -65,9 +79,16 @@ async def test_moderate_event_idempotency(moderator_client, setup_uow, create_mo
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=1, title="Moderated Event", description="Desc",
-            category_id=1, event_type="online", state=already_moderated_state,
-            event_date=datetime.now(timezone.utc) + timedelta(days=1)
+            uow,
+            "event",
+            id=1,
+            user_id=1,
+            title="Moderated Event",
+            description="Desc",
+            category_id=1,
+            event_type="online",
+            state=already_moderated_state,
+            event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
         await uow.commit()
 

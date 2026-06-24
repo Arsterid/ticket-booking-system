@@ -1,8 +1,7 @@
 import logging
 
 import taskiq_redis
-from taskiq import TaskiqScheduler, TaskiqEvents, InMemoryBroker
-from taskiq.schedule_sources import LabelScheduleSource
+from taskiq import InMemoryBroker, TaskiqEvents, TaskiqScheduler
 from taskiq_redis import ListQueueBroker, RedisScheduleSource
 
 from src.core.settings import settings

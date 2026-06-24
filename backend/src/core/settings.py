@@ -38,7 +38,7 @@ class AppConfig(BaseSettings):
             password=self.redis_password,
             host=self.redis_host,
             port=self.redis_port,
-            path=f"/{self.redis_db}"
+            path=f"/{self.redis_db}",
         )
         return str(dsn)
 
@@ -48,8 +48,7 @@ class AppConfig(BaseSettings):
         if self.db_password:
             auth += f":{self.db_password}"
 
-        return (f"{self.db}+{self.db_driver}://{auth}@"
-                f"{self.db_host}:{self.db_port}/{self.db_name}")
+        return f"{self.db}+{self.db_driver}://{auth}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
 settings = AppConfig()

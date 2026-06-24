@@ -1,8 +1,8 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
+from src.common.schemas import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.modules.user.models import UserRole
 
 
@@ -60,4 +60,3 @@ class UsersFilterParamsSchema(FilterParamsSchema):
             if not cleaned:
                 raise ValueError("Username filter cannot be empty")
         return v
-

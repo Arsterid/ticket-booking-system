@@ -4,11 +4,7 @@ from fastapi import status
 
 @pytest.mark.asyncio
 async def test_register_success(client):
-    payload = {
-        "email": "register_test@example.com",
-        "username": "tester",
-        "password": "securepassword123"
-    }
+    payload = {"email": "register_test@example.com", "username": "tester", "password": "securepassword123"}
     response = await client.post("/users/", json=payload)
     res_data = response.json()
     assert response.status_code == status.HTTP_201_CREATED
@@ -21,8 +17,8 @@ async def test_register_success(client):
     "payload",
     [
         {"email": "not-an-email", "username": "te", "password": "123"},
-        {"email": "whitespace@test.com", "username": "   ", "password": "securepassword123"}
-    ]
+        {"email": "whitespace@test.com", "username": "   ", "password": "securepassword123"},
+    ],
 )
 async def test_register_invalid_data(client, payload):
     response = await client.post("/users/", json=payload)
@@ -32,15 +28,12 @@ async def test_register_invalid_data(client, payload):
 @pytest.mark.asyncio
 async def test_register_duplicate_email(client, setup_uow, create_model_factory):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", email="duplicate@example.com", username="existing_user",
-                                   password="somepassword")
+        await create_model_factory(
+            uow, "user", email="duplicate@example.com", username="existing_user", password="somepassword"
+        )
         await uow.commit()
 
-    payload = {
-        "email": "duplicate@example.com",
-        "username": "new_user",
-        "password": "securepassword123"
-    }
+    payload = {"email": "duplicate@example.com", "username": "new_user", "password": "securepassword123"}
     response = await client.post("/users/", json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -49,8 +42,9 @@ async def test_register_duplicate_email(client, setup_uow, create_model_factory)
 async def test_login_success(client, setup_uow, pwd_manager, create_model_factory):
     hashed_password = pwd_manager.hash_password("correct_password")
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", email="login_test@example.com", username="login_tester",
-                                   password=hashed_password)
+        await create_model_factory(
+            uow, "user", email="login_test@example.com", username="login_tester", password=hashed_password
+        )
         await uow.commit()
 
     payload_login = {"email": "login_test@example.com", "password": "correct_password"}
@@ -66,13 +60,14 @@ async def test_login_success(client, setup_uow, pwd_manager, create_model_factor
     "email, password, expected_status",
     [
         ("wrong_pwd@example.com", "incorrect_password", status.HTTP_401_UNAUTHORIZED),
-        ("nonexistent@example.com", "any_password", status.HTTP_401_UNAUTHORIZED)
-    ]
+        ("nonexistent@example.com", "any_password", status.HTTP_401_UNAUTHORIZED),
+    ],
 )
 async def test_login_failed_scenarios(client, setup_uow, create_model_factory, email, password, expected_status):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", email="wrong_pwd@example.com", username="pwd_tester",
-                                   password="hashed_correct_password")
+        await create_model_factory(
+            uow, "user", email="wrong_pwd@example.com", username="pwd_tester", password="hashed_correct_password"
+        )
         await uow.commit()
 
     payload_login = {"email": email, "password": password}
@@ -90,11 +85,21 @@ async def test_login_invalid_data(client):
 @pytest.mark.asyncio
 async def test_login_banned_user_fails(client, setup_uow, create_model_factory):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", id=16, email="banned_login@test.com", username="banned_login_user",
-                                   password="securepassword123", is_active=False)
+        await create_model_factory(
+            uow,
+            "user",
+            id=16,
+            email="banned_login@test.com",
+            username="banned_login_user",
+            password="securepassword123",
+            is_active=False,
+        )
         await uow.commit()
 
     payload = {"email": "banned_login@test.com", "password": "securepassword123"}
     response = await client.post("/users/login", json=payload)
-    assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN,
-                                    status.HTTP_401_UNAUTHORIZED]
+    assert response.status_code in [
+        status.HTTP_400_BAD_REQUEST,
+        status.HTTP_403_FORBIDDEN,
+        status.HTTP_401_UNAUTHORIZED,
+    ]

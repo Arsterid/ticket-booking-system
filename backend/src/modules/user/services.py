@@ -3,23 +3,31 @@ from typing import Any
 from src.common.dependencies import PasswordManager
 from src.common.schemas import PaginatedResponseSchema
 from src.common.services import GenericService
-from src.core.exceptions import ObjectNotFoundException, UniqueFieldException, ServiceException
+from src.core.exceptions import ObjectNotFoundException, ServiceException, UniqueFieldException
 from src.core.security.jwt_tokens import JWTManager
 from src.core.uow import AppUnitOfWork
-from src.modules.user.exceptions import IncorrectLoginDataException, UserIsBannedException, \
-    UserVerificationConflictException, CannotBanAdminException, UserIsNotBannedException, \
-    UserIsNotAppliedToVerificationException, CannotUnbanYourselfException, CannotBanYourselfException
+from src.modules.user.exceptions import (
+    CannotBanAdminException,
+    CannotBanYourselfException,
+    CannotUnbanYourselfException,
+    IncorrectLoginDataException,
+    UserIsBannedException,
+    UserIsNotAppliedToVerificationException,
+    UserIsNotBannedException,
+    UserVerificationConflictException,
+)
 from src.modules.user.models import UserRole
-from src.modules.user.schemas import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserCreateResponseSchema, \
-    UserLoginResponseSchema
+from src.modules.user.schemas import (
+    UserCreateResponseSchema,
+    UserCreateSchema,
+    UserLoginResponseSchema,
+    UserLoginSchema,
+    UserResponseSchema,
+)
 
 
 class UserService(GenericService[AppUnitOfWork]):
-    async def create(
-            self,
-            pwd_manager: PasswordManager,
-            data: UserCreateSchema
-    ) -> UserCreateResponseSchema:
+    async def create(self, pwd_manager: PasswordManager, data: UserCreateSchema) -> UserCreateResponseSchema:
         async with self.uow:
             existing_obj = await self.uow.user.get_by_email(data.email)
             if existing_obj:
@@ -35,18 +43,12 @@ class UserService(GenericService[AppUnitOfWork]):
             obj = await self.uow.user.create(**user_data)
             await self.uow.commit()
 
-            await self.tasks.perform_task(
-                name="user:transfer_anonym_tickets",
-                email=data.email
-            )
+            await self.tasks.perform_task(name="user:transfer_anonym_tickets", email=data.email)
 
             return UserCreateResponseSchema.model_validate(obj)
 
     async def authenticate(
-            self,
-            data: UserLoginSchema,
-            pwd_manager: PasswordManager,
-            jwt_manager: JWTManager
+        self, data: UserLoginSchema, pwd_manager: PasswordManager, jwt_manager: JWTManager
     ) -> UserLoginResponseSchema:
         async with self.uow:
             user = await self.uow.user.get_by_email(data.email)
@@ -66,19 +68,12 @@ class UserService(GenericService[AppUnitOfWork]):
 
             return UserLoginResponseSchema(access_token=token, token_type="bearer")
 
-    async def migrate_anonymous_tickets(
-            self,
-            email: str
-    ) -> int:
+    async def migrate_anonymous_tickets(self, email: str) -> int:
         async with self.uow:
             user = await self.uow.user.get_by_email(email)
 
             if not user:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    field="email",
-                    value=email
-                )
+                raise ObjectNotFoundException(table=self.uow.user.model_name, field="email", value=email)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -92,8 +87,8 @@ class UserService(GenericService[AppUnitOfWork]):
             return updated_count
 
     async def apply_for_verification(
-            self,
-            user_id: int,
+        self,
+        user_id: int,
     ) -> bool:
         async with self.uow:
             old_role = await self.uow.user.apply_for_verification(user_id=user_id)
@@ -105,10 +100,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if user is None:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    value=user_id
-                )
+                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -118,14 +110,13 @@ class UserService(GenericService[AppUnitOfWork]):
 
             raise ServiceException("Unable to send verification request.")
 
-    async def verify(
-            self,
-            user_id: int,
-            result: bool
-    ) -> bool:
+    async def verify(self, user_id: int, result: bool) -> bool:
         async with self.uow:
-            old_role = await self.uow.user.verification_approve(user_id=user_id) \
-                if result else await self.uow.user.verification_decline(user_id=user_id)
+            old_role = (
+                await self.uow.user.verification_approve(user_id=user_id)
+                if result
+                else await self.uow.user.verification_decline(user_id=user_id)
+            )
 
             if old_role is not None:
                 await self.uow.commit()
@@ -134,10 +125,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if user is None:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    value=user_id
-                )
+                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -147,11 +135,7 @@ class UserService(GenericService[AppUnitOfWork]):
 
             raise ServiceException("Unable to verify user.")
 
-    async def ban(
-            self,
-            user_id: int,
-            actor_id: int
-    ) -> bool:
+    async def ban(self, user_id: int, actor_id: int) -> bool:
         if user_id == actor_id:
             raise CannotBanYourselfException()
 
@@ -165,10 +149,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if not user:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    value=user_id
-                )
+                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
 
             if user.role == UserRole.ADMIN:
                 raise CannotBanAdminException()
@@ -178,11 +159,7 @@ class UserService(GenericService[AppUnitOfWork]):
 
             raise ServiceException("Unexpected user state.")
 
-    async def unban(
-            self,
-            user_id: int,
-            actor_id: int
-    ) -> bool:
+    async def unban(self, user_id: int, actor_id: int) -> bool:
         if user_id == actor_id:
             raise CannotUnbanYourselfException()
 
@@ -196,10 +173,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(obj_id=user_id)
 
             if not user:
-                raise ObjectNotFoundException(
-                    table=self.uow.user.model_name,
-                    value=user_id
-                )
+                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
 
             if user.is_active:
                 raise UserIsNotBannedException()
@@ -207,20 +181,10 @@ class UserService(GenericService[AppUnitOfWork]):
             raise ServiceException("Unexpected user state.")
 
     async def get_all(
-            self,
-            *,
-            filters: dict[str, Any] | None = None,
-            offset: int = 0,
-            limit: int = 100,
-            order_by: str | None = None
+        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.user.get_all(
-                filters=filters,
-                offset=offset,
-                limit=limit,
-                order_by=order_by
-            )
+            items, count = await self.uow.user.get_all(filters=filters, offset=offset, limit=limit, order_by=order_by)
             return self._paginate(
                 schema=UserResponseSchema,
                 items=items,
@@ -229,19 +193,11 @@ class UserService(GenericService[AppUnitOfWork]):
             )
 
     async def get_for_verification(
-            self,
-            *,
-            filters: dict[str, Any] | None = None,
-            offset: int = 0,
-            limit: int = 100,
-            order_by: str | None = None
+        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
             items, count = await self.uow.user.get_for_verification(
-                filters=filters,
-                offset=offset,
-                limit=limit,
-                order_by=order_by
+                filters=filters, offset=offset, limit=limit, order_by=order_by
             )
             return self._paginate(
                 schema=UserResponseSchema,
