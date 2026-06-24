@@ -122,7 +122,13 @@ class EventRepository(GenericRepository[Event, EventDTO], model=Event, dto=Event
 
         return res.success
 
-    async def get_upcoming(
+    async def get_upcoming(self, **filters) -> EventDTO:
+        query_filters = dict(filters) if filters is not None else {}
+        query_filters["status"] = EventStatus.UPCOMING
+
+        return await super().get(filters=query_filters)
+
+    async def get_all_upcoming(
         self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
     ) -> tuple[list[EventDTO], int]:
         query_filters = dict(filters) if filters is not None else {}

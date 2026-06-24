@@ -125,11 +125,22 @@ async def test_cancel_event_idempotency(user_client, setup_uow, seed_event_env, 
     [
         "/events/?limit=-5",
         "/events/?offset=abc",
+    ],
+)
+async def test_get_events_invalid_pagination_params_public(client, url):
+    response = await client.get(url)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
         "/events/categories?limit=0",
     ],
 )
-async def test_get_events_invalid_pagination_params(client, url):
-    response = await client.get(url)
+async def test_get_events_invalid_pagination_params_protected(user_client, url):
+    response = await user_client.get(url)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 

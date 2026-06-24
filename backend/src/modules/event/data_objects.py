@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from src.common.data_objects import BaseDTO
 from src.modules.event.models import EventState, EventStatus, EventType
 
 
 @dataclass(frozen=True)
-class EventCategoryDTO:
+class EventCategoryDTO(BaseDTO):
     id: int
     name: str
     parent_id: int | None = None
@@ -22,8 +23,8 @@ class EventCategoryDTO:
         return self.events_count == 0
 
 
-@dataclass(frozen=True)
-class EventDTO:
+@dataclass
+class EventDTO(BaseDTO):
     id: int
     title: str
     description: str
@@ -34,3 +35,4 @@ class EventDTO:
     event_type: EventType
     event_date: datetime
     address: str | None = None
+    views: int = 0

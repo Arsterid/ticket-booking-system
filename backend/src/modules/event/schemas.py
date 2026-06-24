@@ -83,6 +83,7 @@ class EventResponseSchema(GenericResponseSchema):
     event_type: EventType
     event_date: AwareDatetime
     address: Optional[str]
+    views: Optional[int]
 
 
 class BaseEventFilterParamsSchema(FilterParamsSchema):
@@ -106,11 +107,13 @@ class BaseEventFilterParamsSchema(FilterParamsSchema):
     @field_validator("event_date", "event_date__gte", "event_date__lte")
     @classmethod
     def validate_dates(cls, v: Optional[AwareDatetime]) -> Optional[AwareDatetime]:
-        if v is not None:
-            if v.year < 2020:
-                raise ValueError("Year cannot be less than 2020")
-            if v.year > 2100:
-                raise ValueError("Year cannot be greater than 2100")
+        if v is None or v.year <= 1:
+            return v
+
+        if v.year < 2020:
+            raise ValueError("Year cannot be less than 2020")
+        if v.year > 2100:
+            raise ValueError("Year cannot be greater than 2100")
         return v
 
 

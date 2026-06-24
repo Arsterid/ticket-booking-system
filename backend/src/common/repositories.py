@@ -40,9 +40,10 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         if dto is not None:
             cls.dto = dto
 
-    @property
-    def model_name(self):
-        return self.model.__name__.lower() or "unnamed table"
+    @classmethod
+    def get_model_name(cls):
+        return cls.model.__tablename__.lower() if getattr(cls.model, "__tablename__",
+                                                          None) else cls.model.__name__.lower()
 
     def _to_dto(self, obj_orm: ModelType) -> DTOType:
         allowed_fields = {f.name for f in fields(self.dto)}
@@ -69,8 +70,20 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
 
         return result.dto
 
+    async def count(
+            self, **filters: Any
+    ) -> int:
+        q = select(func.count(self.model.id))
+
+        if filters:
+            q = self._build_filtered_query(q, filters)
+
+        result = await self._session.execute(q)
+
+        return result.scalar()
+
     async def get(
-        self, options: Sequence[ORMOption] | None = None, with_for_update: bool = False, **filters: Any
+            self, options: Sequence[ORMOption] | None = None, with_for_update: bool = False, **filters: Any
     ) -> Optional[DTOType]:
         q = select(self.model)
 
@@ -127,13 +140,13 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         return bool(result.scalar())
 
     async def get_all(
-        self,
-        *,
-        filters: dict[str, Any] | None = None,
-        offset: int = 0,
-        limit: int = 100,
-        order_by: str | None = None,
-        options: Sequence[ORMOption] | None = None,
+            self,
+            *,
+            filters: dict[str, Any] | None = None,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None,
+            options: Sequence[ORMOption] | None = None,
     ) -> tuple[list[DTOType], int]:
         q = select(self.model)
         if options is not None:
@@ -184,11 +197,11 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         raise ValueError(f"Invalid sort field '{field_name}' for model {self.model.__name__}")
 
     async def _execute_and_paginate_query(
-        self,
-        q: Select[tuple[Any, ...]],
-        *,
-        offset: int = 0,
-        limit: int = 100,
+            self,
+            q: Select[tuple[Any, ...]],
+            *,
+            offset: int = 0,
+            limit: int = 100,
     ) -> tuple[list[ModelType], int]:
         count_q = select(func.count()).select_from(q.subquery())
         total_result = await self._session.execute(count_q)

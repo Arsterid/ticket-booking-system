@@ -106,6 +106,7 @@ async def test_get_categories_success(client, setup_uow, create_model_factory):
         await uow.commit()
 
     response = await client.get("/events/categories?limit=10&offset=0")
+    print(response.json())
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "results" in data
@@ -187,6 +188,7 @@ async def test_get_my_events_success(user_client, setup_uow, seed_event_env, cre
         await uow.commit()
 
     response = await user_client.get("/events/my?limit=10&offset=0")
+    print(response.json())
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "results" in data
