@@ -2,9 +2,11 @@ from typing import Any
 
 from src.common.schemas import PaginatedResponseSchema
 from src.common.services import GenericService
+from src.common.views.mixins import ViewableServiceMixin
 from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
 from src.core.uow import AppUnitOfWork
 from src.modules.event.exceptions import EventCategoryHasEventsException, EventCategoryIsNotALeafException
+from src.modules.event.repositories import EventRepository
 from src.modules.event.schemas import (
     EventCategoryCreateSchema,
     EventCategoryResponseSchema,
@@ -14,7 +16,7 @@ from src.modules.event.schemas import (
 )
 
 
-class EventService(GenericService[AppUnitOfWork]):
+class EventService(GenericService[AppUnitOfWork], ViewableServiceMixin, repo=EventRepository):
     async def create(
         self,
         data: EventCreateSchema,
@@ -30,7 +32,7 @@ class EventService(GenericService[AppUnitOfWork]):
 
                 if not category_exists:
                     raise ObjectNotFoundException(
-                        table=self.uow.event_category.model_name,
+                        table=self.uow.event_category.get_model_name(),
                         value=data.category_id,
                     )
 
@@ -60,7 +62,7 @@ class EventService(GenericService[AppUnitOfWork]):
 
                     if not parent_exists:
                         raise ObjectNotFoundException(
-                            table=self.uow.event_category.model_name,
+                            table=self.uow.event_category.get_model_name(),
                             value=parent_id,
                         )
 
@@ -85,7 +87,7 @@ class EventService(GenericService[AppUnitOfWork]):
                 event_obj = await self.uow.event.get(id=event_id, user_id=actor_id)
                 if not event_obj:
                     raise ObjectNotFoundException(
-                        table=self.uow.event.model_name,
+                        table=self.uow.event.get_model_name(),
                         value=event_id,
                     )
                 return True
@@ -106,7 +108,7 @@ class EventService(GenericService[AppUnitOfWork]):
         async with self.uow:
             is_updated = await self.uow.event.update(event_id=event_id, user_id=actor_id, **update_data)
             if not is_updated:
-                raise ObjectNotFoundException(table=self.uow.event.model_name, value=event_id)
+                raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=event_id)
             await self.uow.commit()
             return True
 
@@ -119,7 +121,7 @@ class EventService(GenericService[AppUnitOfWork]):
             is_canceled = await self.uow.event.cancel(event_id=event_id, user_id=user_id)
             if not is_canceled:
                 raise ObjectNotFoundException(
-                    table=self.uow.event.model_name,
+                    table=self.uow.event.get_model_name(),
                     value=event_id,
                 )
             await self.uow.commit()
@@ -135,7 +137,7 @@ class EventService(GenericService[AppUnitOfWork]):
 
             if not is_moderated:
                 raise ObjectNotFoundException(
-                    table=self.uow.event.model_name,
+                    table=self.uow.event.get_model_name(),
                     value=event_id,
                 )
             await self.uow.commit()
@@ -156,19 +158,26 @@ class EventService(GenericService[AppUnitOfWork]):
                 limit=limit,
             )
 
-    async def get_upcoming(
+    async def get_all_upcoming(
         self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
     ) -> PaginatedResponseSchema[EventResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.event.get_upcoming(
+            items, count = await self.uow.event.get_all_upcoming(
                 filters=filters, offset=offset, limit=limit, order_by=order_by
             )
+
             return self._paginate(
                 schema=EventResponseSchema,
-                items=items,
+                items=await self._enrich_items_with_views(items=items),
                 total_items=count,
                 limit=limit,
             )
+
+    async def get_upcoming(self, obj_id: int) -> EventResponseSchema:
+        async with self.uow:
+            obj = await self.uow.event.get_upcoming(id=obj_id)
+
+            return await self._enrich_item_with_views(item=obj)
 
     async def get_all_by_user(
         self,
@@ -183,9 +192,10 @@ class EventService(GenericService[AppUnitOfWork]):
             items, count = await self.uow.event.get_all_by_user(
                 user_id=user_id, filters=filters, offset=offset, limit=limit, order_by=order_by
             )
+
             return self._paginate(
                 schema=EventResponseSchema,
-                items=items,
+                items=await self._enrich_items_with_views(items=items),
                 total_items=count,
                 limit=limit,
             )

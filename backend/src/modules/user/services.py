@@ -73,7 +73,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get_by_email(email)
 
             if not user:
-                raise ObjectNotFoundException(table=self.uow.user.model_name, field="email", value=email)
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), field="email", value=email)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -100,7 +100,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if user is None:
-                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -125,7 +125,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if user is None:
-                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
 
             if not user.is_active:
                 raise UserIsBannedException()
@@ -149,7 +149,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(id=user_id)
 
             if not user:
-                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
 
             if user.role == UserRole.ADMIN:
                 raise CannotBanAdminException()
@@ -173,7 +173,7 @@ class UserService(GenericService[AppUnitOfWork]):
             user = await self.uow.user.get(obj_id=user_id)
 
             if not user:
-                raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
 
             if user.is_active:
                 raise UserIsNotBannedException()

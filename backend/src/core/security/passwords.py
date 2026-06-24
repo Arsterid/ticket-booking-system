@@ -17,7 +17,7 @@ class PasswordManager:
         try:
             salt_hex, original_hash_hex = stored_password_string.split(":")
             salt = bytes.fromhex(salt_hex)
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             return False
 
         new_hash_bytes = hashlib.pbkdf2_hmac(self.algorithm, plain_password.encode("utf-8"), salt, self.iterations)

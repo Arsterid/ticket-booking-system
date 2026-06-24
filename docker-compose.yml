@@ -66,7 +66,7 @@ services:
       - "${BACKEND_PORT}:8000"
     environment: *backend_env
     volumes:
-      - ./backend/src:/backend/src
+      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
@@ -83,12 +83,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: final
+      target: backend
     container_name: taskiq_worker
     command: taskiq worker src.core.tiq:broker -fsd
     environment: *backend_env
     volumes:
-      - ./backend/src:/backend/src
+      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
@@ -99,12 +99,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: final
+      target: backend
     container_name: taskiq_scheduler
     command: taskiq scheduler src.core.tiq:scheduler --update-interval 5
     environment: *backend_env
     volumes:
-      - ./backend/src:/backend/src
+      - ./backend/src:/backend/src:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -119,7 +119,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     volumes:
-      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       api:
         condition: service_healthy

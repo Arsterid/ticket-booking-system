@@ -1,14 +1,28 @@
-from typing import Any, Generic, Type
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Generic, Type
+
+if TYPE_CHECKING:
+    from src.common.repositories import GenericRepository
 
 from src.common.annotations import T, U
+from src.common.caches.managers.abstract import AbstractCacheManager
 from src.common.schemas import PaginatedResponseSchema
 from src.common.tasks.managers.abstract import AbstractTaskManager
 
 
 class GenericService(Generic[U]):
-    def __init__(self, uow: U, tasks: AbstractTaskManager):
+    _repo_cls: Type["GenericRepository"]
+
+    def __init__(self, uow: U, tasks: AbstractTaskManager, cache: AbstractCacheManager):
         self.uow = uow
         self.tasks = tasks
+        self.cache = cache
+
+    def __init_subclass__(cls, repo: Type["GenericRepository"] = None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if repo is not None:
+            cls._repo_cls = repo
 
     def _paginate(
         self, schema: Type[T], items: list[Any], total_items: int, limit: int = 10

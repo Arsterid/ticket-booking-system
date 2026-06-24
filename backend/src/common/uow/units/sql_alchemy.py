@@ -11,9 +11,10 @@ from src.common.uow.units.abstract import AbstractUnitOfWork
 
 class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
     def __init__(self, session_factory):
-        self.session_factory = session_factory
-        self.session: AsyncSession | None = None
+        self._session_factory = session_factory
+        self._session: AsyncSession | None = None
         self._repositories: dict[str, Any] = {}
+        self._depth = 0
 
         self._validate_annotations()
 
@@ -51,22 +52,30 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
             seen_repo_classes.add(attr_type)
 
     async def __aenter__(self) -> "SQLAlchemyUnitOfWork":
-        if self.session is not None:
-            raise RuntimeError("Database session is already active in this context.")
-        self.session = self.session_factory()
+        if self._session is None:
+            self._session = self._session_factory()
+            self._is_dirty = False
+
+        self._depth += 1
         return self
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        if self.session:
-            try:
-                if exc_type:
-                    await self.session.rollback()
-                else:
-                    await self.session.commit()
-            finally:
-                await self.session.close()
-                self.session = None
-                self._repositories.clear()
+        self._depth -= 1
+
+        if exc_type:
+            self._is_dirty = True
+
+        if self._depth == 0:
+            if self._session:
+                try:
+                    if self._is_dirty or exc_type:
+                        await self._session.rollback()
+                    else:
+                        await self._session.commit()
+                finally:
+                    await self._session.close()
+                    self._session = None
+                    self._repositories.clear()
 
     def __getattr__(self, name: str) -> Any:
         if name in self._repositories:
@@ -76,26 +85,27 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         if name not in hints:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-        if self.session is None:
+        if self._session is None:
             raise RuntimeError(
                 f"Attempted to access repository '{name}' outside of a transaction context. "
                 f"Please use 'async with uow:'"
             )
 
         repo_cls = hints[name]
-        repo_instance = repo_cls(self.session)
+        repo_instance = repo_cls(self._session)
 
         self._repositories[name] = repo_instance
         return repo_instance
 
     async def commit(self):
-        if self.session:
-            await self.session.commit()
+        if self._session:
+            await self._session.commit()
 
     async def rollback(self):
-        if self.session:
-            await self.session.rollback()
+        if self._session:
+            await self._session.rollback()
 
     async def refresh(self, *args, **kwargs):
-        if self.session:
-            await self.session.refresh(*args, **kwargs)
+        if self._session:
+            await self._session.refresh(*args, **kwargs)
+

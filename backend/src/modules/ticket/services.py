@@ -100,7 +100,7 @@ class TicketService(GenericService[AppUnitOfWork]):
             event_obj = await self.uow.event.get(id=event_id)
             if not event_obj or event_obj.user_id != actor_id:
                 raise ObjectNotFoundException(
-                    table=self.uow.event.model_name,
+                    table=self.uow.event.get_model_name(),
                     value=event_id,
                 )
 
@@ -130,7 +130,7 @@ class TicketService(GenericService[AppUnitOfWork]):
             )
 
             if not event_exists or not is_event_owner:
-                raise ObjectNotFoundException(table=self.uow.event.model_name, value=data.event_id)
+                raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=data.event_id)
 
             if event_status != EventStatus.DRAFT:
                 raise WrongStateException(
@@ -139,7 +139,7 @@ class TicketService(GenericService[AppUnitOfWork]):
                 )
 
             if not type_exists or not has_ticket_type_access:
-                raise ObjectNotFoundException(table=self.uow.ticket_type.model_name, value=data.type_id)
+                raise ObjectNotFoundException(table=self.uow.ticket_type.get_model_name(), value=data.type_id)
 
             obj = await self.uow.ticket.create(**data.model_dump())
 
@@ -168,13 +168,13 @@ class TicketService(GenericService[AppUnitOfWork]):
                 ticket_obj = await self.uow.ticket.get(id=ticket_id)
 
                 if not ticket_obj:
-                    raise ObjectNotFoundException(table=self.uow.ticket.model_name, value=ticket_id)
+                    raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
                 if ticket_obj.status == TicketStatus.RESERVED:
-                    raise RaceConditionException(table=self.uow.ticket.model_name, value=ticket_id)
+                    raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
                 if user_id is not None and not await self.uow.user.exists(id=user_id):
-                    raise ObjectNotFoundException(table=self.uow.user.model_name, value=user_id)
+                    raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
 
             await self.uow.commit()
 
@@ -195,13 +195,13 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket = await self.uow.ticket.get(id=ticket_id)
 
             if ticket is None:
-                raise ObjectNotFoundException(table=self.uow.ticket.model_name, value=ticket_id)
+                raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
             if ticket.status == TicketStatus.AVAILABLE:
                 raise WrongStateException(expected=TicketStatus.RESERVED, current=TicketStatus.AVAILABLE)
 
             if ticket.status == TicketStatus.PAID:
-                raise RaceConditionException(table=self.uow.ticket.model_name, value=ticket_id)
+                raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
             raise ServiceException("Unable to mark ticket as paid.")
 
@@ -216,10 +216,10 @@ class TicketService(GenericService[AppUnitOfWork]):
             ticket = await self.uow.ticket.get(id=ticket_id)
 
             if ticket is None:
-                raise ObjectNotFoundException(table=self.uow.ticket.model_name, value=ticket_id)
+                raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
             if ticket.status != TicketStatus.AVAILABLE:
-                raise RaceConditionException(table=self.uow.ticket.model_name, value=ticket_id)
+                raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
 
             raise ServiceException("Unable to return ticket to available state.")
 

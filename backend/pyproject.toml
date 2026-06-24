@@ -12,9 +12,11 @@ dependencies = [
     "pydantic-settings==2.14.0",
     "pydantic[email]==2.12.5",
     "uvicorn==0.41.0",
+    "redis==7.4.1",
+    "pyjwt==2.12.1",
     "taskiq==0.12.4",
-    "taskiq-redis==1.0.1",
-    "prometheus-fastapi-instrumentator==8.0.0"
+    "taskiq-redis==1.2.2",
+    "prometheus-fastapi-instrumentator==8.0.0",
 ]
 
 [dependency-groups]

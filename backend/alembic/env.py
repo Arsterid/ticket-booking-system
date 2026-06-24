@@ -12,6 +12,7 @@ from src.core.settings import settings
 from src.modules.user.models import User
 from src.modules.ticket.models import Ticket, TicketType
 from src.modules.event.models import Event, EventCategory
+from src.common.views.models import ViewLog
 
 
 config = context.config

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.common.uow.units.sql_alchemy import SQLAlchemyUnitOfWork
+from src.common.views.repositories import ViewLogRepository
 from src.core.database import async_session_maker
 from src.modules.event.repositories import EventCategoryRepository, EventRepository
 from src.modules.ticket.repositories import TicketRepository, TicketTypeRepository
@@ -29,6 +30,7 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
     event_category: EventCategoryRepository
     ticket: TicketRepository
     ticket_type: TicketTypeRepository
+    view_logs: ViewLogRepository
 
 
 def create_sqlalchemy_uow() -> AppUnitOfWork:
