@@ -6,17 +6,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.modules.ticket.models import TicketType
 
-from sqlalchemy import String, CheckConstraint, Boolean, Table, Column, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, String, Table
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.common.orm.models import AbstractModel, BaseModel
 
-
 user_ticket_table = Table(
-    "user_ticket_types", BaseModel.metadata,
+    "user_ticket_types",
+    BaseModel.metadata,
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-    Column("ticket_type_id", ForeignKey("ticket_types.id", ondelete="CASCADE"), primary_key=True)
+    Column("ticket_type_id", ForeignKey("ticket_types.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -60,7 +60,7 @@ class UserRole(StrEnum):
 
 
 class User(AbstractModel):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole, native_enum=False),
@@ -77,6 +77,4 @@ class User(AbstractModel):
 
     events = relationship("Event", back_populates="user")
 
-    __table_args__ = (
-        CheckConstraint("email LIKE '%@%.%'", name="check_email_format"),
-    )
+    __table_args__ = (CheckConstraint("email LIKE '%@%.%'", name="check_email_format"),)

@@ -1,11 +1,10 @@
-from abc import ABC
 from dataclasses import dataclass
-from typing import Optional, Any, Generic
+from typing import Any, Generic, Optional
 
 from src.common.annotations import DTOType
 
 
-class BaseDTO(ABC):
+class BaseDTO:
     pass
 
 

@@ -1,15 +1,15 @@
 from abc import ABC
 from dataclasses import fields
-from typing import Type, Generic, Optional, Sequence, Any, Callable
+from typing import Any, Callable, Generic, Optional, Sequence, Type
 
-from sqlalchemy import select, exists, func, Select, BinaryExpression, desc, asc, Update, Delete, Insert, inspect
-from sqlalchemy.exc import IntegrityError, ResourceClosedError
+from sqlalchemy import BinaryExpression, Delete, Insert, Select, Update, asc, desc, exists, func, inspect, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.interfaces import ORMOption
 
-from src.common.annotations import ModelType, DTOType
-from src.common.data_objects import ModificationResult, CreationResult
+from src.common.annotations import DTOType, ModelType
+from src.common.data_objects import CreationResult, ModificationResult
 
 
 class GenericRepository(ABC, Generic[ModelType, DTOType]):
@@ -49,10 +49,7 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         insp = inspect(obj_orm)
         mapper = insp.mapper
 
-        hybrid_fields = {
-            attr.__name__ for attr in mapper.all_orm_descriptors
-            if isinstance(attr, hybrid_property)
-        }
+        hybrid_fields = {attr.__name__ for attr in mapper.all_orm_descriptors if isinstance(attr, hybrid_property)}
 
         loaded_data = {}
         for f in allowed_fields:
@@ -73,10 +70,7 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         return result.dto
 
     async def get(
-            self,
-            options: Sequence[ORMOption] | None = None,
-            with_for_update: bool = False,
-            **filters: Any
+        self, options: Sequence[ORMOption] | None = None, with_for_update: bool = False, **filters: Any
     ) -> Optional[DTOType]:
         q = select(self.model)
 
@@ -133,13 +127,13 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         return bool(result.scalar())
 
     async def get_all(
-            self,
-            *,
-            filters: dict[str, Any] | None = None,
-            offset: int = 0,
-            limit: int = 100,
-            order_by: str | None = None,
-            options: Sequence[ORMOption] | None = None,
+        self,
+        *,
+        filters: dict[str, Any] | None = None,
+        offset: int = 0,
+        limit: int = 100,
+        order_by: str | None = None,
+        options: Sequence[ORMOption] | None = None,
     ) -> tuple[list[DTOType], int]:
         q = select(self.model)
         if options is not None:
@@ -190,11 +184,11 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         raise ValueError(f"Invalid sort field '{field_name}' for model {self.model.__name__}")
 
     async def _execute_and_paginate_query(
-            self,
-            q: Select[tuple[Any, ...]],
-            *,
-            offset: int = 0,
-            limit: int = 100,
+        self,
+        q: Select[tuple[Any, ...]],
+        *,
+        offset: int = 0,
+        limit: int = 100,
     ) -> tuple[list[ModelType], int]:
         count_q = select(func.count()).select_from(q.subquery())
         total_result = await self._session.execute(count_q)
@@ -215,10 +209,7 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
             returning_rows = list(res.all()) if res.returns_rows else []
             rowcount = res.rowcount
 
-            return ModificationResult(
-                rowcount=rowcount,
-                returning_rows=returning_rows
-            )
+            return ModificationResult(rowcount=rowcount, returning_rows=returning_rows)
         except IntegrityError:
             return ModificationResult(rowcount=0, returning_rows=[])
 

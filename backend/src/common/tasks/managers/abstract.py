@@ -1,4 +1,4 @@
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from typing import Any
 
 
@@ -11,9 +11,6 @@ class AbstractTaskManager(ABC):
         delay: int | None = None,
         queue: str | None = None,
         priority: str | None = None,
-        **task_kwargs: Any
+        **task_kwargs: Any,
     ) -> str:
         pass
-
-
-

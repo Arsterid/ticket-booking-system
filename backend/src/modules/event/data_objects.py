@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.modules.event.models import EventState, EventType, EventStatus
+from src.modules.event.models import EventState, EventStatus, EventType
 
 
 @dataclass(frozen=True)

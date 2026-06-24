@@ -1,15 +1,20 @@
 import secrets
-from fastapi import FastAPI, HTTPException, Depends, status, Response
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from src.core.settings import settings
 
 security = HTTPBearer()
 
 
-def verify_metrics_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+SecurityDep = Annotated[HTTPAuthorizationCredentials, Depends(security)]
+
+
+def verify_metrics_token(credentials: SecurityDep):
     if not secrets.compare_digest(credentials.credentials, settings.metrics_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -10,4 +10,3 @@ def moderator_headers(get_auth_headers):
 def moderator_client(client, moderator_headers):
     client.headers.update(moderator_headers)
     return client
-

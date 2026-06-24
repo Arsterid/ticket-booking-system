@@ -1,8 +1,8 @@
 from typing import Optional
 
-from pydantic import Field, field_validator, EmailStr
+from pydantic import EmailStr, Field, field_validator
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
+from src.common.schemas import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.modules.event.schemas import EventResponseSchema
 from src.modules.ticket.models import TicketStatus
 from src.modules.user.schemas import UserWithEmailResponseSchema
@@ -14,7 +14,7 @@ class TicketTypeResponseSchema(GenericResponseSchema):
 
 
 class TicketTypeCreateSchema(GenericRequestSchema):
-    name: str = Field(..., min_length=1, max_length=32, description='Name of ticket type')
+    name: str = Field(..., min_length=1, max_length=32, description="Name of ticket type")
 
     @field_validator("name")
     @classmethod
@@ -77,4 +77,3 @@ class TicketsFilterParamsSchema(BaseTicketsFilterParamsSchema):
 
 class TicketsByEventFilterParamsSchema(BaseTicketsFilterParamsSchema):
     status: Optional[TicketStatus] = Field(None, description="Ticket status")
-

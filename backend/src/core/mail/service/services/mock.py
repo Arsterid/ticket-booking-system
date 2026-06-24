@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Any, Optional
 
 from src.core.mail.service.services.abstract import BaseEmailService
 
@@ -11,6 +11,6 @@ class MockEmailService(BaseEmailService):
         body: str,
         template_name: Optional[str] = None,
         lang: Optional[str] = None,
-        context: Optional[dict[str, Any]] = None
+        context: Optional[dict[str, Any]] = None,
     ) -> None:
         pass

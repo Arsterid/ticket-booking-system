@@ -1,16 +1,12 @@
-from fastapi import Depends, HTTPException, status
 from typing import Annotated
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.common.dependencies import JWTManagerDep
 from src.modules.user.models import UserRole
 
-
-user_auth_scheme = HTTPBearer(
-    scheme_name="User_JWT_Token",
-    auto_error=False
-)
+user_auth_scheme = HTTPBearer(scheme_name="User_JWT_Token", auto_error=False)
 
 
 class RoleChecker:
@@ -19,9 +15,9 @@ class RoleChecker:
         self.optional = optional
 
     async def __call__(
-            self,
-            jwt_manager: JWTManagerDep,
-            auth_creds: Annotated[HTTPAuthorizationCredentials | None, Depends(user_auth_scheme)] = None,
+        self,
+        jwt_manager: JWTManagerDep,
+        auth_creds: Annotated[HTTPAuthorizationCredentials | None, Depends(user_auth_scheme)] = None,
     ) -> int | None:
         token = auth_creds.credentials if auth_creds else None
 
@@ -57,7 +53,7 @@ class RoleChecker:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or expired token.",
-            )
+            ) from e
 
     def _extract_user_id(self, payload: dict) -> int:
         user_id_str = payload.get("sub")
@@ -77,11 +73,11 @@ class RoleChecker:
             )
         try:
             return UserRole(role_str)
-        except ValueError:
+        except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Unknown role in token.",
-            )
+            ) from e
 
     def _validate_permissions(self, user_role: UserRole) -> None:
         if user_role < self.required_role:

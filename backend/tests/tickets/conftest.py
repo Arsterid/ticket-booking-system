@@ -29,8 +29,16 @@ def seed_ticket_env(create_model_factory):
         await create_model_factory(uow, "user", id=1, email="test@test.com", username="user", password="pwd")
         await create_model_factory(uow, "event_category", id=1, name="Music")
         await create_model_factory(
-            uow, "event", id=1, user_id=1, state=event_state, title="Test Event", description="Desc",
-            category_id=1, event_type="online", event_date=event_date
+            uow,
+            "event",
+            id=1,
+            user_id=1,
+            state=event_state,
+            title="Test Event",
+            description="Desc",
+            category_id=1,
+            event_type="online",
+            event_date=event_date,
         )
         await create_model_factory(uow, "ticket_type", id=1, name="Standard")
 

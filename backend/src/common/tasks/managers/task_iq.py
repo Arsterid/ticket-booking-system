@@ -1,15 +1,14 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from taskiq import AsyncBroker, ScheduledTask
+from taskiq import AsyncBroker, ScheduledTask, ScheduleSource
 from taskiq.kicker import AsyncKicker
-from taskiq_redis import RedisScheduleSource
 
 from src.common.tasks.managers.abstract import AbstractTaskManager
 
 
 class TaskIqTaskManager(AbstractTaskManager):
-    def __init__(self, broker: AsyncBroker, schedule_source: RedisScheduleSource | None = None) -> None:
+    def __init__(self, broker: AsyncBroker, schedule_source: ScheduleSource | None = None) -> None:
         self._broker = broker
         self._schedule_source = schedule_source
 
@@ -22,13 +21,13 @@ class TaskIqTaskManager(AbstractTaskManager):
         return labels
 
     async def perform_task(
-            self,
-            name: str,
-            *,
-            delay: int | None = None,
-            queue: str | None = None,
-            priority: str | None = None,
-            **task_kwargs: Any
+        self,
+        name: str,
+        *,
+        delay: int | None = None,
+        queue: str | None = None,
+        priority: str | None = None,
+        **task_kwargs: Any,
     ) -> str:
         labels = self._build_labels(queue, priority)
 
@@ -41,7 +40,7 @@ class TaskIqTaskManager(AbstractTaskManager):
                 labels=labels,
                 args=[],
                 kwargs=task_kwargs,
-                time=datetime.now(timezone.utc) + timedelta(seconds=delay)
+                time=datetime.now(timezone.utc) + timedelta(seconds=delay),
             )
 
             scheduled_task.schedule_id = generated_id

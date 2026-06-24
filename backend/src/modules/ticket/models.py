@@ -7,39 +7,32 @@ if TYPE_CHECKING:
     from src.modules.event.models import Event
     from src.modules.user.models import User
 
-from sqlalchemy import Enum as SQLEnum, CheckConstraint
-
-from sqlalchemy import String, ForeignKey, Float
+from sqlalchemy import CheckConstraint, Float, ForeignKey, String
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.common.orm.models import AbstractModel
 
 
 class TicketType(AbstractModel):
-    __tablename__ = 'ticket_types'
+    __tablename__ = "ticket_types"
 
     name: Mapped[str] = mapped_column(String(255), unique=True)
 
 
 class TicketStatus(StrEnum):
-    AVAILABLE = 'available'
+    AVAILABLE = "available"
     RESERVED = "reserved"
     PAID = "paid"
 
 
 class Ticket(AbstractModel):
-    __tablename__ = 'tickets'
+    __tablename__ = "tickets"
 
-    event_id: Mapped[int] = mapped_column(
-        ForeignKey("events.id", ondelete="RESTRICT"),
-        index=True
-    )
+    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="RESTRICT"), index=True)
     event: Mapped[Event] = relationship("Event", back_populates="tickets")
 
-    type_id: Mapped[int] = mapped_column(
-        ForeignKey("ticket_types.id", ondelete="RESTRICT"),
-        index=True
-    )
+    type_id: Mapped[int] = mapped_column(ForeignKey("ticket_types.id", ondelete="RESTRICT"), index=True)
     type: Mapped[TicketType] = relationship("TicketType")
 
     price: Mapped[float] = mapped_column(Float)
@@ -51,9 +44,7 @@ class Ticket(AbstractModel):
     )
 
     user_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     user: Mapped[Optional[User]] = relationship("User")
 
@@ -61,9 +52,9 @@ class Ticket(AbstractModel):
 
     __table_args__ = (
         CheckConstraint(
-            '(user_id IS NULL AND anonymous_email IS NULL) OR '
-            '(user_id IS NOT NULL AND anonymous_email IS NULL) OR '
-            '(user_id IS NULL AND anonymous_email IS NOT NULL)',
-            name='check_ticket_owner'
+            "(user_id IS NULL AND anonymous_email IS NULL) OR "
+            "(user_id IS NOT NULL AND anonymous_email IS NULL) OR "
+            "(user_id IS NULL AND anonymous_email IS NOT NULL)",
+            name="check_ticket_owner",
         ),
     )

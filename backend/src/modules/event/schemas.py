@@ -1,8 +1,8 @@
 from typing import Optional
 
-from pydantic import Field, AwareDatetime, model_validator, BaseModel, ConfigDict, field_validator
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 
-from src.common.schemas import FilterParamsSchema, GenericResponseSchema, GenericRequestSchema
+from src.common.schemas import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.modules.event.models import EventType
 
 

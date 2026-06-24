@@ -6,10 +6,10 @@ from src.core.security.passwords import PasswordManager
 from src.core.uow import create_sqlalchemy_uow
 from src.modules.user.models import UserRole
 
-
 config = get_config()
 
 pwd_manager = PasswordManager(algorithm=config.password_algorithm, iterations=config.password_iterations)
+
 
 async def create_user_cli(email: str, password: str, role_str: str):
     try:
@@ -29,14 +29,11 @@ async def create_user_cli(email: str, password: str, role_str: str):
 
         hashed_password = pwd_manager.hash_password(password)
 
-        await uow.user.create(
-            email=email,
-            password=hashed_password,
-            role=role
-        )
+        await uow.user.create(email=email, password=hashed_password, role=role)
         await uow.commit()
 
     print(f"User {email} successfully created with role {role.value}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:

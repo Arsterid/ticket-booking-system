@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from taskiq import InMemoryBroker
 
 from src.app import app
@@ -12,8 +12,8 @@ from src.core.tiq import broker
 from src.core.uow import create_sqlalchemy_uow
 
 
-from src.modules.user import tasks
-from src.modules.ticket import tasks
+from src.modules.user import tasks as _user_tasks
+from src.modules.ticket import tasks as _ticket_tasks
 
 
 jwt_manager = JWTManager(
@@ -43,9 +43,7 @@ async def clean_db():
 @pytest.fixture(scope="session")
 def get_auth_headers():
     def _get_headers(user_id, role):
-        token = jwt_manager.create_access_token(
-            data={"sub": str(user_id), "role": role}
-        )
+        token = jwt_manager.create_access_token(data={"sub": str(user_id), "role": role})
         return {"Authorization": f"Bearer {token}"}
 
     return _get_headers

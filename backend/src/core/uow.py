@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from src.common.uow.units.sql_alchemy import SQLAlchemyUnitOfWork
 from src.core.database import async_session_maker
-
-from src.modules.event.repositories import EventRepository, EventCategoryRepository
+from src.modules.event.repositories import EventCategoryRepository, EventRepository
 from src.modules.ticket.repositories import TicketRepository, TicketTypeRepository
 from src.modules.user.repositories import UserRepository
-
-from src.common.uow.units.sql_alchemy import SQLAlchemyUnitOfWork
 
 
 class AppUnitOfWork(SQLAlchemyUnitOfWork):
@@ -25,6 +23,7 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
     Format:
         attribute_name: ConcreteRepositoryClass
     """
+
     user: UserRepository
     event: EventRepository
     event_category: EventCategoryRepository

@@ -5,21 +5,21 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi.params import Path
 
 if TYPE_CHECKING:
+    from src.common.data_objects import BaseDTO
     from src.common.repositories import GenericRepository
     from src.common.services import GenericService
     from src.common.uow.units.abstract import AbstractUnitOfWork
-    from src.common.data_objects import BaseDTO
 
 
-from pydantic import BaseModel
 from typing import TypeVar
 
+from pydantic import BaseModel
 
 DB_INT_MIN = -2_147_483_648
 DB_INT_MAX = 2_147_483_647
 
 
-T = TypeVar('T', bound=BaseModel)
+T = TypeVar("T", bound=BaseModel)
 R = TypeVar("R", bound="GenericRepository")
 S = TypeVar("S", bound="GenericService")
 U = TypeVar("U", bound="AbstractUnitOfWork")

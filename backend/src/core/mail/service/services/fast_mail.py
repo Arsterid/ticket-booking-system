@@ -1,6 +1,5 @@
-import logging
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any, Optional
 
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 
@@ -23,35 +22,27 @@ class FastMailService(BaseEmailService):
             MAIL_SSL_TLS=settings.mail_ssl_tls,
             USE_CREDENTIALS=settings.mail_use_credentials,
             VALIDATE_CERTS=settings.mail_validate_certs,
-            TEMPLATE_FOLDER=absolute_template_path
+            TEMPLATE_FOLDER=absolute_template_path,
         )
         self.fm = FastMail(self.config)
 
     async def send(
-            self,
-            to_email: str,
-            subject: str,
-            body: str,
-            template_name: Optional[str] = None,
-            lang: Optional[str] = None,
-            context: Optional[dict[str, Any]] = None
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        template_name: Optional[str] = None,
+        lang: Optional[str] = None,
+        context: Optional[dict[str, Any]] = None,
     ) -> None:
         if template_name:
             localized_template = f"{lang}/{template_name}" if lang else template_name
 
             message = MessageSchema(
-                subject=subject,
-                recipients=[to_email],
-                template_body=context or {},
-                subtype=MessageType.html
+                subject=subject, recipients=[to_email], template_body=context or {}, subtype=MessageType.html
             )
             await self.fm.send_message(message, template_name=localized_template)
 
         else:
-            message = MessageSchema(
-                subject=subject,
-                recipients=[to_email],
-                body=body,
-                subtype=MessageType.plain
-            )
+            message = MessageSchema(subject=subject, recipients=[to_email], body=body, subtype=MessageType.plain)
             await self.fm.send_message(message)

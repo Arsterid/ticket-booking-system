@@ -19,13 +19,18 @@ async def test_admin_get_users_success(admin_client, setup_uow, create_model_fac
     [
         (20, True, "ban"),
         (30, False, "unban"),
-    ]
+    ],
 )
 async def test_toggle_user_status_success(admin_client, setup_uow, create_model_factory, user_id, is_active, action):
     async with setup_uow as uow:
         await create_model_factory(
-            uow, "user", id=user_id, email=f"{action}@test.com", username=f"{action}_user", password="pwd",
-            is_active=is_active
+            uow,
+            "user",
+            id=user_id,
+            email=f"{action}@test.com",
+            username=f"{action}_user",
+            password="pwd",
+            is_active=is_active,
         )
         await uow.commit()
 
@@ -52,8 +57,9 @@ async def test_user_management_invalid_id(admin_client, invalid_id, action):
 @pytest.mark.asyncio
 async def test_user_management_idempotency_and_rules(admin_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
-        await create_model_factory(uow, "user", id=1, email="admin@test.com", username="admin", password="pwd",
-                                   role="admin")
+        await create_model_factory(
+            uow, "user", id=1, email="admin@test.com", username="admin", password="pwd", role="admin"
+        )
         await create_model_factory(uow, "user", id=40, email="idem@test.com", username="idem", password="pwd")
         await uow.commit()
 
@@ -72,8 +78,9 @@ async def test_user_management_idempotency_and_rules(admin_client, setup_uow, cr
 async def test_ban_admin_is_forbidden(admin_client, setup_uow, create_model_factory, target_admin_id):
     async with setup_uow as uow:
         if target_admin_id != 1:
-            await create_model_factory(uow, "user", id=target_admin_id, email="root@test.com", username="root",
-                                       password="pwd", role="admin")
+            await create_model_factory(
+                uow, "user", id=target_admin_id, email="root@test.com", username="root", password="pwd", role="admin"
+            )
         await uow.commit()
 
     response = await admin_client.patch(f"/admin/users/{target_admin_id}/ban")

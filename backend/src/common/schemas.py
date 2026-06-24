@@ -1,6 +1,6 @@
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.common.annotations import DB_INT_MAX, DB_INT_MIN
 
@@ -19,9 +19,7 @@ class GenericRequestSchema(BaseModel):
             for key, value in data.items():
                 if isinstance(value, int) and not isinstance(value, bool):
                     if not (DB_INT_MIN <= value <= DB_INT_MAX):
-                        raise ValueError(
-                            f"Value for field '{key}' exceeds database integer limits."
-                        )
+                        raise ValueError(f"Value for field '{key}' exceeds database integer limits.")
         return data
 
 
@@ -50,8 +48,7 @@ class PaginationParamsSchema(GenericRequestSchema):
 
 class FilterParamsSchema(PaginationParamsSchema):
     order_by: Optional[str] = Field(
-        default=None,
-        description="Field to sort by. The '-' sign before the name means DESC."
+        default=None, description="Field to sort by. The '-' sign before the name means DESC."
     )
 
     @field_validator("order_by")
