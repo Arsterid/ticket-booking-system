@@ -64,8 +64,6 @@ services:
     container_name: api
     command: uvicorn src.app:app --host 0.0.0.0 --port 8000
     environment: *backend_env
-    extra_hosts:
-      - "tickets.arsterid.ru:127.0.0.1"
     networks:
       - app_network
     depends_on:
@@ -104,4 +102,4 @@ volumes:
 
 networks:
   app_network:
-    driver: bridge
+    external: true
