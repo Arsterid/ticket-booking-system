@@ -28,6 +28,12 @@ x-backend-env: &backend_env
 x-nginx-end: &nginx_env
   DOMAIN: $DOMAIN
 
+x-logging: &default_logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   webserver:
     image: nginx:1.27-alpine
@@ -76,6 +82,7 @@ services:
     depends_on:
       - db
       - redis
+    logging: *default_logging
 
   taskiq_worker:
     build:
@@ -90,6 +97,7 @@ services:
     depends_on:
       - db
       - redis
+    logging: *default_logging
 
   taskiq_scheduler:
     build:
