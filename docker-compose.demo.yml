@@ -28,7 +28,7 @@ x-backend-env: &backend_env
 services:
   webserver:
     image: nginx:1.27-alpine
-    container_name: nginx_production
+    container_name: nginx
     restart: always
     ports:
       - "80:80"
