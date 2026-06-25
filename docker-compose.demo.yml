@@ -1,3 +1,5 @@
+version: '3.8'
+
 x-db-env: &db_env
   POSTGRES_USER: $PG_USER
   POSTGRES_PASSWORD: $PG_PASSWORD
@@ -26,6 +28,20 @@ x-backend-env: &backend_env
   MAIL_VALIDATE_CERTS: $MAIL_VALIDATE_CERTS
 
 services:
+  webserver:
+    image: nginx:latest
+    container_name: nginx_production
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
   db:
     image: postgres:16.3-alpine3.20
     container_name: db
@@ -53,10 +69,8 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: fastapi_api
-    command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.app:app --host 0.0.0.0 --port 8000
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
@@ -77,8 +91,6 @@ services:
     container_name: taskiq_worker
     command: taskiq worker src.core.tiq:broker -fsd
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
@@ -93,8 +105,6 @@ services:
     container_name: taskiq_scheduler
     command: taskiq scheduler src.core.tiq:scheduler --update-interval 5
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       redis:
         condition: service_healthy
