@@ -6,6 +6,7 @@ from sqlalchemy import BinaryExpression, Delete, Insert, Select, Update, asc, de
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import raiseload
 from sqlalchemy.orm.interfaces import ORMOption
 
 from src.common.annotations import DTOType, ModelType
@@ -168,16 +169,43 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
         return items_dto, total_count
 
     def _build_filtered_query(self, query: select, filters: dict[str, Any]) -> select:
+        joined_models = set()
         for key, value in filters.items():
             if value is not None:
-                query = self._apply_filter(query, key, value)
+                query = self._apply_filter(query, key, value, joined_models)
         return query
 
-    def _apply_filter(self, query: select, key: str, value: Any) -> select:
-        field_name, operator = key.split("__", 1) if "__" in key else (key, "eq")
+    def _apply_filter(self, query: select, key: str, value: Any, joined_models: set) -> select:
+        path, operator = key.split("__", 1) if "__" in key else (key, "eq")
 
-        if hasattr(self.model, field_name) and operator in self._OPERATORS:
-            column = getattr(self.model, field_name)
+        if operator not in self._OPERATORS:
+            return query
+
+        parts = path.split(".")
+        field_name = parts.pop()
+
+        current_model = self.model
+
+        for relation_name in parts:
+            if hasattr(current_model, relation_name):
+                relation_attr = getattr(current_model, relation_name)
+
+                if hasattr(relation_attr, "property") and hasattr(relation_attr.property, "mapper"):
+                    target_model = relation_attr.property.mapper.class_
+
+                    if target_model not in joined_models:
+                        query = query.join(relation_attr)
+                        query = query.options(raiseload(relation_attr))
+                        joined_models.add(target_model)
+
+                    current_model = target_model
+                else:
+                    current_model = relation_attr
+            else:
+                return query
+
+        if hasattr(current_model, field_name):
+            column = getattr(current_model, field_name)
             return query.where(self._OPERATORS[operator](column, value))
 
         return query
