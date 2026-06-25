@@ -29,6 +29,8 @@ services:
     image: postgres:16.3-alpine3.20
     container_name: db
     environment: *db_env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -55,12 +57,10 @@ services:
     volumes:
       - ./backend/src:/backend/src:ro
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - db
+      - redis
     networks:
-      - demo_network
+      - app_network
 
   taskiq_worker:
     build:
@@ -99,14 +99,15 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - demo_network
     depends_on:
       - api
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
 
 volumes:
   postgres_data:
-
-networks:
-  demo_network:
-    external: true
