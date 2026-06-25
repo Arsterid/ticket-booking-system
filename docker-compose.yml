@@ -62,8 +62,6 @@ services:
       target: backend
     container_name: fastapi_api
     command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "${BACKEND_PORT}:8000"
     environment: *backend_env
     volumes:
       - ./backend/src:/backend/src:ro
@@ -73,7 +71,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthcheck', timeout=2)" ]
+      test: ["CMD-SHELL", "python -c \"import socket; s = socket.socket(); s.settimeout(2); exit(0 if s.connect_ex(('127.0.0.1', 8000)) == 0 else 1)\""]
       interval: 10s
       timeout: 5s
       retries: 3
