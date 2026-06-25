@@ -18,6 +18,16 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
+    location ~ /\.(?!well-known) {
+        deny all;
+        access_log off;
+    }
+
+    location ~* \.(bak|sql|yaml|yml|ini|log|conf|json|git|php)$ {
+        deny all;
+        access_log off;
+    }
+
     location / {
         proxy_pass http://backend_api;
 
