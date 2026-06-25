@@ -1,0 +1,54 @@
+upstream backend_api {
+    server api:8000;
+}
+
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+
+    ssl_reject_handshake on;
+    error_page 497 =444 /bad_request;
+
+    return 444;
+}
+
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+        access_log off;
+    }
+
+    location ~* (?<!openapi)\.(bak|sql|yaml|yml|ini|log|conf|json|git|php)$ {
+        deny all;
+        access_log off;
+    }
+
+    location / {
+        proxy_pass http://backend_api;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

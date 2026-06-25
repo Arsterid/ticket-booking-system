@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from sqlalchemy import exists, func, select, update
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from src.common.repositories import GenericRepository
 from src.modules.event.models import Event, EventStatus
@@ -27,7 +27,7 @@ class TicketRepository(GenericRepository[Ticket, TicketDTO], model=Ticket, dto=T
             offset=offset,
             limit=limit,
             filters=query_filters,
-            order_by=order_by,
+            order_by=order_by
         )
 
     async def get_all_by_user(

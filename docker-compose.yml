@@ -60,7 +60,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: backend
-    container_name: fastapi_api
+    container_name: api
     command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "${BACKEND_PORT}:8000"
@@ -73,7 +73,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request, sys; res = urllib.request.urlopen('http://localhost:8000/api/v1/healthcheck', timeout=5); sys.exit(0 if res.getcode() == 200 else 1)"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthcheck', timeout=2)" ]
       interval: 10s
       timeout: 5s
       retries: 3

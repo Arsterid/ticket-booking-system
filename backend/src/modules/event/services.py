@@ -131,7 +131,7 @@ class EventService(GenericService[AppUnitOfWork], ViewableServiceMixin, repo=Eve
         async with self.uow:
             is_moderated = (
                 await self.uow.event.moderation_approve(event_id=event_id)
-                if not result
+                if result
                 else await self.uow.event.moderation_decline(event_id=event_id)
             )
 
