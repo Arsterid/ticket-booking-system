@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 
-from src.common.dependencies import JWTManagerDep, PasswordManagerDep
-from src.common.schemas import GenericSuccessResponseSchema
+from src.core.infra.transport.http.dependencies import JWTManagerDep, PasswordManagerDep
+from src.core.infra.transport.http.schemas.base import GenericSuccessResponseSchema
 from src.modules.user.dependencies import AnyUserIdDep, UserServiceDep
 from src.modules.user.schemas import (
     UserCreateResponseSchema,

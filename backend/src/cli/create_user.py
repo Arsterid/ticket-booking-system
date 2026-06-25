@@ -1,9 +1,9 @@
 import asyncio
 import sys
 
-from src.common.dependencies import get_config
+from src.core.infra.transport.http.dependencies import get_config
 from src.core.security.passwords import PasswordManager
-from src.core.uow import create_sqlalchemy_uow
+from src.app.main import create_sqlalchemy_uow
 from src.modules.user.models import UserRole
 
 config = get_config()

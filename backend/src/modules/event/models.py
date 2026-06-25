@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 from sqlalchemy import DateTime, ForeignKey, String, case, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.common.orm.models import AbstractModel
+from src.core.infra.database.orm.base import AbstractORMModel
 
 
-class EventCategory(AbstractModel):
+class EventCategory(AbstractORMModel):
     __tablename__ = "event_categories"
 
     name: Mapped[str] = mapped_column(String(100), unique=True)
@@ -55,7 +55,7 @@ class EventStatus(StrEnum):
     UPCOMING = "upcoming"
 
 
-class Event(AbstractModel):
+class Event(AbstractORMModel):
     __tablename__ = "events"
 
     title: Mapped[str] = mapped_column(String(100), nullable=False)

@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from src.common.dependencies import get_config
+from src.core.infra.transport.http.dependencies import get_config
 from src.core.security.passwords import PasswordManager
-from src.core.uow import create_sqlalchemy_uow
+from src.app.main import create_sqlalchemy_uow
 from src.modules.event.models import EventCategory, EventState, EventType
 from src.modules.ticket.models import TicketStatus, TicketType
 from src.modules.user.models import User, UserRole

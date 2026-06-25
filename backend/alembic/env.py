@@ -6,25 +6,19 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from src.common.orm.models import AbstractModel
-from src.core.settings import settings
-
-from src.modules.user.models import User
-from src.modules.ticket.models import Ticket, TicketType
-from src.modules.event.models import Event, EventCategory
-from src.common.views.models import ViewLog
-
+from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.settings import get_settings
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = AbstractModel.metadata
+target_metadata = AbstractORMModel.metadata
 
 
 def get_url() -> str:
-    return settings.db_url
+    return get_settings().db_url
 
 
 def run_migrations_offline() -> None:

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7-labs
 FROM python:3.14-slim AS base-builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.4 /uv /uvx /bin/
 
@@ -42,6 +43,6 @@ WORKDIR /backend
 
 COPY --from=prod-env-builder /backend/.venv /backend/.venv
 
-COPY . .
+COPY --exclude=tests . .
 
 ENV PATH="/backend/.venv/bin:$PATH"

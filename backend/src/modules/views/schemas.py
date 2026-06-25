@@ -1,4 +1,4 @@
-from src.common.schemas import GenericRequestSchema
+from src.core.infra.transport.http.schemas.base import GenericRequestSchema
 
 
 class BulkViewsSchema(GenericRequestSchema):

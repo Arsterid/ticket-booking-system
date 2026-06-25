@@ -1,7 +1,7 @@
-from src.core.exceptions import ConflictException, ForbiddenException, ServiceException
+from src.app.exceptions import ServiceException, ForbiddenException, ConflictException, UnauthorizedException
 
 
-class IncorrectLoginDataException(ServiceException):
+class IncorrectLoginDataException(UnauthorizedException):
     def __init__(self):
         super().__init__("Incorrect login data.")
 

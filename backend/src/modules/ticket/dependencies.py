@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from src.core.infrasctructure.uow_factory import get_uow_factory
+from src.core.infra.database.uow_factory import get_uow_factory
 from src.modules.ticket.schemas import TicketsByEventFilterParamsSchema, TicketsFilterParamsSchema
 from src.modules.ticket.services import TicketService, UserTicketService
 

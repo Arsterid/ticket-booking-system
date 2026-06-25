@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from src.common.schemas import GenericSuccessResponseSchema
+from src.core.infra.transport.http.schemas.base import GenericSuccessResponseSchema
 from src.modules.user.dependencies import OptionalUserIdDep
 from src.modules.views.dependencies import DynamicServiceDep
 from src.modules.views.schemas import BulkViewsSchema

@@ -1,4 +1,5 @@
-from src.core.tiq import broker, logger
+from src.core.infra.tasks.config import broker
+from src.core.infra.tasks.factory import logger
 from src.modules.user.dependencies import UserServiceDep
 
 

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.common.data_objects import BaseDTO
+from src.core.infra.database.repositories.data_objects import BaseDTO
 from src.modules.user.models import UserRole
 
 

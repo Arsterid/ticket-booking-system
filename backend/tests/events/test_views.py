@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi import status
 
+from src.core.infra.cache.factory import get_cache_manager
 from src.modules.event.models import EventState
 
 
@@ -107,6 +108,7 @@ async def test_bulk_register_views_success(user_client, setup_uow, seed_event_en
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {"success": True}
 
+        await get_cache_manager().clear()
         views_map = await uow.view_logs.bulk_get_objects_views(table_name="events", obj_ids=[1, 2, 3])
         assert views_map == {1: 1, 2: 1, 3: 1}
 

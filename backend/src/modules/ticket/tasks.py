@@ -1,5 +1,6 @@
-from src.core.mail.service.factory import get_email_service
-from src.core.tiq import broker, logger
+from src.core.infra.mail.factory import get_email_service
+from src.core.infra.tasks.config import broker
+from src.core.infra.tasks.factory import logger
 from src.modules.ticket.dependencies import TicketServiceDep
 
 

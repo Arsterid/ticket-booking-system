@@ -3,7 +3,7 @@ from typing import Any, Optional
 from sqlalchemy import update
 from sqlalchemy.orm import selectinload
 
-from src.common.repositories import GenericRepository
+from src.core.infra.database.repositories.base import GenericRepository
 from src.modules.event.data_objects import EventCategoryDTO, EventDTO
 from src.modules.event.models import Event, EventCategory, EventState, EventStatus
 

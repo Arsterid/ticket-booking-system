@@ -1,4 +1,4 @@
-from src.core.exceptions import ConflictException
+from src.app.exceptions import ConflictException
 
 
 class EventCategoryIsNotALeafException(ConflictException):

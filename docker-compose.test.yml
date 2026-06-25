@@ -32,7 +32,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: tests
-    container_name: backend_test_runner
+    container_name: test_runner
     environment: *tests_env
     command: sh -c "alembic upgrade head && pytest --color=yes --cov=src tests/"
     depends_on:
@@ -44,7 +44,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: lint
-    container_name: backend_linter
+    container_name: linter
     volumes:
       - ./backend:/backend
       - /backend/.venv

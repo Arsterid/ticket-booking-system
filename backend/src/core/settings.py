@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Optional
 
 from pydantic import RedisDsn
@@ -30,6 +31,16 @@ class AppConfig(BaseSettings):
 
     metrics_token: str = "<METRICS_TOKEN>"
 
+    mail_username: Optional[str] = None
+    mail_password: Optional[str] = None
+    mail_from: Optional[str] = None
+    mail_server: Optional[str] = None
+    mail_port: Optional[int] = None
+    mail_starttls: Optional[bool] = None
+    mail_ssl_tls: Optional[bool] = None
+    mail_use_credentials: Optional[bool] = None
+    mail_validate_certs: Optional[bool] = None
+
     @property
     def redis_url(self) -> str:
         dsn = RedisDsn.build(
@@ -51,4 +62,7 @@ class AppConfig(BaseSettings):
         return f"{self.db}+{self.db_driver}://{auth}@{self.db_host}:{self.db_port}/{self.db_name}"
 
 
-settings = AppConfig()
+@lru_cache
+def get_settings() -> AppConfig:
+    return AppConfig()
+
