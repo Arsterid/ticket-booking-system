@@ -41,7 +41,7 @@ services:
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
-      - app_network
+      - frontend_network
     depends_on:
       - api
 
@@ -52,13 +52,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - app_network
+      - backend_network
+    depends_on:
+      - redis
 
   redis:
     image: eqalpha/keydb:x86_64_v6.3.4
     container_name: redis
     networks:
-      - app_network
+      - backend_network
 
   api:
     build:
@@ -69,7 +71,8 @@ services:
     command: uvicorn src.app:app --host 0.0.0.0 --port 8000
     environment: *backend_env
     networks:
-      - app_network
+      - frontend_network
+      - backend_network
     depends_on:
       - db
       - redis
@@ -83,7 +86,7 @@ services:
     command: taskiq worker src.core.tiq:broker -fsd
     environment: *backend_env
     networks:
-      - app_network
+      - backend_network
     depends_on:
       - db
       - redis
@@ -97,7 +100,7 @@ services:
     command: taskiq scheduler src.core.tiq:scheduler --update-interval 5
     environment: *backend_env
     networks:
-      - app_network
+      - backend_network
     depends_on:
       - redis
 
@@ -105,5 +108,5 @@ volumes:
   postgres_data:
 
 networks:
-  app_network:
-    external: true
+  frontend_network:
+  backend_network:
