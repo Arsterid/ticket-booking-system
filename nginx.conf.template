@@ -8,6 +8,7 @@ server {
     server_name _;
 
     ssl_reject_handshake on;
+    error_page 497 =444 /bad_request;
 
     return 444;
 }
@@ -33,7 +34,7 @@ server {
         access_log off;
     }
 
-    location ~* \.(bak|sql|yaml|yml|ini|log|conf|json|git|php)$ {
+    location ~* (?<!openapi)\.(bak|sql|yaml|yml|ini|log|conf|json|git|php)$ {
         deny all;
         access_log off;
     }
