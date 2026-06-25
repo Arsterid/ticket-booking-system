@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import pytest
 from fastapi import status
@@ -7,7 +7,8 @@ from fastapi import status
 @pytest.mark.asyncio
 async def test_create_ticket_success(user_client, setup_uow, seed_ticket_env, create_model_factory):
     async with setup_uow as uow:
-        await seed_ticket_env(uow, event_state="draft", event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc))
+        future_date = datetime.now(timezone.utc) + timedelta(days=1)
+        await seed_ticket_env(uow, event_state="draft", event_date=future_date)
         await uow.user.assign_ticket_type(user_id=1, ticket_type_id=1)
         await uow.commit()
 
@@ -59,7 +60,8 @@ async def test_create_ticket_invalid_data(user_client, setup_uow, create_model_f
 @pytest.mark.asyncio
 async def test_get_available_tickets_with_filters(client, setup_uow, seed_ticket_env, create_model_factory):
     async with setup_uow as uow:
-        await seed_ticket_env(uow, event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc))
+        future_date = datetime.now(timezone.utc) + timedelta(days=1)
+        await seed_ticket_env(uow, event_date=future_date)
         await create_model_factory(uow, "ticket", id=1, event_id=1, type_id=1, price=500, status="available")
         await uow.commit()
 
@@ -72,7 +74,8 @@ async def test_get_available_tickets_with_filters(client, setup_uow, seed_ticket
 @pytest.mark.asyncio
 async def test_get_my_tickets_success(user_client, setup_uow, seed_ticket_env, create_model_factory):
     async with setup_uow as uow:
-        await seed_ticket_env(uow, event_date=datetime(2026, 6, 20, 18, 0, 0, tzinfo=timezone.utc))
+        future_date = datetime.now(timezone.utc) + timedelta(days=1)
+        await seed_ticket_env(uow, event_date=future_date)
         await create_model_factory(uow, "ticket", id=1, event_id=1, type_id=1, price=100, status="reserved", user_id=1)
         await uow.commit()
 

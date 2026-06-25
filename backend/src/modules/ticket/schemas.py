@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import EmailStr, Field, field_validator
 
-from src.common.schemas import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from src.core.infra.transport.http.schemas.base import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.modules.event.schemas import EventResponseSchema
 from src.modules.ticket.models import TicketStatus
 from src.modules.user.schemas import UserWithEmailResponseSchema

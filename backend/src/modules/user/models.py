@@ -10,11 +10,11 @@ from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, String, Tab
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.common.orm.models import AbstractModel, BaseModel
+from src.core.infra.database.orm.base import AbstractORMModel, BaseORMModel
 
 user_ticket_table = Table(
     "user_ticket_types",
-    BaseModel.metadata,
+    BaseORMModel.metadata,
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("ticket_type_id", ForeignKey("ticket_types.id", ondelete="CASCADE"), primary_key=True),
 )
@@ -59,7 +59,7 @@ class UserRole(StrEnum):
         return self._weight >= other._weight
 
 
-class User(AbstractModel):
+class User(AbstractORMModel):
     __tablename__ = "users"
 
     role: Mapped[UserRole] = mapped_column(

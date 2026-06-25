@@ -61,7 +61,7 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: api
-    command: uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "${BACKEND_PORT}:8000"
     environment: *backend_env
@@ -85,7 +85,7 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: taskiq_worker
-    command: taskiq worker src.core.tiq:broker -fsd
+    command: taskiq worker src.core.infra.tasks.config:broker -fsd
     environment: *backend_env
     volumes:
       - ./backend/src:/backend/src:ro
@@ -101,7 +101,7 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: taskiq_scheduler
-    command: taskiq scheduler src.core.tiq:scheduler --update-interval 5
+    command: taskiq scheduler src.core.infra.tasks.config:scheduler --update-interval 5
     environment: *backend_env
     volumes:
       - ./backend/src:/backend/src:ro

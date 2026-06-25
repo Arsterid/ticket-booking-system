@@ -2,6 +2,8 @@ upstream backend_api {
     server api:8000;
 }
 
+limit_req_zone $binary_remote_addr zone=global_api_limit:10m rate=30r/s;
+
 server {
     listen 80 default_server;
     listen 443 ssl default_server;
@@ -29,17 +31,57 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
-    location ~ /\.(?!well-known) {
-        deny all;
-        access_log off;
+    limit_req_status 429;
+
+    location ^~ /.well-known/ {
+        proxy_pass http://backend_api;
     }
 
-    location ~* (?<!openapi)\.(bak|sql|yaml|yml|ini|log|conf|json|git|php)$ {
+    location ^~ /docs {
+        proxy_pass http://backend_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ^~ /redoc {
+        proxy_pass http://backend_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~* /openapi\.(json|yaml|yml)$ {
+        proxy_pass http://backend_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~ /\..* {
         deny all;
         access_log off;
+        log_not_found off;
+    }
+
+    location ~* \.(bak|sql|yaml|yml|ini|log|conf|git|php|sh|bash)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    location ~* \.json$ {
+        deny all;
+        access_log off;
+        log_not_found off;
     }
 
     location / {
+        limit_req zone=global_api_limit burst=50 nodelay;
+
         proxy_pass http://backend_api;
 
         proxy_set_header Host $host;

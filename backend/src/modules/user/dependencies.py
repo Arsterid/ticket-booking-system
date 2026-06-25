@@ -2,7 +2,7 @@ from typing import Annotated, Optional
 
 from fastapi import Depends
 
-from src.core.infrasctructure.uow_factory import get_uow_factory
+from src.core.infra.database.uow_factory import get_uow_factory
 from src.modules.user.models import UserRole
 from src.modules.user.roles import RoleChecker
 from src.modules.user.schemas import UsersFilterParamsSchema

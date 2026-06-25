@@ -1,3 +1,5 @@
+import asyncio
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -124,3 +126,61 @@ async def test_pay_ticket_invalid_status(client, setup_uow, seed_ticket_env, cre
 
     response = await client.patch("/tickets/1/pay")
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.asyncio
+async def test_pay_ticket_idempotency_cache_hit(client, setup_uow, seed_ticket_env, create_model_factory):
+    async with setup_uow as uow:
+        await seed_ticket_env(uow, event_date=datetime.now(timezone.utc) + timedelta(days=1))
+        await create_model_factory(uow, "ticket", id=50, event_id=1, type_id=1, price=100, status="reserved")
+        await uow.commit()
+
+    idempotency_key = str(uuid.uuid4())
+    headers = {"Idempotency-Key": idempotency_key}
+
+    first_response = await client.patch("/tickets/50/pay", headers=headers)
+    assert first_response.status_code == status.HTTP_200_OK
+    assert first_response.json() == {"success": True}
+
+    second_response = await client.patch("/tickets/50/pay", headers=headers)
+    assert second_response.status_code == status.HTTP_200_OK
+    assert second_response.json() == {"success": True}
+
+
+@pytest.mark.asyncio
+async def test_pay_ticket_idempotency_race_condition(client, setup_uow, seed_ticket_env, create_model_factory):
+    async with setup_uow as uow:
+        await seed_ticket_env(uow, event_date=datetime.now(timezone.utc) + timedelta(days=1))
+        await create_model_factory(uow, "ticket", id=60, event_id=1, type_id=1, price=100, status="reserved")
+        await uow.commit()
+
+    idempotency_key = str(uuid.uuid4())
+    headers = {"Idempotency-Key": idempotency_key}
+
+    async def make_request():
+        return await client.patch("/tickets/60/pay", headers=headers)
+
+    async with asyncio.TaskGroup() as tg:
+        task1 = tg.create_task(make_request())
+        task2 = tg.create_task(make_request())
+
+    response1 = task1.result()
+    response2 = task2.result()
+    status_codes = [response1.status_code, response2.status_code]
+
+    assert status.HTTP_200_OK in status_codes
+    assert status.HTTP_409_CONFLICT in status_codes
+
+
+@pytest.mark.asyncio
+async def test_pay_ticket_without_idempotency_key(client, setup_uow, seed_ticket_env, create_model_factory):
+    async with setup_uow as uow:
+        await seed_ticket_env(uow, event_date=datetime.now(timezone.utc) + timedelta(days=1))
+        await create_model_factory(uow, "ticket", id=70, event_id=1, type_id=1, price=100, status="reserved")
+        await uow.commit()
+
+    first_response = await client.patch("/tickets/70/pay")
+    assert first_response.status_code == status.HTTP_200_OK
+
+    second_response = await client.patch("/tickets/70/pay")
+    assert second_response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT]

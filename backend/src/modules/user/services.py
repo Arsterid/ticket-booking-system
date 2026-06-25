@@ -1,11 +1,11 @@
 from typing import Any
 
-from src.common.dependencies import PasswordManager
-from src.common.schemas import PaginatedResponseSchema
-from src.common.services import GenericService
-from src.core.exceptions import ObjectNotFoundException, ServiceException, UniqueFieldException
+from src.app.uow import AppUnitOfWork
+from src.core.infra.transport.http.dependencies import PasswordManager
+from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
+from src.domain.services.base import GenericService
+from src.app.exceptions import ServiceException, ObjectNotFoundException, UniqueFieldException
 from src.core.security.jwt_tokens import JWTManager
-from src.core.uow import AppUnitOfWork
 from src.modules.user.exceptions import (
     CannotBanAdminException,
     CannotBanYourselfException,

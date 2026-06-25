@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
-from src.common.schemas import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from src.core.infra.transport.http.schemas.base import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.modules.event.models import EventType
 
 

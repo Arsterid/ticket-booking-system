@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
-from src.common.annotations import Int32Path
-from src.common.schemas import GenericModerationSchema, GenericSuccessResponseSchema, PaginatedResponseSchema
+from src.core.infra.transport.http.annotations import Int32Path
+from src.core.infra.transport.http.schemas.base import GenericModerationSchema, GenericSuccessResponseSchema, PaginatedResponseSchema
 from src.modules.event.dependencies import EventCategoryFiltersDep, EventsByUserFiltersDep, EventServiceDep
 from src.modules.event.schemas import EventCategoryCreateSchema, EventCategoryResponseSchema, EventResponseSchema
 from src.modules.user.dependencies import AdminUserIdDep, UserFiltersDep, UserServiceDep

@@ -11,10 +11,10 @@ from sqlalchemy import CheckConstraint, Float, ForeignKey, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.common.orm.models import AbstractModel
+from src.core.infra.database.orm.base import AbstractORMModel
 
 
-class TicketType(AbstractModel):
+class TicketType(AbstractORMModel):
     __tablename__ = "ticket_types"
 
     name: Mapped[str] = mapped_column(String(255), unique=True)
@@ -26,7 +26,7 @@ class TicketStatus(StrEnum):
     PAID = "paid"
 
 
-class Ticket(AbstractModel):
+class Ticket(AbstractORMModel):
     __tablename__ = "tickets"
 
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="RESTRICT"), index=True)

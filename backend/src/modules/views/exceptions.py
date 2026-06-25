@@ -1,4 +1,4 @@
-from src.core.exceptions import ServiceException
+from src.app.exceptions import ServiceException
 
 
 class UnknownModelTypeException(ServiceException):

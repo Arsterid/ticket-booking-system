@@ -1,10 +1,10 @@
 from typing import Any
 
-from src.common.schemas import PaginatedResponseSchema
-from src.common.services import GenericService
-from src.common.views.mixins import ViewableServiceMixin
-from src.core.exceptions import ObjectNotFoundException, UniqueFieldException
-from src.core.uow import AppUnitOfWork
+from src.app.uow import AppUnitOfWork
+from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
+from src.domain.services.base import GenericService
+from src.modules.views.mixins import ViewableServiceMixin
+from src.app.exceptions import ObjectNotFoundException, UniqueFieldException
 from src.modules.event.exceptions import EventCategoryHasEventsException, EventCategoryIsNotALeafException
 from src.modules.event.repositories import EventRepository
 from src.modules.event.schemas import (

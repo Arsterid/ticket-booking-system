@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 
-from src.common.annotations import Int32Path
-from src.common.schemas import GenericSuccessResponseSchema, PaginatedResponseSchema
+from src.core.infra.transport.http.annotations import Int32Path
+from src.core.infra.transport.http.schemas.base import GenericSuccessResponseSchema, PaginatedResponseSchema
 from src.modules.event.dependencies import (
     EventCategoryFiltersDep,
     EventsByUserFiltersDep,

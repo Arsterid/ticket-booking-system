@@ -1,9 +1,9 @@
 from typing import Any, Optional
 
 from sqlalchemy import exists, func, select, update
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload
 
-from src.common.repositories import GenericRepository
+from src.core.infra.database.repositories.base import GenericRepository
 from src.modules.event.models import Event, EventStatus
 from src.modules.ticket.data_objects import TicketDTO, TicketTypeDTO
 from src.modules.ticket.models import Ticket, TicketStatus, TicketType

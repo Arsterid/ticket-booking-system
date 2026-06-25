@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from sqlalchemy import delete, insert, update
 
-from src.common.repositories import GenericRepository
+from src.core.infra.database.repositories.base import GenericRepository
 from src.modules.user.data_objects import UserDTO
 from src.modules.user.models import User, UserRole, user_ticket_table
 

@@ -1,15 +1,10 @@
 from typing import Any, Optional
 
-from src.common.schemas import PaginatedResponseSchema
-from src.common.services import GenericService
-from src.core.exceptions import (
-    ObjectNotFoundException,
-    ParametersConflictException,
-    RaceConditionException,
-    ServiceException,
-    WrongStateException,
-)
-from src.core.uow import AppUnitOfWork
+from src.app.uow import AppUnitOfWork
+from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
+from src.domain.services.base import GenericService
+from src.app.exceptions import ServiceException, ObjectNotFoundException, WrongStateException, \
+    ParametersConflictException, RaceConditionException
 from src.modules.event.models import EventStatus
 from src.modules.ticket.models import TicketStatus
 from src.modules.ticket.schemas import (
