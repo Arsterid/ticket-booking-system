@@ -6,7 +6,7 @@ from sqlalchemy import BinaryExpression, Delete, Insert, Select, Update, asc, de
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import raiseload
+from sqlalchemy.orm import raiseload, contains_eager
 from sqlalchemy.orm.interfaces import ORMOption
 
 from src.common.annotations import DTOType, ModelType
@@ -195,7 +195,7 @@ class GenericRepository(ABC, Generic[ModelType, DTOType]):
 
                     if target_model not in joined_models:
                         query = query.join(relation_attr)
-                        query = query.options(raiseload(relation_attr))
+                        query = query.options(contains_eager(relation_attr))
                         joined_models.add(target_model)
 
                     current_model = target_model
