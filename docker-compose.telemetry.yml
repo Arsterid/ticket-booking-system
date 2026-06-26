@@ -47,6 +47,4 @@ volumes:
 
 networks:
   backend_network:
-    external: true
   frontend_network:
-    external: true
