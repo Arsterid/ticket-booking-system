@@ -81,19 +81,11 @@ async def cancel(
     return GenericSuccessResponseSchema(success=True)
 
 
-@event_router.post("/", status_code=status.HTTP_201_CREATED, response_model=EventResponseSchema)
-async def create(
-    event_service: EventServiceDep, body: EventCreateSchema, user_id: VerifiedUserIdDep
-) -> EventResponseSchema:
-    return await event_service.create(data=body, user_id=user_id)
-
-
 @event_router.get("/{event_id}", status_code=status.HTTP_200_OK, response_model=EventResponseSchema)
 async def details(
     event_service: EventServiceDep, event_id: Int32Path
 ) -> EventResponseSchema:
     return await event_service.get_upcoming(obj_id=event_id)
-
 
 
 @event_router.patch("/{event_id}", status_code=status.HTTP_200_OK, response_model=GenericSuccessResponseSchema)
@@ -104,7 +96,15 @@ async def update(
     return GenericSuccessResponseSchema(success=result)
 
 
-@event_router.get("/", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventResponseSchema])
+@event_router.post("", status_code=status.HTTP_201_CREATED, response_model=EventResponseSchema)
+async def create(
+    event_service: EventServiceDep, body: EventCreateSchema, user_id: VerifiedUserIdDep
+) -> EventResponseSchema:
+    return await event_service.create(data=body, user_id=user_id)
+
+
+
+@event_router.get("", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventResponseSchema])
 async def get_all_upcoming(
     event_service: EventServiceDep, filters: UpcomingEventsFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:

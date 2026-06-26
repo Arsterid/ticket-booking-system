@@ -50,10 +50,11 @@ The system features advanced asynchronous task queuing, strict data validation p
 
 ```text
 .
-├── docker-compose.yml          # Core production multi-container setup (API, Workers, DB)
-├── docker-compose.demo.yml     # Infrastructure container orchestration with exposed monitoring
-├── docker-compose.prod.yml     # Hardened production extensions, reverse proxy volumes, and security
-├── docker-compose.test.yml     # Isolated test environment orchestration
+├── docker-compose.yml          # Core architecture foundation (API, DB, KeyDB, Workers & internal networks)
+├── docker-compose.dev.yml      # Local development layer (Enables API hot-reload and local backend file mounts)
+├── docker-compose.demo.yml     # Presentation layer (Deploys public Nginx reverse proxy routing)
+├── docker-compose.prod.yml     # Hardened monitoring overlay (Launches isolated Prometheus & Grafana within backend)
+├── docker-compose.test.yml     # Automated verification suite (Isolated containers for pytest, ruff, and mypy)
 ├── .env.example                # Blueprint for required environment variables
 ├── .gitignore                  # Root Git exclusion rules
 ├── LICENSE                     # Project software license agreement
@@ -94,14 +95,14 @@ The system features advanced asynchronous task queuing, strict data validation p
 ```
 ## Infrastructure Design
 
-The application separates concerns into distinct execution contexts via optimized container configurations:
+The application separates concerns into distinct execution contexts via an optimized, modular multi-file container configuration:
 
-* **Core Architecture Stack (`docker-compose.yml`):** The primary local and testing configuration containing the core database, KeyDB cache, TaskIQ workers, and the full telemetry suite (**Prometheus** and **Grafana**) with exposed host ports and dynamic volumes for active development (`--reload`).
-* **Demonstration Setup (`docker-compose.demo.yml`):** A streamlined web-only demonstration context that focuses strictly on the application lifecycle, deploying the isolated services behind an **Nginx** reverse proxy using separate network zones (`frontend_network` and `backend_network`) while stripping out the telemetry layer.
-* **Hardened Production Overlay (`docker-compose.prod.yml`):** A production extension layer designed to be stacked directly on top of the core configuration. It safely drops dynamic telemetry port exposures from the host boundaries (`ports: !reset []`) to secure the private network perimeter and maps data onto persistent production volumes (`prometheus_data`, `grafana_data`).
-* **Optimized Multi-Stage Build (`Dockerfile`):** Implements specialized build target stages (`test`, `lint`, `backend`) powered by `uv` for minimal image foot-printing. The target production stage selectively copies only application source files using build filters, completely excluding testing files to ensure an optimal and secure production environment.
-* **Telemetry Engine:** Integrated Prometheus scraper pulling HTTP execution duration histograms, process memory footprints, and raw connection states. Metrics endpoints are protected from external polling by static Bearer Token gates mounted natively via Docker Secrets.
-* **Healthcheck Dependency Chains:** All containers utilize 24/7 internal healthcheck probes (`urllib.request`, `nc`, `pg_isready`). Orchestration constraints enforce strict initialization sequencing so dependent components only load after upstream databases, caches, and proxies return definitive health signals.
+* **Core Architecture Foundation (`docker-compose.yml`):** The baseline system topology containing the database, high-performance KeyDB cache, API layer, and TaskIQ async workers/scheduler. It establishes secure private virtual boundaries (`frontend_network`, `backend_network`) and disables background code polling for optimal production-grade CPU efficiency.
+* **Local Development Overlay (`docker-compose.dev.yml`):** Stacks on top of the base layer during engineering cycles. It injects code mount points (`volumes`), binds interactive debugging portals directly to host ports (`3000`, `9090`), and safely toggles Uvicorn's active hot-reload mechanisms specifically for local machines.
+* **Demonstration Setup (`docker-compose.demo.yml`):** An operational extension that mounts an enterprise **Nginx** reverse proxy inline with the frontend network loop. It secures application endpoints using real-time configuration templates and completely encapsulates underlying resources from raw host routing.
+* **Hardened Production Overlay (`docker-compose.prod.yml`):** A strict isolation layer that hooks Telemetry services (**Prometheus** and **Grafana**) deep into the private backend perimeter without revealing diagnostic listening sockets to the public internet (`ports: !reset []`).
+* **Optimized Multi-Stage Build (`Dockerfile`):** Implements specialized build target stages (`tests`, `lint`, `backend`) powered by `uv` for minimal image foot-printing. The production tier strips development utilities and verification suites out of final artifacts.
+* **Telemetry & Dependency Guards:** Prometheus targets dynamically poll core operational parameters under static Bearer Token authentication mounted via Docker Secrets. Healthcheck cascades (`pg_isready`, `keydb-cli ping`, `urllib.request`) enforce linear service startups across execution groups.
 
 ## Installation and Setup
 
@@ -116,27 +117,45 @@ Copy the template file to build your active configuration:
 ```bash
 cp .env.example .env
 ```
-Fill in the secure values inside the newly created `.env` file.
+Fill in the secure values inside the newly created `.env` file before booting up services.
 
 ### 3. Run Environments
 
-#### Run Local Core & Telemetry Stack (Development)
+#### Run Local Development Stack (With Hot-Reload)
+Combines the base foundation with development overrides. Instantly spins up the core application environment, binds local directories, and mounts active hot-reload mechanisms.
 ```bash
-docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
-* The interactive API documentation will be available at http://localhost:8000/docs
-* The local Prometheus metrics scraping instance will be available at http://localhost:9090
-* The Grafana telemetry dashboard will be available at http://localhost:3000
+* **Interactive API Docs:** Available at http://localhost:8000/docs (Automatically reloads on save)
 
-#### Run Lightweight Demo Stack (With Nginx Proxy)
+#### Run Local Development with Full Telemetry Debugging
+If you need to test Grafana dashboards or verify Prometheus metrics locally, stack the production telemetry configuration beneath your active development layer. This mounts the metrics pipeline and safely exposes dashboard host ports for your local browser.
 ```bash
-docker compose -f docker-compose.demo.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.dev.yml up -d --build
+```
+* **Local Grafana Dashboards:** Available at http://localhost:3000
+* **Local Prometheus Instance:** Available at http://localhost:9090
+
+#### Run Lightweight Demo Stack (Behind Nginx Proxy)
+Deploys core microservices routed strictly through an internal proxy gateway on HTTP/HTTPS boundaries without running any background telemetry scrapers.
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
 ```
 
-#### Run Hardened Production Environment
-To deploy the secure, production-ready infrastructure with private telemetry storage networks and strict boundary firewalls, stack the core configuration together with the production overlay:
+#### Run Hardened Production Stack (With Fully Isolated Telemetry)
+The highest tier of environment assembly. Boots the main software architecture and stacks telemetry pipelines, sealing all analytical collection ports inside a firewalled Docker container loop.
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.demo.yml up -d --build
+```
+
+#### Run Local Test and Verification Suite
+Triggers standalone containers built from modular specifications to independently format, lint, and process code validation test benches without polluting global storage volumes.
+```bash
+# Execute unit and integration tests with code coverage
+docker compose -f docker-compose.test.yml run --rm tests
+
+# Execute linters, auto-formatters, and static type checking
+docker compose -f docker-compose.test.yml run --rm lint
 ```
 
 ## System Administration Command Line

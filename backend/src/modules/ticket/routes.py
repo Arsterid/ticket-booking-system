@@ -41,7 +41,7 @@ async def get_or_create_then_assign_to_user(
     return GenericSuccessResponseSchema(success=is_success)
 
 
-@ticket_router.post("/", status_code=status.HTTP_201_CREATED, response_model=TicketResponseSchema)
+@ticket_router.post("", status_code=status.HTTP_201_CREATED, response_model=TicketResponseSchema)
 async def create(
         body: TicketCreateSchema, ticket_service: TicketServiceDep, user_id: VerifiedUserIdDep
 ) -> TicketResponseSchema:
@@ -91,7 +91,7 @@ async def get_all_by_user_id(
     return await ticket_service.get_types_by_user_id(user_id=user_id, offset=filters.offset, limit=filters.limit)
 
 
-@ticket_router.get("/", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[TicketResponseSchema])
+@ticket_router.get("", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[TicketResponseSchema])
 async def get_all_available(
         ticket_service: TicketServiceDep, filters: TicketsFiltersDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:

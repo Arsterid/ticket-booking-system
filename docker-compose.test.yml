@@ -1,5 +1,3 @@
-name: ticket-booking-system-tests
-
 x-test-db-env: &test_db_env
   POSTGRES_USER: $TEST_PG_USER
   POSTGRES_PASSWORD: $TEST_PG_PASSWORD
@@ -19,8 +17,6 @@ services:
     image: postgres:16.3-alpine3.20
     container_name: db_test
     environment: *test_db_env
-    ports:
-      - "${TEST_DB_PORT}:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s

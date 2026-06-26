@@ -25,10 +25,6 @@ x-backend-env: &backend_env
   MAIL_USE_CREDENTIALS: $MAIL_USE_CREDENTIALS
   MAIL_VALIDATE_CERTS: $MAIL_VALIDATE_CERTS
 
-secrets:
-  metrics_token:
-    environment: "METRICS_TOKEN"
-
 services:
   db:
     image: postgres:16.3-alpine3.20
@@ -38,6 +34,8 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -49,6 +47,8 @@ services:
     container_name: redis
     ports:
       - "${REDIS_PORT}:6379"
+    networks:
+      - backend_network
     healthcheck:
       test: ["CMD", "keydb-cli", "ping"]
       interval: 5s
@@ -61,17 +61,18 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: api
-    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "${BACKEND_PORT}:8000"
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - frontend_network
+      - backend_network
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthcheck', timeout=2)" ]
       interval: 10s
@@ -87,13 +88,13 @@ services:
     container_name: taskiq_worker
     command: taskiq worker src.core.infra.tasks.config:broker -fsd
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - backend_network
 
   taskiq_scheduler:
     build:
@@ -103,45 +104,15 @@ services:
     container_name: taskiq_scheduler
     command: taskiq scheduler src.core.infra.tasks.config:scheduler --update-interval 5
     environment: *backend_env
-    volumes:
-      - ./backend/src:/backend/src:ro
     depends_on:
       redis:
         condition: service_healthy
-
-  prometheus:
-    image: prom/prometheus:v3.12.0
-    container_name: prometheus
-    ports:
-      - "${PROMETHEUS_PORT}:9090"
-    secrets:
-      - metrics_token
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-    volumes:
-      - ./backend/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9090"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  grafana:
-    image: grafana/grafana:13.0.2
-    container_name: grafana
-    ports:
-      - "${GRAFANA_PORT}:3000"
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    networks:
+      - backend_network
 
 volumes:
   postgres_data:
+
+networks:
+  frontend_network:
+  backend_network:

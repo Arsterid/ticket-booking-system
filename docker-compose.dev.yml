@@ -1,0 +1,17 @@
+services:
+  grafana:
+    ports:
+      - "${GRAFANA_PORT}:3000"
+
+  prometheus:
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+
+  api:
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend/src:/backend/src:ro
+
+  taskiq_worker:
+    volumes:
+      - ./backend/src:/backend/src:ro
