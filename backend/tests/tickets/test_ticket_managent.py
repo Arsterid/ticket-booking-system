@@ -13,7 +13,7 @@ async def test_create_ticket_success(user_client, setup_uow, seed_ticket_env, cr
         await uow.commit()
 
     payload = {"event_id": 1, "type_id": 1, "price": 100}
-    response = await user_client.post("/tickets/", json=payload)
+    response = await user_client.post("/tickets", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     data = response.json()
     assert data.get("event_id") == 1
@@ -42,7 +42,7 @@ async def test_create_ticket_forbidden_for_stranger_event(user_client, setup_uow
         await uow.commit()
 
     payload = {"event_id": 1, "type_id": 1, "price": 100}
-    response = await user_client.post("/tickets/", json=payload)
+    response = await user_client.post("/tickets", json=payload)
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -53,7 +53,7 @@ async def test_create_ticket_invalid_data(user_client, setup_uow, create_model_f
         await uow.commit()
 
     payload = {"event_id": 1, "type_id": 1, "price": -100}
-    response = await user_client.post("/tickets/", json=payload)
+    response = await user_client.post("/tickets", json=payload)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
@@ -65,7 +65,7 @@ async def test_get_available_tickets_with_filters(client, setup_uow, seed_ticket
         await create_model_factory(uow, "ticket", id=1, event_id=1, type_id=1, price=500, status="available")
         await uow.commit()
 
-    response = await client.get("/tickets/?event_id=1&price__gte=100&price__lte=1000&limit=5&offset=0")
+    response = await client.get("/tickets?event_id=1&price__gte=100&price__lte=1000&limit=5&offset=0")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert len(data["results"]) == 1

@@ -17,7 +17,7 @@ user_router = APIRouter(
 )
 
 
-@user_router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserCreateResponseSchema)
+@user_router.post("", status_code=status.HTTP_201_CREATED, response_model=UserCreateResponseSchema)
 async def register(
     user_service: UserServiceDep,
     pwd_manager: PasswordManagerDep,

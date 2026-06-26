@@ -35,7 +35,7 @@ async def test_register_success_triggers_and_executes_task(client, setup_uow, cr
         await uow.commit()
 
     payload = {"email": "register_test@example.com", "username": "tester", "password": "securepassword123"}
-    response = await client.post("/users/", json=payload)
+    response = await client.post("/users", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
     user_id = response.json()["id"]
 
