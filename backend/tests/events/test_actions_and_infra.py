@@ -123,8 +123,8 @@ async def test_cancel_event_idempotency(user_client, setup_uow, seed_event_env, 
 @pytest.mark.parametrize(
     "url",
     [
-        "/events/?limit=-5",
-        "/events/?offset=abc",
+        "/events?limit=-5",
+        "/events?offset=abc",
     ],
 )
 async def test_get_events_invalid_pagination_params_public(client, url):

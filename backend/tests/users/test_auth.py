@@ -5,7 +5,7 @@ from fastapi import status
 @pytest.mark.asyncio
 async def test_register_success(client):
     payload = {"email": "register_test@example.com", "username": "tester", "password": "securepassword123"}
-    response = await client.post("/users/", json=payload)
+    response = await client.post("/users", json=payload)
     res_data = response.json()
     assert response.status_code == status.HTTP_201_CREATED
     assert isinstance(res_data.get("id"), int)
@@ -21,7 +21,7 @@ async def test_register_success(client):
     ],
 )
 async def test_register_invalid_data(client, payload):
-    response = await client.post("/users/", json=payload)
+    response = await client.post("/users", json=payload)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
@@ -34,7 +34,7 @@ async def test_register_duplicate_email(client, setup_uow, create_model_factory)
         await uow.commit()
 
     payload = {"email": "duplicate@example.com", "username": "new_user", "password": "securepassword123"}
-    response = await client.post("/users/", json=payload)
+    response = await client.post("/users", json=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 

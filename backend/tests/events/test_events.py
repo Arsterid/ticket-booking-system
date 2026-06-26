@@ -19,7 +19,7 @@ async def test_create_event_success(user_client, setup_uow, seed_event_env):
         "event_type": "online",
         "event_date": (datetime.now(timezone.utc) + timedelta(days=1)).replace(microsecond=0).isoformat(),
     }
-    response = await user_client.post("/events/", json=payload)
+    response = await user_client.post("/events", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
 
 
@@ -36,7 +36,7 @@ async def test_create_event_invalid_data(user_client, setup_uow, create_model_fa
         "event_type": "online",
         "event_date": "2026-06-20T18:00:00+00:00",
     }
-    response = await user_client.post("/events/", json=payload)
+    response = await user_client.post("/events", json=payload)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
@@ -49,7 +49,7 @@ async def test_create_event_unauthorized(client):
         "event_type": "online",
         "event_date": "2026-06-20T18:00:00+00:00",
     }
-    response = await client.post("/events/", json=payload)
+    response = await client.post("/events", json=payload)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
@@ -134,7 +134,7 @@ async def test_get_upcoming_events_success(client, setup_uow, create_model_facto
         )
         await uow.commit()
 
-    response = await client.get("/events/?limit=10&offset=0")
+    response = await client.get("/events?limit=10&offset=0")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "results" in data
@@ -163,7 +163,7 @@ async def test_get_upcoming_events_excludes_hidden_states(client, setup_uow, cre
         )
         await uow.commit()
 
-    response = await client.get("/events/")
+    response = await client.get("/events")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert len(data.get("items", [])) == 0

@@ -121,42 +121,59 @@ Fill in the secure values inside the newly created `.env` file before booting up
 
 ### 3. Run Environments
 
-#### Run Local Development Stack (With Hot-Reload)
-Combines the base foundation with development overrides. Instantly spins up the core application environment, binds local directories, and mounts active hot-reload mechanisms.
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-```
-* **Interactive API Docs:** Available at http://localhost:8000/docs (Automatically reloads on save)
+The repository includes a unified automation script `start.sh` to assemble, launch, and teardown different environment stacks. The script automatically handles stale containers, tracks execution time, and supports integration flags.
 
-#### Run Local Development with Full Telemetry Debugging
-If you need to test Grafana dashboards or verify Prometheus metrics locally, stack the production telemetry configuration beneath your active development layer. This mounts the metrics pipeline and safely exposes dashboard host ports for your local browser.
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.dev.yml up -d --build
-```
-* **Local Grafana Dashboards:** Available at http://localhost:3000
-* **Local Prometheus Instance:** Available at http://localhost:9090
+# General usage syntax
+./start.sh [ENVIRONMENT] [FLAGS]
 
-#### Run Lightweight Demo Stack (Behind Nginx Proxy)
-Deploys core microservices routed strictly through an internal proxy gateway on HTTP/HTTPS boundaries without running any background telemetry scrapers.
-```bash
-docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+# Display built-in help message
+./start.sh --help
 ```
 
-#### Run Hardened Production Stack (With Fully Isolated Telemetry)
-The highest tier of environment assembly. Boots the main software architecture and stacks telemetry pipelines, sealing all analytical collection ports inside a firewalled Docker container loop.
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.demo.yml up -d --build
-```
+#### Available Stacks
 
-#### Run Local Test and Verification Suite
-Triggers standalone containers built from modular specifications to independently format, lint, and process code validation test benches without polluting global storage volumes.
-```bash
-# Execute unit and integration tests with code coverage
-docker compose -f docker-compose.test.yml run --rm tests
+* **Local Development Stack (With Hot-Reload)**
+  Assembles the base foundation with development overrides, directory mounts, and live reload mechanisms.
+  ```bash
+  ./start.sh dev
+  ```
 
-# Execute linters, auto-formatters, and static type checking
-docker compose -f docker-compose.test.yml run --rm lint
-```
+* **Local Development with Full Telemetry Debugging**
+  Stacks production telemetry components over the active development layer, exposing analytical dashboards locally.
+  ```bash
+  ./start.sh telemetry
+  ```
+
+* **Lightweight Demo Stack (Behind Nginx Proxy)**
+  Deploys core microservices routed through an internal proxy gateway on strict HTTP/HTTPS boundaries without telemetry scrapers.
+  ```bash
+  ./start.sh demo
+  ```
+
+* **Hardened Production Stack (With Fully Isolated Telemetry)**
+  The highest tier of environment assembly. Boots the main architecture and seals analytical collection ports inside a firewalled container loop.
+  ```bash
+  ./start.sh prod
+  ```
+
+* **Local Test Suite**
+  Triggers a standalone verification routine to run integration test benches.
+  ```bash
+  ./start.sh test
+  ```
+
+* **Static Analysis & Linting**
+  Executes formatters, linters, and static type checking without polluting global storage volumes.
+  ```bash
+  ./start.sh lint
+  ```
+
+#### Configuration Flags
+
+* `--pull` — Executes `git pull` right before assembling the selected stack. Optimal for automated staging environments and CI/CD runners.
+* `--clean` — Drops active containers and wipes all underlying database volumes (`down -v`) before initiating a fresh build.
+
 
 ## System Administration Command Line
 

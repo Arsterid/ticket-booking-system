@@ -134,7 +134,7 @@ async def test_get_upcoming_events_includes_correct_views_count(user_client, cli
 
         await user_client.post("/views/bulk-register", json={"model_name": "events", "object_ids": [1]})
 
-        response = await client.get("/events/?limit=10&offset=0")
+        response = await client.get("/events?limit=10&offset=0")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert len(data["results"]) == 1
