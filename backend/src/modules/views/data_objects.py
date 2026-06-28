@@ -1,9 +1,11 @@
+from dataclasses import dataclass
 from typing import Optional
 
 
 from src.core.infra.database.repositories.data_objects import BaseDTO
 
 
+@dataclass
 class ViewLogDTO(BaseDTO):
     id: int
     object_type: str

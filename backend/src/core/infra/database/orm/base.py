@@ -1,11 +1,18 @@
 from datetime import datetime
 
 from sqlalchemy import Integer, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
+
+from common.utils.strings import camel_to_snake, pluralize_eng
 
 
 class BaseORMModel(DeclarativeBase):
     __abstract__ = True
+
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
+        snake_name = camel_to_snake(cls.__name__)
+        return pluralize_eng(snake_name)
 
 
 class AbstractORMModel(BaseORMModel):

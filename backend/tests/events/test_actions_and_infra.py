@@ -147,7 +147,7 @@ async def test_get_events_invalid_pagination_params_protected(user_client, url):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("limit, expected_count", [("10", 2), ("1", 1)])
 async def test_get_all_tickets_for_event_success_and_pagination(
-    user_client, setup_uow, seed_event_env, create_model_factory, limit, expected_count
+    user_client, setup_uow, seed_event_env, create_model_factory, get_auth_headers, limit, expected_count
 ):
     async with setup_uow as uow:
         await seed_event_env(uow)
@@ -162,12 +162,14 @@ async def test_get_all_tickets_for_event_success_and_pagination(
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await create_model_factory(uow, "ticket_type", id=1, name="Standard")
         await create_model_factory(
-            uow, "ticket", id=101, event_id=1, type_id=1, price=100.0, status=TicketStatus.AVAILABLE
+            uow, "ticket_category", id=1, event_id=1, name="Standard", price=100.0, total_quantity=100
         )
         await create_model_factory(
-            uow, "ticket", id=102, event_id=1, type_id=1, price=150.0, status=TicketStatus.AVAILABLE
+            uow, "ticket", id=101, category_id=1, order_item_id=None, status=TicketStatus.RESERVED
+        )
+        await create_model_factory(
+            uow, "ticket", id=102, category_id=1, order_item_id=None, status=TicketStatus.RESERVED
         )
         await uow.commit()
 

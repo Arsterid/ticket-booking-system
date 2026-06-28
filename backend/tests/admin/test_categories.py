@@ -14,7 +14,7 @@ async def test_create_category_success(admin_client):
 async def test_admin_get_categories_success(admin_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "event_category", id=1, name="Music")
-        await uow.commit()
+        
 
     response = await admin_client.get("/admin/categories?limit=10&offset=0")
     assert response.status_code == status.HTTP_200_OK
@@ -50,7 +50,7 @@ async def test_create_category_non_existent_parent(admin_client):
 async def test_create_sub_category_success(admin_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "event_category", id=100, name="Parent Category")
-        await uow.commit()
+        
 
     payload = {"name": "Sub Category", "parent_id": 100}
     response = await admin_client.post("/admin/categories", json=payload)
@@ -62,7 +62,7 @@ async def test_create_sub_category_success(admin_client, setup_uow, create_model
 async def test_create_category_duplicate(admin_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "event_category", id=200, name="Unique Name")
-        await uow.commit()
+        
 
     payload = {"name": "Unique Name"}
     response = await admin_client.post("/admin/categories", json=payload)
@@ -74,7 +74,7 @@ async def test_create_category_duplicate(admin_client, setup_uow, create_model_f
 async def test_admin_get_categories_case_insensitive(admin_client, setup_uow, create_model_factory, search_query):
     async with setup_uow as uow:
         await create_model_factory(uow, "event_category", id=300, name="Music")
-        await uow.commit()
+        
 
     response = await admin_client.get(f"/admin/categories?limit=10&offset=0&name={search_query}")
     assert response.status_code == status.HTTP_200_OK

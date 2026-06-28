@@ -1,27 +1,36 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from src.core.infra.database.repositories.data_objects import BaseDTO
 from src.modules.event.data_objects import EventDTO
+from src.modules.order.data_objects import OrderItemDTO
 from src.modules.ticket.models import TicketStatus
-from src.modules.user.data_objects import UserDTO
 
 
 @dataclass(frozen=True)
-class TicketTypeDTO(BaseDTO):
+class TicketCategoryDTO(BaseDTO):
     id: int
+    event_id: int
     name: str
+    price: float
+    total_quantity: int
+    occupied_count: int
+
+    event: Optional[EventDTO] = None
+
+    @property
+    def remaining_count(self) -> int:
+        return max(0, self.total_quantity - self.occupied_count)
 
 
 @dataclass(frozen=True)
 class TicketDTO(BaseDTO):
     id: int
-    event_id: int
-    type_id: int
-    price: int
-    status: TicketStatus
-    user_id: int | None = None
-    anonymous_email: str | None = None
 
-    user: UserDTO | None = None
-    event: EventDTO | None = None
-    type: TicketTypeDTO | None = None
+    category_id: int
+    status: TicketStatus
+    order_item_id: Optional[int] = None
+
+    category: TicketCategoryDTO | None = None
+    order_item: Optional[OrderItemDTO] = None
+

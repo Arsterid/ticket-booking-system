@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from src.core.infra.transport.http.schemas.base import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from src.core.infra.transport.http.utils.schemas import partial_model
 from src.modules.event.models import EventType
 
 
@@ -30,28 +31,9 @@ class EventCreateSchema(GenericRequestSchema):
         return self
 
 
-class EventUpdateSchema(GenericRequestSchema):
-    category_id: Optional[int] = Field(None, gt=0)
-    title: Optional[str] = Field(None, min_length=1, max_length=150, strip_whitespace=True)
-    description: Optional[str] = Field(None, min_length=1, strip_whitespace=True)
-    event_type: Optional[EventType] = None
-    address: Optional[str] = Field(None, min_length=5, max_length=255, strip_whitespace=True)
-    event_date: Optional[AwareDatetime] = None
-
-    @field_validator("title", "description")
-    @classmethod
-    def validate_non_empty_strings(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.strip():
-            raise ValueError("Field cannot be empty or consist only of spaces")
-        return v
-
-    @model_validator(mode="after")
-    def validate_address_based_on_type(self) -> "EventUpdateSchema":
-        if self.event_type == EventType.OFFLINE and (not self.address or not self.address.strip()):
-            raise ValueError("'address' field is required for offline events")
-        if self.event_type == EventType.ONLINE:
-            self.address = None
-        return self
+@partial_model(EventCreateSchema)
+class EventUpdateSchema(EventCreateSchema):
+    pass
 
 
 class EventCategoryCreateSchema(GenericRequestSchema):
@@ -71,7 +53,7 @@ class EventCategoryResponseSchema(GenericResponseSchema):
     name: str
     parent_id: Optional[int] = None
     can_create_events: Optional[bool] = None
-    can_create_subcategories: Optional[bool] = None
+    can_create_subcategories: Optional[bool] = None  # TODO fix category parameters in admin.
 
 
 class EventResponseSchema(GenericResponseSchema):

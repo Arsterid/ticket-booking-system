@@ -31,7 +31,7 @@ async def test_register_duplicate_email(client, setup_uow, create_model_factory)
         await create_model_factory(
             uow, "user", email="duplicate@example.com", username="existing_user", password="somepassword"
         )
-        await uow.commit()
+        
 
     payload = {"email": "duplicate@example.com", "username": "new_user", "password": "securepassword123"}
     response = await client.post("/users", json=payload)
@@ -45,7 +45,7 @@ async def test_login_success(client, setup_uow, pwd_manager, create_model_factor
         await create_model_factory(
             uow, "user", email="login_test@example.com", username="login_tester", password=hashed_password
         )
-        await uow.commit()
+        
 
     payload_login = {"email": "login_test@example.com", "password": "correct_password"}
     response = await client.post("/users/login", json=payload_login)
@@ -68,7 +68,7 @@ async def test_login_failed_scenarios(client, setup_uow, create_model_factory, e
         await create_model_factory(
             uow, "user", email="wrong_pwd@example.com", username="pwd_tester", password="hashed_correct_password"
         )
-        await uow.commit()
+        
 
     payload_login = {"email": email, "password": password}
     response = await client.post("/users/login", json=payload_login)
@@ -94,7 +94,7 @@ async def test_login_banned_user_fails(client, setup_uow, create_model_factory):
             password="securepassword123",
             is_active=False,
         )
-        await uow.commit()
+        
 
     payload = {"email": "banned_login@test.com", "password": "securepassword123"}
     response = await client.post("/users/login", json=payload)

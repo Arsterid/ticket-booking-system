@@ -1,6 +1,5 @@
 from typing import Any, Optional
 
-from sqlalchemy import update
 from sqlalchemy.orm import selectinload
 
 from src.core.infra.database.repositories.base import GenericRepository
@@ -19,140 +18,104 @@ class EventCategoryRepository(
         )
 
     async def get_all_with_children(
-        self, offset: int = 0, limit: int = 100, filters: dict[str, Any] | None = None, order_by: str | None = None
+            self, offset: int = 0, limit: int = 100, filters: dict[str, Any] | None = None, order_by: str | None = None
     ) -> tuple[list[EventCategoryDTO], int]:
-        return await super().get_all(
+        return await super().get_all_with_pagination(
             offset=offset, limit=limit, filters=filters, order_by=order_by, options=[selectinload(self.model.children)]
         )
 
 
 class EventRepository(GenericRepository[Event, EventDTO], model=Event, dto=EventDTO):
-    async def update(self, event_id: int, user_id: int, **kwargs) -> bool:
-        q = (
-            update(self.model)
-            .values(**kwargs)
-            .where(
-                self.model.id == event_id,
-                self.model.user_id == user_id,
-                self.model.state == EventState.DRAFT,
-            )
+    async def update_draft(self, event_id: int, user_id: int, **kwargs: Any) -> Optional[EventDTO]:
+        res = await super().update(
+            filters={
+                "id": event_id,
+                "user_id": user_id,
+                "state": EventState.DRAFT
+            },
+            **kwargs
         )
+        return res[0] if res else None
 
-        res = await super()._execute_modification(q=q)
-
-        return res.success
-
-    async def cancel(
-        self,
-        event_id: int,
-        user_id: int,
-    ) -> bool:
-        q = (
-            update(self.model)
-            .values(
-                state=EventState.CANCELLED,
-            )
-            .where(
-                self.model.id == event_id,
-                self.model.state != EventState.CANCELLED,
-                self.model.user_id == user_id,
-            )
+    async def cancel(self, event_id: int, user_id: int) -> Optional[EventDTO]:
+        res = await super().update(
+            filters={
+                "id": event_id,
+                "user_id": user_id,
+                "state__ne": EventState.CANCELLED
+            },
+            state=EventState.CANCELLED
         )
+        return res[0] if res else None
 
-        res = await super()._execute_modification(q=q)
-
-        return res.success
-
-    async def publish(
-        self,
-        event_id: int,
-        user_id: int,
-    ) -> bool:
-        q = (
-            update(self.model)
-            .values(
-                state=EventState.ON_MODERATION,
-            )
-            .where(
-                self.model.id == event_id,
-                self.model.state == EventState.DRAFT,
-                self.model.user_id == user_id,
-            )
+    async def publish(self, event_id: int, user_id: int) -> Optional[EventDTO]:
+        res = await super().update(
+            filters={
+                "id": event_id,
+                "user_id": user_id,
+                "state": EventState.DRAFT
+            },
+            state=EventState.ON_MODERATION
         )
+        return res[0] if res else None
 
-        res = await super()._execute_modification(q=q)
-
-        return res.success
-
-    async def moderation_approve(
-        self,
-        event_id: int,
-    ) -> bool:
-        q = (
-            update(self.model)
-            .values(
-                state=EventState.APPROVED,
-            )
-            .where(
-                self.model.id == event_id,
-                self.model.state == EventState.ON_MODERATION,
-            )
+    async def moderation_approve(self, event_id: int) -> bool:
+        res = await super().update(
+            filters={
+                "id": event_id,
+                "state": EventState.ON_MODERATION
+            },
+            state=EventState.APPROVED
         )
+        return bool(res)
 
-        res = await super()._execute_modification(q)
-
-        return res.success
-
-    async def moderation_decline(
-        self,
-        event_id: int,
-    ) -> bool:
-        q = (
-            update(self.model)
-            .values(
-                state=EventState.REJECTED,
-            )
-            .where(
-                self.model.id == event_id,
-                self.model.state == EventState.ON_MODERATION,
-            )
+    async def moderation_decline(self, event_id: int) -> bool:
+        res = await super().update(
+            filters={
+                "id": event_id,
+                "state": EventState.ON_MODERATION
+            },
+            state=EventState.REJECTED
         )
+        return bool(res)
 
-        res = await super()._execute_modification(q)
-
-        return res.success
-
-    async def get_upcoming(self, **filters) -> EventDTO:
-        query_filters = dict(filters) if filters is not None else {}
-        query_filters["status"] = EventStatus.UPCOMING
-
-        return await super().get(filters=query_filters)
+    async def get_upcoming(self, obj_id: int, **filters) -> EventDTO:
+        return await super().get(
+            id=obj_id,
+            filters=(filters or {}) | {"status": EventStatus.UPCOMING}
+        )
 
     async def get_all_upcoming(
-        self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
+            self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
     ) -> tuple[list[EventDTO], int]:
-        query_filters = dict(filters) if filters is not None else {}
-        query_filters["status"] = EventStatus.UPCOMING
-
-        return await super().get_all(offset=offset, limit=limit, filters=query_filters, order_by=order_by)
+        return await super().get_all_with_pagination(
+            offset=offset,
+            limit=limit,
+            filters=(filters or {}) | {"status": EventStatus.UPCOMING},
+            order_by=order_by
+        )
 
     async def get_for_moderation(
-        self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
+            self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
     ) -> tuple[list[EventDTO], int]:
-        query_filters = dict(filters) if filters is not None else {}
-        query_filters["state"] = EventState.ON_MODERATION
-
-        return await super().get_all(offset=offset, limit=limit, filters=filters, order_by=order_by)
+        return await super().get_all_with_pagination(
+            offset=offset,
+            limit=limit,
+            filters=(filters or {}) | {"status": EventState.ON_MODERATION},
+            order_by=order_by
+        )
 
     async def get_all_by_user(
-        self,
-        user_id: int,
-        offset: int = 0,
-        limit: int = 100,
-        filters: dict[str, Any] = None,
-        order_by: str | None = None,
+            self,
+            user_id: int,
+            offset: int = 0,
+            limit: int = 100,
+            filters: dict[str, Any] = None,
+            order_by: str | None = None,
     ) -> tuple[list[EventDTO], int]:
-        query_filters = dict(filters) if filters is not None else {}
-        query_filters["user_id"] = user_id
-
-        return await super().get_all(offset=offset, limit=limit, filters=filters, order_by=order_by)
+        return await super().get_all_with_pagination(
+            offset=offset,
+            limit=limit,
+            filters=(filters or {}) | {"user_id": user_id},
+            order_by=order_by
+        )

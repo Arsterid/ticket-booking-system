@@ -19,16 +19,16 @@ user_router = APIRouter(
 
 @user_router.post("", status_code=status.HTTP_201_CREATED, response_model=UserCreateResponseSchema)
 async def register(
-    user_service: UserServiceDep,
-    pwd_manager: PasswordManagerDep,
-    body: UserCreateSchema,
+        user_service: UserServiceDep,
+        pwd_manager: PasswordManagerDep,
+        body: UserCreateSchema,
 ) -> UserCreateResponseSchema:
     return await user_service.create(pwd_manager=pwd_manager, data=body)
 
 
 @user_router.post("/login", status_code=status.HTTP_200_OK, response_model=UserLoginResponseSchema)
 async def login(
-    body: UserLoginSchema, user_service: UserServiceDep, pwd_manager: PasswordManagerDep, jwt_manager: JWTManagerDep
+        body: UserLoginSchema, user_service: UserServiceDep, pwd_manager: PasswordManagerDep, jwt_manager: JWTManagerDep
 ) -> UserLoginResponseSchema:
     return await user_service.authenticate(data=body, pwd_manager=pwd_manager, jwt_manager=jwt_manager)
 

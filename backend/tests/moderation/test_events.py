@@ -24,7 +24,7 @@ async def test_get_events_for_moderation_success(moderator_client, setup_uow, cr
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     response = await moderator_client.get("/moderation/events?limit=10&offset=0")
     assert response.status_code == status.HTTP_200_OK
@@ -52,7 +52,7 @@ async def test_moderate_event_success(moderator_client, setup_uow, create_model_
             state=EventState.ON_MODERATION,
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     payload = {"result": result}
     response = await moderator_client.patch("/moderation/events/1", json=payload)
@@ -64,7 +64,7 @@ async def test_moderate_event_success(moderator_client, setup_uow, create_model_
 async def test_moderate_event_not_found(moderator_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
-        await uow.commit()
+        
 
     payload = {"result": True}
     response = await moderator_client.patch("/moderation/events/9999", json=payload)
@@ -90,7 +90,7 @@ async def test_moderate_event_idempotency(moderator_client, setup_uow, create_mo
             state=already_moderated_state,
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     payload = {"result": True}
     response = await moderator_client.patch("/moderation/events/1", json=payload)

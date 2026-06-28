@@ -16,7 +16,7 @@ class DatabaseSessionFactory:
         if self._engine is None:
             self._engine = create_async_engine(
                 get_settings().db_url,
-                echo=True,
+                echo=get_settings().sql_logs,
                 pool_size=15,
                 max_overflow=10,
             )

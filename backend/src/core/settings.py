@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings
 
 class AppConfig(BaseSettings):
     testing: bool = False
+    sql_logs: bool = False
 
     db_user: str = "user"
     db_password: Optional[str] = None
