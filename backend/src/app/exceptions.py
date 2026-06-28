@@ -1,5 +1,11 @@
+from typing import Any
+
+
 class ServiceException(Exception):
-    pass
+    def __init__(self, message: str, extra: dict[str, Any] | None = None):
+        self.message = message
+        self.extra = extra or {}
+        super().__init__(message)
 
 
 class ForbiddenException(ServiceException):
@@ -29,8 +35,10 @@ class UniqueFieldException(ServiceException):
 
 
 class WrongStateException(ServiceException):
-    def __init__(self, current: str, expected: str):
-        message = f"Cannot perform this operation. Current state: '{current}', expected: '{expected}'"
+    def __init__(self, expected: str, current: str | None = None):
+        message = f"Cannot perform this operation due to the object state. Expected: '{expected}'"
+        if current is not None:
+            message += f", current: '{current}'"
 
         super().__init__(message)
 

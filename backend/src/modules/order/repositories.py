@@ -4,100 +4,89 @@ from sqlalchemy import insert, update, select, delete
 from sqlalchemy.orm import joinedload
 
 from src.core.infra.database.repositories.base import GenericRepository
-from src.modules.orders.data_objects import OrderCreateInternal, OrderItemDTO
-from src.modules.orders.models import Order, OrderItem, OrderStatus
-from src.modules.ticket.data_objects import OrderDTO
+from src.modules.order.data_objects import OrderItemDTO, OrderDTO
+from src.modules.order.models import Order, OrderItem, OrderStatus
 from src.modules.ticket.models import Ticket, TicketStatus, TicketCategory
 
 
 class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=OrderDTO):
-    async def create(self, data: OrderCreateInternal) -> OrderDTO:
-        anonymous_email = None if data.user_id is not None else data.anonymous_email
+    async def create(self, **kwargs: Any) -> OrderDTO:
+        items = kwargs.pop("order_items", [])
 
-        order_fields = {
-            "user_id": data.user_id,
-            "anonymous_email": anonymous_email,
-        }
+        order_obj: OrderDTO = await super().create(**kwargs)
+        await self._session.flush()
 
-        order_obj: OrderDTO = await super().create(**order_fields)
+        if items:
+            order_items_to_insert = [
+                {
+                    "order_id": order_obj.id,
+                    "category_id": item.category_id if hasattr(item, "category_id") else item["category_id"],
+                    "quantity": item.quantity if hasattr(item, "quantity") else item["quantity"],
+                }
+                for item in items
+            ]
 
-        order_items_to_insert = [
-            {
-                "order_id": order_obj.id,
-                "category_id": item.category_id,
-                "quantity": item.quantity
-            }
-            for item in data.items
-        ]
-
-        q_items = (
-            insert(OrderItem)
-            .values(order_items_to_insert)
-            .returning(OrderItem.id, OrderItem.category_id, OrderItem.quantity)
-        )
-        res_items = await self._session.execute(q_items)
-        created_items = res_items.all()
-
-        tickets_to_insert = []
-        for item_id, category_id, quantity in created_items:
-            for _ in range(quantity):
-                tickets_to_insert.append({
-                    "category_id": category_id,
-                    "order_item_id": item_id,
-                })
-
-        if tickets_to_insert:
-            q_tickets = insert(Ticket).values(tickets_to_insert)
-            await self._execute_modification(q=q_tickets)
-
-        created_item_dtos = [
-            OrderItemDTO(
-                id=item_id,
-                order_id=order_obj.id,
-                category_id=category_id,
-                quantity=quantity
+            q_items = (
+                insert(OrderItem)
+                .values(order_items_to_insert)
+                .returning(OrderItem.id, OrderItem.category_id, OrderItem.quantity)
             )
-            for item_id, category_id, quantity in created_items
-        ]
+            res_items = await self._session.execute(q_items)
+            created_items = res_items.all()
 
-        order_obj.items = created_item_dtos
-        return order_obj
+            tickets_to_insert = []
+            for item_id, category_id, quantity in created_items:
+                for _ in range(quantity):
+                    tickets_to_insert.append({
+                        "category_id": category_id,
+                        "order_item_id": item_id,
+                    })
+
+            if tickets_to_insert:
+                q_tickets = insert(Ticket).values(tickets_to_insert)
+                await self._session.execute(q_tickets)
+
+        return await self.get(id=order_obj.id)
+
+    async def get_with_items(self, obj_id: int, **kwargs: Any) -> Optional[OrderDTO]:
+        return await super().get(
+            id=obj_id,
+            options=[joinedload(Order.items).joinedload(OrderItem.category)],
+            **kwargs
+        )
 
     async def mark_as_paid(self, obj_id: int) -> bool:
         order_q = (
             update(self.model)
-            .where(
-                self.model.id == obj_id,
-                self.model.status == OrderStatus.PENDING
-            )
+            .where(self.model.id == obj_id, self.model.status == OrderStatus.PENDING)
             .values(status=OrderStatus.PAID)
             .returning(self.model.id)
         )
-
-        order_res = await self._execute_modification(q=order_q)
-
-        if not order_res.success:
+        order_res = await self._session.execute(order_q)
+        if not order_res.scalars().first():
             return False
 
         price_subquery = (
-            select(OrderItem.id, TicketCategory.price)
-            .join(TicketCategory, TicketCategory.id == OrderItem.category_id)
+            select(TicketCategory.price)
+            .where(TicketCategory.id == OrderItem.category_id)
+        ).scalar_subquery()
+
+        order_items_q = (
+            update(OrderItem)
             .where(OrderItem.order_id == obj_id)
-            .subquery()
+            .values(purchase_price=price_subquery)
         )
+        await self._session.execute(order_items_q)
 
         tickets_q = (
             update(Ticket)
-            .where(Ticket.order_item_id == price_subquery.c.id)
-            .values(
-                status=TicketStatus.PAID,
-                purchase_price=price_subquery.c.price
-            )
+            .where(Ticket.order_item_id.in_(
+                select(OrderItem.id).where(OrderItem.order_id == obj_id)
+            ))
+            .values(status=TicketStatus.PAID)
         )
-
-        await self._execute_modification(q=tickets_q)
+        await self._session.execute(tickets_q)
         await self._session.flush()
-
         return True
 
     async def cancel_if_not_paid(self, obj_id: int) -> bool:
@@ -107,10 +96,8 @@ class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=Order
             .values(status=OrderStatus.CANCELLED)
             .returning(self.model.id)
         )
-
-        order_res = await self._execute_modification(q=order_q)
-
-        if not order_res.success:
+        order_res = await self._session.execute(order_q)
+        if not order_res.scalars().first():
             return False
 
         tickets_q = (
@@ -119,32 +106,33 @@ class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=Order
                 select(OrderItem.id).where(OrderItem.order_id == obj_id)
             ))
         )
-
-        await self._execute_modification(q=tickets_q)
+        await self._session.execute(tickets_q)
         await self._session.flush()
-
         return True
 
     async def migrate_anonymous(self, email: str, user_id: int) -> int:
-        return await super().update(
-            filters={"anonymous_email": email},
-            returning_dto=False,
-            user_id=user_id,
-            anonymous_email=None
+        q = (
+            update(self.model)
+            .where(self.model.anonymous_email == email)
+            .values(user_id=user_id, anonymous_email=None)
+            .returning(self.model.id)
         )
+        res = await self._session.execute(q)
+        return len(res.scalars().all())
 
     async def get_info_for_email(self, order_id: int) -> Optional[OrderDTO]:
         return await super().get(
             id=order_id,
             options=[
-                joinedload(self.model.items),
-                joinedload(OrderItem.category),
-                joinedload(TicketCategory.event)
+                joinedload(self.model.items).joinedload(OrderItem.category).joinedload(TicketCategory.event)
             ]
         )
 
     async def get_by_user_id(self, user_id: int) -> OrderDTO:
-        return await super().get(user_id=user_id)
+        return await super().get(
+            user_id=user_id,
+            options=[joinedload(Order.items).joinedload(OrderItem.category)]
+        )
 
     async def get_all_by_user_id(
             self,
@@ -160,9 +148,12 @@ class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=Order
             limit=limit,
             filters=(filters or {}) | {"user_id": user_id},
             order_by=order_by,
+            options=[joinedload(Order.items).joinedload(OrderItem.category)]
         )
 
-    async def get_all_items_by_user_id(
+
+class OrderItemRepository(GenericRepository[OrderItem, OrderItemDTO], model=OrderItem, dto=OrderItemDTO):
+    async def get_all_by_user_id(
             self,
             user_id: int,
             *,
@@ -174,6 +165,7 @@ class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=Order
         return await super().get_all_with_pagination(
             offset=offset,
             limit=limit,
-            filters=(filters or {}) | {"user_id": user_id},
+            filters=(filters or {}) | {"order.user_id": user_id},
             order_by=order_by,
+            options=[joinedload(OrderItem.category)]
         )

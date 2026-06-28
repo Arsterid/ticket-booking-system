@@ -1,34 +1,27 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import Field, EmailStr, model_validator, computed_field
+from pydantic import Field, EmailStr, computed_field
 
 from src.core.infra.transport.http.schemas.base import GenericRequestSchema, GenericResponseSchema, FilterParamsSchema
-from src.modules.orders.models import OrderStatus
+from src.modules.order.models import OrderStatus
 
 
 class OrderItemCreateSchema(GenericRequestSchema):
     category_id: int
-    quantity: int = Field(..., gte=1)
+    quantity: int = Field(gt=0)
 
 
 class OrderCreateSchema(GenericRequestSchema):
     anonymous_email: Optional[EmailStr] = None
-    items: list["OrderItemCreateSchema"] = Field(..., min_length=1)
-
-    @model_validator(mode="after")
-    def validate_order_owner(self) -> "OrderCreateSchema":
-        if not (self.user_id is None) ^ (self.anonymous_email is None):
-            raise ValueError(
-                "Exactly one field must be provided: either 'user_id' or 'anonymous_email'"
-            )
-        return self
+    items: list[OrderItemCreateSchema] = Field(..., min_length=1)
 
 
 class OrderItemResponseSchema(GenericResponseSchema):
     id: int
     category_id: int
     quantity: int
+    order_id: int
 
 
 class OrderResponseSchema(GenericResponseSchema):

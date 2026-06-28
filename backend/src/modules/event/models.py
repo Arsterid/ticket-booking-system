@@ -17,8 +17,6 @@ from src.core.infra.database.orm.base import AbstractORMModel
 
 
 class EventCategory(AbstractORMModel):
-    __tablename__ = "event_categories"
-
     name: Mapped[str] = mapped_column(String(100), unique=True)
 
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("event_categories.id", ondelete="CASCADE"))
@@ -56,8 +54,6 @@ class EventStatus(StrEnum):
 
 
 class Event(AbstractORMModel):
-    __tablename__ = "events"
-
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -76,7 +72,7 @@ class Event(AbstractORMModel):
     address: Mapped[Optional[str]] = mapped_column(String(255), default=None)
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    tickets = relationship("Ticket", back_populates="event")
+    ticket_categories = relationship("TicketCategory", back_populates="event")
 
     @hybrid_property
     def status(self) -> EventStatus:

@@ -10,7 +10,7 @@ from src.modules.event.models import EventState
 async def test_create_event_success(user_client, setup_uow, seed_event_env):
     async with setup_uow as uow:
         await seed_event_env(uow)
-        await uow.commit()
+        
 
     payload = {
         "category_id": 1,
@@ -27,7 +27,7 @@ async def test_create_event_success(user_client, setup_uow, seed_event_env):
 async def test_create_event_invalid_data(user_client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "user", id=1, email="test1@test.com", username="user1", password="pwd")
-        await uow.commit()
+        
 
     payload = {
         "category_id": 1,
@@ -62,16 +62,16 @@ async def test_update_event_success(user_client, setup_uow, seed_event_env, crea
             "event",
             id=1,
             user_id=1,
-            title="Old Title",
-            description="Old Desc",
+            title="Non Draft",
+            description="Desc",
             category_id=1,
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
 
     payload = {"title": "New Title"}
     response = await user_client.patch("/events/1", json=payload)
+
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"success": True}
 
@@ -92,7 +92,6 @@ async def test_update_event_non_draft_fails(user_client, setup_uow, seed_event_e
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
 
     payload = {"title": "New Title"}
     response = await user_client.patch("/events/1", json=payload)
@@ -103,7 +102,7 @@ async def test_update_event_non_draft_fails(user_client, setup_uow, seed_event_e
 async def test_get_categories_success(client, setup_uow, create_model_factory):
     async with setup_uow as uow:
         await create_model_factory(uow, "event_category", id=1, name="Music")
-        await uow.commit()
+        
 
     response = await client.get("/events/categories?limit=10&offset=0")
     print(response.json())
@@ -132,7 +131,7 @@ async def test_get_upcoming_events_success(client, setup_uow, create_model_facto
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     response = await client.get("/events?limit=10&offset=0")
     assert response.status_code == status.HTTP_200_OK
@@ -161,7 +160,7 @@ async def test_get_upcoming_events_excludes_hidden_states(client, setup_uow, cre
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     response = await client.get("/events")
     assert response.status_code == status.HTTP_200_OK
@@ -185,7 +184,7 @@ async def test_get_my_events_success(user_client, setup_uow, seed_event_env, cre
             event_type="online",
             event_date=datetime.now(timezone.utc) + timedelta(days=1),
         )
-        await uow.commit()
+        
 
     response = await user_client.get("/events/my?limit=10&offset=0")
     print(response.json())

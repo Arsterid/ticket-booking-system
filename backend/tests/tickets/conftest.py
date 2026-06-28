@@ -1,4 +1,8 @@
+from datetime import datetime, timezone, timedelta
+
 import pytest
+
+from src.modules.event.models import EventState, EventType
 
 
 @pytest.fixture
@@ -13,33 +17,34 @@ def user_client(client, user_headers):
 
 
 @pytest.fixture
-def create_model_factory():
-    async def _create(uow, repo_attr, **kwargs):
-        repo = getattr(uow, repo_attr)
-        obj = await repo.create(**kwargs)
-        await uow._session.flush()
-        return obj
+def seed_order_env(create_model_factory):
+    async def _seed(uow, state=EventState.APPROVED):
+        user = await create_model_factory(uow, "user", id=1, email="test@test.com", username="user", password="pwd")
+        event_cat = await create_model_factory(uow, "event_category", id=1, name="Music")
 
-    return _create
+        future_date = datetime.now(timezone.utc) + timedelta(days=10)
 
-
-@pytest.fixture
-def seed_ticket_env(create_model_factory):
-    async def _seed(uow, event_state="approved", event_date=None):
-        await create_model_factory(uow, "user", id=1, email="test@test.com", username="user", password="pwd")
-        await create_model_factory(uow, "event_category", id=1, name="Music")
-        await create_model_factory(
+        event = await create_model_factory(
             uow,
             "event",
             id=1,
-            user_id=1,
-            state=event_state,
+            user_id=user.id,
+            state=state,
             title="Test Event",
             description="Desc",
-            category_id=1,
-            event_type="online",
-            event_date=event_date,
+            category_id=event_cat.id,
+            event_type=EventType.ONLINE,
+            event_date=future_date,
         )
-        await create_model_factory(uow, "ticket_type", id=1, name="Standard")
+
+        await create_model_factory(
+            uow,
+            "ticket_category",
+            id=1,
+            event_id=event.id,
+            name="Standard",
+            price=100,
+            total_quantity=100
+        )
 
     return _seed

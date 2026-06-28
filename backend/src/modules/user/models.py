@@ -1,23 +1,10 @@
-from __future__ import annotations
-
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from src.modules.ticket.models import TicketType
-
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, String, Table
+from sqlalchemy import Boolean, CheckConstraint, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel, BaseORMModel
-
-user_ticket_table = Table(
-    "user_ticket_types",
-    BaseORMModel.metadata,
-    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-    Column("ticket_type_id", ForeignKey("ticket_types.id", ondelete="CASCADE"), primary_key=True),
-)
+from src.core.infra.database.orm.base import AbstractORMModel
 
 
 class UserRole(StrEnum):
@@ -30,13 +17,13 @@ class UserRole(StrEnum):
     @property
     def _weight(self) -> int:
         weights = {
-            UserRole.USER: 10,
-            UserRole.ON_VERIFICATION: 10,
-            UserRole.VERIFIED_USER: 20,
-            UserRole.MODERATOR: 30,
-            UserRole.ADMIN: 40,
+            UserRole.USER.value: 10,
+            UserRole.ON_VERIFICATION.value: 10,
+            UserRole.VERIFIED_USER.value: 20,
+            UserRole.MODERATOR.value: 30,
+            UserRole.ADMIN.value: 40,
         }
-        return weights[self]
+        return weights[self.value]
 
     def __lt__(self, other: "UserRole") -> bool:
         if not isinstance(other, UserRole):
@@ -60,8 +47,6 @@ class UserRole(StrEnum):
 
 
 class User(AbstractORMModel):
-    __tablename__ = "users"
-
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole, native_enum=False),
         index=True,
@@ -72,8 +57,6 @@ class User(AbstractORMModel):
     username: Mapped[str] = mapped_column(String(32), nullable=True)
     password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-
-    ticket_types: Mapped[list["TicketType"]] = relationship(secondary=user_ticket_table)
 
     events = relationship("Event", back_populates="user")
 

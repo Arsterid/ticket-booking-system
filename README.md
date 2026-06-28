@@ -9,7 +9,7 @@ The system features advanced asynchronous task queuing, strict data validation p
 * **Clean Architecture and Repository Pattern:** Business logic is decoupled from the HTTP layer (FastAPI) and Database layer (SQLAlchemy), communicating via abstract interfaces and isolated within standalone domains.
 * **Distributed Idempotency Layer:** Real-time protection for financial and critical endpoints (`/pay`, `/book`) using atomic distributed locking and response-caching via a custom API decorator backed by Redis.
 * **Structured Race Condition Protection:** Combined approach utilizing atomic database mutations (`PostgreSQL RETURNING` clauses) for transaction safety and high-performance concurrency limits via short-lived Redis/KeyDB locks.
-* **Encapsulated Domain Contexts:** Strict domain partitioning into contexts (user, event, ticket, views). Modules are grouped as namespaces to prevent variable shadowing in the application code.
+* **Encapsulated Domain Contexts:** Strict domain partitioning into contexts (user, event, ticket, order, views). Modules are grouped as namespaces to prevent variable shadowing in the application code.
 * **Asynchronous Background Processing:** Native integration with TaskIQ for non-blocking task orchestration and scheduled lock-releases for expired, unpaid ticket reservations.
 * **High-Performance Telemetry System:** Real-time event view counter engine powered by memory-efficient Redis HyperLogLog (`PFADD`, `PFCOUNT`) structures, ensuring fast deduplication of unique visitor interactions.
 * **Production Monitoring Stack:** Native Prometheus metrics engine paired with Grafana dashboards to track latency percentiles, error rates, and request throughput in real time.
@@ -41,10 +41,12 @@ The system features advanced asynchronous task queuing, strict data validation p
 * Moderation workflows for newly submitted events and user verification applications.
 * Scalable telemetry engine tracking dynamic view milestones across unique timeframes.
 
-### High-Concurrency Ticket Sales
-* Dynamic allocation of ticket types to specified event instances.
-* Dual-mode booking engine for authenticated users and guest checkouts protected against double-booking via custom idempotency keys.
-* Automated task hooks releasing expired, unpaid ticket holdings back into available inventory after 15 minutes.
+### Order Processing & High-Concurrency Ticket Sales
+* Dynamic allocation of specialized ticket categories tied directly to specified event instances with strict total quantity boundaries.
+* Atomic booking engine processing multi-ticket transactions under heavy concurrent load, preventing race conditions during checkout.
+* Multi-state order lifecycle workflow tracking progression from initial reservation to formal verification and payment.
+* Automated task hooks releasing expired, unpaid order holdings and locked tickets back into available inventory after 15 minutes.
+
 
 ## File Structure
 
@@ -90,8 +92,11 @@ The system features advanced asynchronous task queuing, strict data validation p
         └── modules/            # Isolated Domain Partitions (Business Features)
             ├── admin/          # Administration and system control endpoints
             ├── event/          # Venues, category mappings, and event routes
+            ├── order/          # Order placement, status workflows, and line item tracking
             ├── ticket/         # Inventory allocation, checkout, and cleanup tasks
-            └── user/           # User profiles, weight roles, and validation tasks
+            ├── user/           # User profiles, weight roles, and validation tasks
+            └── views/          # SSR views, template engines mounting, and page routers
+
 ```
 ## Infrastructure Design
 

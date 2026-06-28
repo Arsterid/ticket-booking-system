@@ -11,8 +11,7 @@ from src.core.infra.database.orm.base import AbstractORMModel
 from src.core.database import db_factory
 from src.core.security.jwt_tokens import JWTManager
 
-from src.modules.user import tasks as _user_tasks
-from src.modules.ticket import tasks as _ticket_tasks
+from src.modules.order import tasks
 
 test_config = AppConfig(
     testing=True,

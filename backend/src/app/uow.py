@@ -4,7 +4,8 @@ from src.core.database import db_factory
 from src.core.infra.database.uow.units.sql_alchemy import SQLAlchemyUnitOfWork
 from src.modules.views.repositories import ViewLogRepository
 from src.modules.event.repositories import EventCategoryRepository, EventRepository
-from src.modules.ticket.repositories import TicketRepository, TicketTypeRepository
+from src.modules.ticket.repositories import TicketRepository, TicketCategoryRepository
+from src.modules.order.repositories import OrderRepository, OrderItemRepository
 from src.modules.user.repositories import UserRepository
 
 
@@ -26,10 +27,15 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
     """
 
     user: UserRepository
+
     event: EventRepository
     event_category: EventCategoryRepository
+
     ticket: TicketRepository
-    ticket_type: TicketTypeRepository
+    ticket_category: TicketCategoryRepository
+    order: OrderRepository
+    order_item: OrderItemRepository
+
     view_logs: ViewLogRepository
 
 

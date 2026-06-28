@@ -43,7 +43,7 @@ class UserService(GenericService[AppUnitOfWork]):
             obj = await self.uow.user.create(**user_data)
             await self.uow.commit()
 
-            await self.tasks.perform_task(name="user:transfer_anonym_tickets", email=data.email)
+            await self.tasks.perform_task(name="order:transfer_anonym_orders", email=data.email)
 
             return UserCreateResponseSchema.model_validate(obj)
 
@@ -68,32 +68,11 @@ class UserService(GenericService[AppUnitOfWork]):
 
             return UserLoginResponseSchema(access_token=token, token_type="bearer")
 
-    async def migrate_anonymous_tickets(self, email: str) -> int:
+    async def apply_for_verification(self, user_id: int) -> bool:
         async with self.uow:
-            user = await self.uow.user.get_by_email(email)
+            user_dto = await self.uow.user.apply_for_verification(user_id=user_id)
 
-            if not user:
-                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), field="email", value=email)
-
-            if not user.is_active:
-                raise UserIsBannedException()
-
-            updated_count = await self.uow.ticket.migrate_anonymous_records(
-                email=email,
-                user_id=user.id,
-            )
-            await self.uow.commit()
-
-            return updated_count
-
-    async def apply_for_verification(
-        self,
-        user_id: int,
-    ) -> bool:
-        async with self.uow:
-            old_role = await self.uow.user.apply_for_verification(user_id=user_id)
-
-            if old_role is not None:
+            if user_dto is not None:
                 await self.uow.commit()
                 return True
 
@@ -112,13 +91,13 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def verify(self, user_id: int, result: bool) -> bool:
         async with self.uow:
-            old_role = (
+            user_dto = (
                 await self.uow.user.verification_approve(user_id=user_id)
                 if result
                 else await self.uow.user.verification_decline(user_id=user_id)
             )
 
-            if old_role is not None:
+            if user_dto is not None:
                 await self.uow.commit()
                 return True
 
@@ -140,9 +119,9 @@ class UserService(GenericService[AppUnitOfWork]):
             raise CannotBanYourselfException()
 
         async with self.uow:
-            previous_role, previous_is_active = await self.uow.user.ban(user_id=user_id)
+            user_dto = await self.uow.user.ban(user_id=user_id)
 
-            if previous_role is not None:
+            if user_dto is not None:
                 await self.uow.commit()
                 return True
 
@@ -164,13 +143,13 @@ class UserService(GenericService[AppUnitOfWork]):
             raise CannotUnbanYourselfException()
 
         async with self.uow:
-            previous_is_active = await self.uow.user.unban(user_id=user_id)
+            user_dto = await self.uow.user.unban(user_id=user_id)
 
-            if previous_is_active is not None:
+            if user_dto is not None:
                 await self.uow.commit()
                 return True
 
-            user = await self.uow.user.get(obj_id=user_id)
+            user = await self.uow.user.get(id=user_id)
 
             if not user:
                 raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
@@ -184,7 +163,7 @@ class UserService(GenericService[AppUnitOfWork]):
         self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.user.get_all(filters=filters, offset=offset, limit=limit, order_by=order_by)
+            items, count = await self.uow.user.get_all_with_pagination(filters=filters, offset=offset, limit=limit, order_by=order_by)
             return self._paginate(
                 schema=UserResponseSchema,
                 items=items,

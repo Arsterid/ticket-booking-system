@@ -1,21 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from src.modules.ticket.data_objects import TicketCategoryDTO
-
-
-@dataclass(slots=True)
-class OrderItemInternal:
-    category_id: int
-    quantity: int
-
-
-@dataclass(slots=True)
-class OrderCreateInternal:
-    items: list[OrderItemInternal]
-    user_id: Optional[int] = None
-    anonymous_email: Optional[str] = None
+if TYPE_CHECKING:
+    from src.modules.ticket.data_objects import TicketCategoryDTO
 
 
 @dataclass(slots=True)

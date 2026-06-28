@@ -4,20 +4,24 @@ from src.app.exceptions import ObjectNotFoundException, WrongStateException
 from src.app.uow import AppUnitOfWork
 from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
 from src.domain.services.base import GenericService
-from src.modules.orders.data_objects import OrderCreateInternal, OrderItemInternal
-from src.modules.orders.models import OrderStatus
-from src.modules.orders.schemas import OrderCreateSchema, OrderResponseSchema, OrderItemResponseSchema, \
+from src.modules.order.models import OrderStatus
+from src.modules.order.schemas import OrderCreateSchema, OrderResponseSchema, OrderItemResponseSchema, \
     OrderEmailDataSchema
 from src.modules.ticket.exceptions import NoTicketsAvailableException
 
 
 class OrderService(GenericService[AppUnitOfWork]):
     async def create(self, data: OrderCreateSchema, user_id: Optional[int]) -> OrderResponseSchema:
+        if not (user_id is None) ^ (data.anonymous_email is None):
+            raise ValueError(
+                "Exactly one field must be provided: either 'user_id' or 'anonymous_email'"
+            )
+
         async with self.uow:
             anonymous_email = None if user_id is not None else data.anonymous_email
 
             category_ids = [item.category_id for item in data.items]
-            categories = await self.uow.ticket_category.get_with_occupancy_for_update(category_ids)
+            categories = await self.uow.ticket_category.get_all_with_occupancy_for_update(category_ids)
 
             categories_map = {cat.id: cat for cat in categories}
 
@@ -33,16 +37,11 @@ class OrderService(GenericService[AppUnitOfWork]):
                         requested=item.quantity
                     )
 
-            internal_data = OrderCreateInternal(
+            order_dto = await self.uow.order.create(
                 user_id=user_id,
                 anonymous_email=anonymous_email,
-                items=[
-                    OrderItemInternal(category_id=item.category_id, quantity=item.quantity)
-                    for item in data.items
-                ]
+                order_items=[{"category_id": item.category_id, "quantity": item.quantity} for item in data.items],
             )
-
-            order_dto = await self.uow.order.create(internal_data)
 
             tickets_to_create = [
                 {"order_item_id": item_dto.id}
@@ -53,9 +52,17 @@ class OrderService(GenericService[AppUnitOfWork]):
             await self.uow.ticket.bulk_create(tickets_to_create)
             await self.uow.commit()
 
-            await self.tasks.perform_task("order:cancel_reservation", delay=900, order_id=order_dto.id)
+            await self.tasks.perform_task(name="order:cancel_reservation", delay=900, order_id=order_dto.id)
 
             return OrderResponseSchema.model_validate(order_dto)
+
+    async def get(self, user_id: int, obj_id: int) -> OrderResponseSchema:
+        async with self.uow:
+            obj = await self.uow.order.get(id=obj_id)
+            if not obj or not obj.user_id == user_id:
+                raise ObjectNotFoundException(table=self.uow.order.get_model_name(), value=obj_id)
+
+            return OrderResponseSchema.model_validate(obj)
 
     async def confirm_payment(self, obj_id: int) -> bool:
         async with self.uow:
@@ -69,7 +76,7 @@ class OrderService(GenericService[AppUnitOfWork]):
 
             await self.uow.commit()
 
-            await self.tasks.perform_task("order:send_confirmation_mail", order_id=obj_id)
+            await self.tasks.perform_task(name="order:send_confirmation_mail", order_id=obj_id)
 
             return True
 
@@ -86,19 +93,15 @@ class OrderService(GenericService[AppUnitOfWork]):
             await self.uow.commit()
             return True
 
-    async def get(self, user_id: int, obj_id: int) -> OrderResponseSchema:
+    async def migrate_anonymous_orders(self, email: str) -> int:
         async with self.uow:
-            obj = await self.uow.order.get(id=obj_id)
-            if not obj or not obj.user_id == user_id:
-                raise ObjectNotFoundException(table=self.uow.order.get_model_name(), value=obj.id)
+            user_obj = await self.uow.user.get(email=email)
+            if not user_obj:
+                raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=email)
 
-            return OrderResponseSchema.model_validate(obj)
-
-    async def migrate_anonymous_orders(self, email: str, user_id: int) -> int:
-        async with self.uow:
             migrated_count = await self.uow.order.migrate_anonymous(
                 email=email,
-                user_id=user_id
+                user_id=user_obj.id
             )
 
             if migrated_count > 0:
@@ -117,7 +120,7 @@ class OrderService(GenericService[AppUnitOfWork]):
 
     async def get_all_by_user_id(
             self,
-            actor_id: int,
+            user_id: int,
             *,
             filters: dict[str, Any] | None = None,
             offset: int = 0,
@@ -125,8 +128,8 @@ class OrderService(GenericService[AppUnitOfWork]):
             order_by: str | None = None,
     ) -> PaginatedResponseSchema[OrderResponseSchema]:
         async with self.uow:
-            items, count = self.uow.order.get_all_by_user_id(
-                user_id=actor_id, filters=filters, offset=offset, limit=limit, order_by=order_by
+            items, count = await self.uow.order.get_all_by_user_id(
+                user_id=user_id, filters=filters, offset=offset, limit=limit, order_by=order_by
             )
 
             return self._paginate(
@@ -138,7 +141,7 @@ class OrderService(GenericService[AppUnitOfWork]):
 
     async def get_all_items_by_user_id(
             self,
-            actor_id: int,
+            user_id: int,
             *,
             filters: dict[str, Any] | None = None,
             offset: int = 0,
@@ -146,8 +149,8 @@ class OrderService(GenericService[AppUnitOfWork]):
             order_by: str | None = None,
     ) -> PaginatedResponseSchema[OrderItemResponseSchema]:
         async with self.uow:
-            items, count = self.uow.order.get_all_items_by_user_id(
-                user_id=actor_id, filters=filters, offset=offset, limit=limit, order_by=order_by
+            items, count = await self.uow.order_item.get_all_by_user_id(
+                user_id=user_id, filters=filters, offset=offset, limit=limit, order_by=order_by
             )
 
             return self._paginate(

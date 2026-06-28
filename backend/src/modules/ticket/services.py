@@ -1,72 +1,28 @@
-from typing import Any, Optional
+from typing import Any
 
+from src.app.exceptions import ObjectNotFoundException, WrongStateException
 from src.app.uow import AppUnitOfWork
 from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
 from src.domain.services.base import GenericService
-from src.app.exceptions import ServiceException, ObjectNotFoundException, WrongStateException, \
-    ParametersConflictException, RaceConditionException
 from src.modules.event.models import EventStatus
-from src.modules.ticket.models import TicketStatus
+from src.modules.ticket.data_objects import TicketCategoryDTO
 from src.modules.ticket.schemas import (
-    TicketAllInfoResponseSchema,
-    TicketCreateSchema,
-    TicketResponseSchema,
-    TicketTypeResponseSchema,
+    TicketResponseSchema, TicketCategoryCreateSchema, TicketCategoryResponseSchema, TicketCategoryUpdateSchema
 )
-from src.modules.user.exceptions import AlreadyRegisteredException
 
 
 class TicketService(GenericService[AppUnitOfWork]):
-    async def get_types_by_user_id(
-        self,
-        user_id: int,
-        *,
-        offset: int = 0,
-        limit: int = 100,
-    ) -> PaginatedResponseSchema[TicketTypeResponseSchema]:
-        async with self.uow:
-            items, count = await self.uow.ticket_type.get_all_by_user_id(
-                user_id=user_id,
-                offset=offset,
-                limit=limit,
-            )
-
-            return self._paginate(
-                schema=TicketTypeResponseSchema,
-                items=items,
-                total_items=count,
-                limit=limit,
-            )
-
-    async def get_all_available(
-        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
+    async def get_all_by_user_id(
+            self,
+            user_id: int,
+            *,
+            filters: dict[str, Any] | None = None,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None,
     ) -> PaginatedResponseSchema[TicketResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.ticket.get_all_available(
-                filters=filters,
-                offset=offset,
-                limit=limit,
-                order_by=order_by,
-            )
-
-            return self._paginate(
-                schema=TicketResponseSchema,
-                items=items,
-                total_items=count,
-                limit=limit,
-            )
-
-    async def get_all_by_user(
-        self,
-        user_id: int,
-        *,
-        filters: dict[str, Any] | None = None,
-        offset: int = 0,
-        limit: int = 100,
-        order_by: str | None = None,
-    ) -> PaginatedResponseSchema[TicketResponseSchema]:
-        async with self.uow:
-            items, count = await self.uow.ticket.get_all_by_user(
+            items, count = await self.uow.ticket.get_all_by_user_id(
                 filters=filters,
                 user_id=user_id,
                 offset=offset,
@@ -82,18 +38,18 @@ class TicketService(GenericService[AppUnitOfWork]):
             )
 
     async def get_all_by_event_id(
-        self,
-        actor_id: int,
-        event_id: int,
-        *,
-        filters: dict[str, Any] | None = None,
-        offset: int = 0,
-        limit: int = 100,
-        order_by: str | None = None,
+            self,
+            user_id: int,
+            event_id: int,
+            *,
+            filters: dict[str, Any] | None = None,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None,
     ) -> PaginatedResponseSchema[TicketResponseSchema]:
         async with self.uow:
             event_obj = await self.uow.event.get(id=event_id)
-            if not event_obj or event_obj.user_id != actor_id:
+            if not event_obj or event_obj.user_id != user_id:
                 raise ObjectNotFoundException(
                     table=self.uow.event.get_model_name(),
                     value=event_id,
@@ -110,136 +66,84 @@ class TicketService(GenericService[AppUnitOfWork]):
                 limit=limit,
             )
 
-    async def create(self, user_id: int, data: TicketCreateSchema) -> TicketResponseSchema:
-        async with self.uow:
-            (
-                event_exists,
-                event_status,
-                is_event_owner,
-                type_exists,
-                has_ticket_type_access,
-            ) = await self.uow.ticket.check_creation_allowed(
-                user_id=user_id,
-                event_id=data.event_id,
-                ticket_type_id=data.type_id,
-            )
 
-            if not event_exists or not is_event_owner:
+class TicketCategoryService(GenericService[AppUnitOfWork]):
+    async def create(self, user_id: int, data: TicketCategoryCreateSchema) -> TicketCategoryResponseSchema:
+        async with self.uow:
+            event_obj = await self.uow.event.get(id=data.event_id)
+
+            if event_obj is None or event_obj.user_id != user_id:
                 raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=data.event_id)
 
-            if event_status != EventStatus.DRAFT:
-                raise WrongStateException(
-                    current=event_status,
-                    expected=EventStatus.DRAFT,
-                )
+            if event_obj.status != EventStatus.DRAFT:
+                raise WrongStateException(expected=EventStatus.DRAFT, current=event_obj.status)
 
-            if not type_exists or not has_ticket_type_access:
-                raise ObjectNotFoundException(table=self.uow.ticket_type.get_model_name(), value=data.type_id)
-
-            obj = await self.uow.ticket.create(**data.model_dump())
+            category_obj = await self.uow.ticket_category.create(**data.model_dump())
 
             await self.uow.commit()
-            return TicketResponseSchema.model_validate(obj)
+            return TicketCategoryResponseSchema.model_validate(category_obj)
 
-    async def reserve(
-        self,
-        ticket_id: int,
-        user_id: Optional[int] = None,
-        anonymous_email: Optional[str] = None,
-    ) -> bool:
-        if (user_id is None) == (anonymous_email is None):
-            raise ParametersConflictException(options=["user_id", "anonymous_email"])
+    async def _validate_modification(self, user_id: int, obj_id: int) -> TicketCategoryDTO:
+        category_obj = await self.uow.ticket_category.get(id=obj_id)
+        if category_obj is None:
+            raise ObjectNotFoundException(table=self.uow.ticket_category.get_model_name(), value=obj_id)
 
+        event_obj = await self.uow.event.get(id=category_obj.event_id)
+        if event_obj is None or event_obj.user_id != user_id:
+            raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=category_obj.event_id)
+
+        if event_obj.status != EventStatus.DRAFT:
+            raise WrongStateException(expected=EventStatus.DRAFT, current=event_obj.status)
+
+        return category_obj
+
+    async def update(self, user_id: int, obj_id: int, data: TicketCategoryUpdateSchema) -> TicketCategoryResponseSchema:
         async with self.uow:
-            if anonymous_email and await self.uow.user.exists(email=anonymous_email):
-                raise AlreadyRegisteredException()
+            await self._validate_modification(user_id=user_id, obj_id=obj_id)
 
-            if user_id is not None:
-                is_reserved = await self.uow.ticket.reserve(ticket_id=ticket_id, user_id=user_id)
-            else:
-                is_reserved = await self.uow.ticket.reserve_by_email(ticket_id=ticket_id, email=anonymous_email)
-
-            if not is_reserved:
-                ticket_obj = await self.uow.ticket.get(id=ticket_id)
-
-                if not ticket_obj:
-                    raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-                if ticket_obj.status == TicketStatus.RESERVED:
-                    raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-                if user_id is not None and not await self.uow.user.exists(id=user_id):
-                    raise ObjectNotFoundException(table=self.uow.user.get_model_name(), value=user_id)
+            updated_category = await self.uow.ticket_category.update(
+                filters={"obj_id": obj_id},
+                **data.model_dump(exclude_unset=True)
+            )
 
             await self.uow.commit()
+            return TicketCategoryResponseSchema.model_validate(updated_category[0])
 
-        await self.tasks.perform_task(name="ticket:cancel_reservation", delay=900, ticket_id=ticket_id)
-        return True
-
-    async def pay(self, ticket_id: int) -> bool:
+    async def delete(self, user_id: int, obj_id: int) -> bool:
         async with self.uow:
-            is_success = await self.uow.ticket.mark_as_purchased(ticket_id=ticket_id)
+            await self._validate_modification(user_id=user_id, obj_id=obj_id)
 
-            if is_success:
-                await self.uow.commit()
-
-                await self.tasks.perform_task(name="ticket:send_confirmation_mail", ticket_id=ticket_id)
-
-                return True
-
-            ticket = await self.uow.ticket.get(id=ticket_id)
-
-            if ticket is None:
-                raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-            if ticket.status == TicketStatus.AVAILABLE:
-                raise WrongStateException(expected=TicketStatus.RESERVED, current=TicketStatus.AVAILABLE)
-
-            if ticket.status == TicketStatus.PAID:
-                raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-            raise ServiceException("Unable to mark ticket as paid.")
-
-    async def return_to_available_if_not_paid(self, ticket_id: int) -> bool:
-        async with self.uow:
-            is_success = await self.uow.ticket.return_to_available_if_not_paid(ticket_id=ticket_id)
-
-            if is_success:
-                await self.uow.commit()
-                return True
-
-            ticket = await self.uow.ticket.get(id=ticket_id)
-
-            if ticket is None:
-                raise ObjectNotFoundException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-            if ticket.status != TicketStatus.AVAILABLE:
-                raise RaceConditionException(table=self.uow.ticket.get_model_name(), value=ticket_id)
-
-            raise ServiceException("Unable to return ticket to available state.")
-
-    async def get_for_confirmation_email(self, ticket_id: int) -> TicketAllInfoResponseSchema:
-        async with self.uow:
-            obj = await self.uow.ticket.get_with_user_and_event(ticket_id=ticket_id)
-            return TicketAllInfoResponseSchema.model_validate(obj)
-
-
-class UserTicketService(GenericService[AppUnitOfWork]):
-    async def get_or_create_and_assign_to_user(self, user_id: int, name: str) -> tuple[bool, bool]:
-        async with self.uow:
-            ticket_type_obj, was_created = await self.uow.ticket_type.get_or_create(name=name)
-
-            is_success = await self.uow.user.assign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_obj.id)
+            await self.uow.ticket_category.delete(obj_id=obj_id)
 
             await self.uow.commit()
-            return is_success, was_created
+            return True
 
-    async def unassign_from_user(self, user_id: int, ticket_type_id: int) -> bool:
+    async def get_all_by_event_id(
+            self,
+            event_id: int,
+            user_id: int | None = None,
+            *,
+            filters: dict[str, Any] | None = None,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None,
+    ) -> PaginatedResponseSchema[TicketCategoryResponseSchema]:
         async with self.uow:
-            is_success = await self.uow.user.unassign_ticket_type(user_id=user_id, ticket_type_id=ticket_type_id)
+            event_obj = await self.uow.event.get(id=event_id)
+            if not event_obj:
+                raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=event_id)
 
-            if not is_success:
-                raise ObjectNotFoundException(table="user_ticket", value=f"user:{user_id}, ticket:{ticket_type_id}")
+            filters: dict[str, Any] = (filters or {}) | {"event_id": event_id}
 
-            await self.uow.commit()
-            return is_success
+            if event_obj.user_id != user_id:
+                if event_obj.status != EventStatus.UPCOMING:
+                    raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=event_id)
+
+                filters["event.status"] = EventStatus.UPCOMING
+
+            items, count = await self.uow.ticket_category.get_all_by_event_id(
+                filters=filters, event_id=event_id, offset=offset, limit=limit, order_by=order_by
+            )
+
+            return self._paginate(schema=TicketCategoryResponseSchema, items=items, total_items=count, limit=limit)
+

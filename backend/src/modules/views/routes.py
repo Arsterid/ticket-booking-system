@@ -20,7 +20,7 @@ async def register_bulk_views(
 ):
     await service.bulk_increment_views(
         obj_ids=body.object_ids,
-        actor_id=user_id
+        user_id=user_id
     )
 
     return GenericSuccessResponseSchema(success=True)

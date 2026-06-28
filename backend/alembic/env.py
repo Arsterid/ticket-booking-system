@@ -9,6 +9,12 @@ from alembic import context
 from src.core.infra.database.orm.base import AbstractORMModel
 from src.core.settings import get_settings
 
+from src.modules.user import models
+from src.modules.ticket import models
+from src.modules.order import models
+from src.modules.views import models
+from src.modules.event import models
+
 config = context.config
 
 if config.config_file_name is not None:

@@ -3,124 +3,87 @@ import random
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
 
-from src.core.infra.transport.http.dependencies import get_config
+from src.app.uow import create_app_uow
 from src.core.security.passwords import PasswordManager
-from src.app.main import create_sqlalchemy_uow
-from src.modules.event.models import EventCategory, EventState, EventType
-from src.modules.ticket.models import TicketStatus, TicketType
+from src.core.settings import get_settings
+
 from src.modules.user.models import User, UserRole
+from src.modules.event.models import EventCategory, Event, EventType, EventState
+from src.modules.ticket.models import TicketCategory, Ticket, TicketStatus
+from src.modules.order.models import Order, OrderItem, OrderStatus
+from src.modules.views.models import ViewLog
 
 CATEGORIES_POOL = {
     "Музыка": ["Рок и Альтернатива", "Джаз и Блюз", "Электронная музыка", "Классика в соборе", "Поп-хиты"],
     "Театр и Кино": ["Драматические спектакли", "Опера и Балет", "Иммерсивные шоу", "Артхаус показы", "Мюзиклы"],
     "Образование": ["IT-Конференции", "Бизнес-интенсивы", "Лекции по искусству", "Языковые клубы", "Хакатоны"],
     "Спорт": ["Футбольные матчи", "Марафоны и Бег", "Турниры по теннису", "Экстремальный спорт", "Киберспорт"],
-    "Развлечения": ["Стендап шоу", "Гастро-фестивали", "Квизы и Настолки", "Ночные маркеты", "Выставки комиксов",
-                    "Квесты", "Магические шоу", "Детские праздники", "Пляжные вечеринки", "Городские экскурсии"]
+    "Развлечения": ["Стендап шоу", "Гастро-фестивали", "Квизы и Настолки", "Ночные маркеты", "Выставки комиксов"]
 }
 
-EVENT_ADJECTIVES = ["Грандиозный", "Камерный", "Ежегодный", "Международный", "Секретный", "Благотворительный",
-                    "Андеграундный", "Юбилейный"]
-EVENT_NOUN = ["Фестиваль", "Воркшоп", "Перформанс", "Концерт", "Турнир", "Симпозиум", "Рейв", "Слёт"]
+EVENT_ADJECTIVES = ["Грандиозный", "Камерный", "Ежегодный", "Международный", "Секретный", "Благотворительный", "Юбилейный"]
+EVENT_NOUNS = ["Фестиваль", "Воркшоп", "Перформанс", "Концерт", "Турнир", "Симпозиум", "Рейв", "Слёт"]
 
 CITIES_POOL = [
     "Москва, Парк Горького", "Санкт-Петербург, Севкабель Порт", "Казань, Кремлевская набережная",
-    "Екатеринбург, Ельцин Центр", "Новосибирск, Лофт Квадрат", "Нижний Новгород, Стрелка",
-    "Сочи, Олимпийский Парк", "Владивосток, Набережная Цесаревича"
+    "Екатеринбург, Ельцин Центр", "Новосибирск, Лофт Квадрат", "Сочи, Олимпийский Парк"
 ]
 
-TICKET_TYPES_POOL = [
-    "Standard Pass", "VIP Box", "Early Bird", "Fan Zone", "Backstage Experience",
-    "Student Ticket", "Family Bundle", "Premium Lounge", "Super VIP GOLD", "Group Entry"
-]
+TICKET_NAMES_POOL = ["Standard Pass", "VIP Box", "Early Bird", "Fan Zone", "Student Ticket"]
+PRICES_POOL = [490.0, 1500.0, 2900.0, 5500.0, 9900.0]
 
-PRICES_POOL = [250.0, 500.0, 900.0, 1500.0, 2500.0, 4000.0, 5500.0, 7000.0, 10000.0]
+FIRST_NAMES = ["Иван", "Анна", "Сергей", "Мария", "Александр", "Елена", "Дмитрий", "Ольга"]
+LAST_NAMES = ["Петров", "Иванова", "Смирнов", "Кузнецова", "Попов", "Васильева"]
 
-FIRST_NAMES = ["Иван", "Анна", "Сергей", "Мария", "Александр", "Елена", "Дмитрий", "Ольга", "Михаил", "Наталья"]
-LAST_NAMES = ["Петров", "Иванова", "Смирнов", "Кузнецова", "Попов", "Васильева", "Соколов", "Михайлова"]
-
-config = get_config()
+config = get_settings()
 pwd_manager = PasswordManager(algorithm=config.password_algorithm, iterations=config.password_iterations)
 
 
 async def seed_system_data():
-    print("Starting comprehensive data seeding process...")
-    uow = create_sqlalchemy_uow()
+    print("[   0% ] Initializing database unit of work...")
+    uow = create_app_uow()
 
     async with uow:
-        print("Generating 50 dynamic ticket types...")
-        ticket_types = []
-        used_type_names = set()
-        while len(ticket_types) < 50:
-            t_name = f"{random.choice(TICKET_TYPES_POOL)} #{random.randint(100, 999)}"
-            if t_name not in used_type_names:
-                used_type_names.add(t_name)
-
-                async with uow._session.begin_nested():
-                    try:
-                        t_type = await uow.ticket_type.create(name=t_name)
-                        ticket_types.append(t_type)
-                    except IntegrityError:
-                        pass
-
-        await uow._session.flush()
-
-        orm_ticket_types = []
-        for t in ticket_types:
-            if t is not None and hasattr(t, "id"):
-                fetched = await uow._session.get(TicketType, t.id)
-                if fetched:
-                    orm_ticket_types.append(fetched)
-
-        if not orm_ticket_types:
-            res = await uow._session.execute(select(TicketType).limit(50))
-            orm_ticket_types = list(res.scalars().all())
-
-        print("Generating user base with ticket type permissions...")
+        print("[  10% ] Seeding users and roles...")
         allowed_event_hosts = []
-        hashed_password = pwd_manager.hash_password("TestPass123!")
+        regular_buyers = []
+        all_user_ids = []
 
-        # Загружаем админа сразу с жадной загрузкой ticket_types
-        res = await uow._session.execute(
-            select(User).where(User.email == "admin@test.ru").options(selectinload(User.ticket_types))
-        )
+        admin_raw_password = "".join(
+            random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$", k=14))
+        admin_hashed_password = pwd_manager.hash_password(admin_raw_password)
+
+        res = await uow._session.execute(select(User).where(User.email == "admin@test.ru"))
         admin_obj = res.scalar_one_or_none()
 
         if admin_obj is None:
-            async with uow._session.begin_nested():
-                try:
-                    admin_dto = await uow.user.create(
-                        email="admin@test.ru",
-                        username="system_admin",
-                        password=hashed_password,
-                        role=UserRole.ADMIN,
-                        is_active=True
-                    )
-                    await uow._session.flush()
+            admin_obj = await uow.user.create(
+                email="admin@test.ru",
+                username="system_admin",
+                password=admin_hashed_password,
+                role=UserRole.ADMIN,
+                is_active=True
+            )
+            await uow._session.flush()
+            print(f"[ADMIN CREATED] Email: admin@test.ru | Password: {admin_raw_password}")
+        allowed_event_hosts.append(admin_obj.id)
+        all_user_ids.append(admin_obj.id)
 
-                    res = await uow._session.execute(
-                        select(User).where(User.id == admin_dto.id).options(selectinload(User.ticket_types))
-                    )
-                    admin_obj = res.scalar_one_or_none()
-                except IntegrityError:
-                    res = await uow._session.execute(
-                        select(User).where(User.email == "admin@test.ru").options(selectinload(User.ticket_types))
-                    )
-                    admin_obj = res.scalar_one_or_none()
+        print("-" * 80)
+        print(f"{'ROLE':<18} | {'EMAIL':<30} | {'RAW PASSWORD'}")
+        print("-" * 80)
 
-        if admin_obj is not None:
-            if orm_ticket_types and not admin_obj.ticket_types:
-                admin_obj.ticket_types.extend(random.sample(orm_ticket_types, k=min(15, len(orm_ticket_types))))
-            allowed_event_hosts.append((admin_obj.id, admin_obj.ticket_types))
-
-        for i in range(1, 11):
+        for i in range(1, 35):
             f_name = random.choice(FIRST_NAMES)
             l_name = random.choice(LAST_NAMES)
             username = f"{f_name.lower()}_{l_name.lower()}_{random.randint(10, 99)}"
             email = f"{username}@test.ru"
-            role = random.choice([UserRole.VERIFIED_USER, UserRole.MODERATOR, UserRole.USER])
+            role = random.choice([UserRole.USER, UserRole.VERIFIED_USER, UserRole.ON_VERIFICATION, UserRole.MODERATOR])
+
+            raw_password = "".join(
+                random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$", k=12))
+            hashed_password = pwd_manager.hash_password(raw_password)
 
             async with uow._session.begin_nested():
                 try:
@@ -133,155 +96,173 @@ async def seed_system_data():
                     )
                     await uow._session.flush()
 
-                    res = await uow._session.execute(
-                        select(User).where(User.id == user_dto.id).options(selectinload(User.ticket_types))
-                    )
-                    user_obj = res.scalar_one_or_none()
+                    if user_dto is not None:
+                        all_user_ids.append(user_dto.id)
+                        print(f"{role.value:<18} | {email:<30} | {raw_password}")
 
-                    if user_obj:
-                        user_obj.ticket_types.extend(random.sample(orm_ticket_types, k=min(10, len(orm_ticket_types))))
-                        if role in [UserRole.VERIFIED_USER, UserRole.ADMIN]:
-                            allowed_event_hosts.append((user_obj.id, user_obj.ticket_types))
+                        if role in [UserRole.VERIFIED_USER, UserRole.MODERATOR]:
+                            allowed_event_hosts.append(user_dto.id)
+                        elif role == UserRole.USER:
+                            regular_buyers.append(user_dto.id)
                 except IntegrityError:
                     pass
 
-        await uow._session.flush()
-        print("Generating 50 specialized event categories...")
-        category_ids = []
+        print("-" * 80)
+        print(f"[  25% ] Total users registered: {len(all_user_ids)}. Seeding event categories hierarchy...")
+        leaf_category_ids = []
         for root_name, subs in CATEGORIES_POOL.items():
-            root_cat = None
-
-            res = await uow._session.execute(select(EventCategory).where(EventCategory.name == f"{root_name} (Seed)"))
+            res = await uow._session.execute(select(EventCategory).where(EventCategory.name == root_name))
             root_cat = res.scalar_one_or_none()
 
             if root_cat is None:
-                async with uow._session.begin_nested():
-                    try:
-                        root_cat = await uow.event_category.create(
-                            name=f"{root_name} (Seed)",
-                            parent_id=None
-                        )
-                        await uow._session.flush()
-                    except IntegrityError:
-                        res = await uow._session.execute(
-                            select(EventCategory).where(EventCategory.name == f"{root_name} (Seed)"))
-                        root_cat = res.scalar_one_or_none()
+                root_cat = await uow.event_category.create(name=root_name, parent_id=None)
+                await uow._session.flush()
 
             for sub_name in subs:
-                res = await uow._session.execute(
-                    select(EventCategory).where(EventCategory.name == f"{sub_name} (Seed)"))
+                res = await uow._session.execute(select(EventCategory).where(EventCategory.name == sub_name))
                 sub_cat = res.scalar_one_or_none()
 
                 if sub_cat is None:
                     async with uow._session.begin_nested():
                         try:
-                            sub_cat = await uow.event_category.create(
-                                name=f"{sub_name} (Seed)",
-                                parent_id=root_cat.id if root_cat else None
-                            )
+                            sub_cat = await uow.event_category.create(name=sub_name, parent_id=root_cat.id)
                             await uow._session.flush()
-                            category_ids.append(sub_cat.id)
+                            leaf_category_ids.append(sub_cat.id)
                         except IntegrityError:
-                            res = await uow._session.execute(
-                                select(EventCategory).where(EventCategory.name == f"{sub_name} (Seed)"))
-                            sub_cat = res.scalar_one_or_none()
-                            if sub_cat:
-                                category_ids.append(sub_cat.id)
+                            pass
                 else:
-                    category_ids.append(sub_cat.id)
+                    leaf_category_ids.append(sub_cat.id)
 
-        if not category_ids:
-            res = await uow._session.execute(select(EventCategory.id).where(EventCategory.parent_id.is_not(None)))
-            category_ids = list(res.scalars().all())
+        print("[  40% ] Generating 100 historical and upcoming events with ticket categories...")
+        purchasable_ticket_categories = []
+        all_event_ids = []
+        now_utc = datetime.now(timezone.utc)
+        event_model_name = uow.event.get_model_name()
 
-        print("Generating 100 highly realistic events...")
-        event_ids = []
         for i in range(1, 101):
-            title = f"{random.choice(EVENT_ADJECTIVES)} {random.choice(EVENT_NOUN)} {random.randint(2026, 2027)}"
-            description = f"Добро пожаловать на '{title}'! Вас ждет уникальная программа."
-
+            title = f"{random.choice(EVENT_ADJECTIVES)} {random.choice(EVENT_NOUNS)} {random.randint(2026, 2027)}"
+            description = f"Приглашаем вас на мероприятие '{title}'. Проведи время незабываемо!"
             e_type = random.choice([EventType.OFFLINE, EventType.ONLINE])
             address = random.choice(CITIES_POOL) if e_type == EventType.OFFLINE else None
-            future_date = datetime.now(timezone.utc) + timedelta(days=random.randint(10, 365))
 
-            host_user_id, host_ticket_types = random.choice(allowed_event_hosts) if allowed_event_hosts else (
-            1, orm_ticket_types)
+            if i <= 20:
+                event_date = now_utc - timedelta(days=random.randint(2, 45))
+                state = EventState.APPROVED
+            else:
+                event_date = now_utc + timedelta(days=random.randint(10, 200))
+                state = random.choice([EventState.APPROVED, EventState.DRAFT, EventState.ON_MODERATION])
 
-            async with uow._session.begin_nested():
-                try:
-                    event = await uow.event.create(
-                        title=title,
-                        description=description,
-                        category_id=random.choice(category_ids) if category_ids else 1,
-                        user_id=host_user_id,
-                        state=EventState.APPROVED,
-                        event_type=e_type,
-                        address=address,
-                        event_date=future_date
-                    )
-                    await uow._session.flush()
-                    event_ids.append((event.id, host_ticket_types))
-                except IntegrityError:
-                    pass
+            event_obj = await uow.event.create(
+                title=title,
+                description=description,
+                user_id=random.choice(allowed_event_hosts),
+                category_id=random.choice(leaf_category_ids),
+                state=state,
+                event_type=e_type,
+                address=address,
+                event_date=event_date
+            )
+            await uow._session.flush()
+            all_event_ids.append(event_obj.id)
 
-        print("Generating 1000 balanced tickets...")
-        tickets_created = 0
+            available_ticket_names = random.sample(TICKET_NAMES_POOL, k=random.randint(1, 3))
+            for t_idx, ticket_name in enumerate(available_ticket_names):
+                ticket_cat = await uow.ticket_category.create(
+                    event_id=event_obj.id,
+                    name=ticket_name,
+                    price=PRICES_POOL[t_idx % len(PRICES_POOL)],
+                    total_quantity=random.randint(40, 300)
+                )
+                await uow._session.flush()
 
-        if event_ids:
-            for event_id, host_allowed_types in event_ids:
-                num_types_for_event = min(random.randint(2, 5), len(host_allowed_types))
-                if num_types_for_event == 0:
-                    host_allowed_types = orm_ticket_types
-                    num_types_for_event = random.randint(2, 5)
+                if state == EventState.APPROVED:
+                    purchasable_ticket_categories.append(ticket_cat)
 
-                local_types = random.sample(host_allowed_types, k=num_types_for_event)
-                tickets_per_type = 1000 // (100 * num_types_for_event)
-                if tickets_per_type == 0:
-                    tickets_per_type = 1
+            if i % 25 == 0:
+                print(f"[  55% ] Processed {i}/100 events...")
+        print("[  60% ] Processing 150 customer orders and ticket emissions...")
+        if purchasable_ticket_categories:
+            for o_idx in range(1, 151):
+                is_anon_purchase = random.random() < 0.25
 
-                for t_type in local_types:
-                    base_price = random.choice(PRICES_POOL)
+                if is_anon_purchase:
+                    buyer_user_id = None
+                    anonymous_email = f"guest_{random.randint(10000, 99999)}@example.com"
+                else:
+                    buyer_user_id = random.choice(regular_buyers) if regular_buyers else admin_obj.id
+                    anonymous_email = None
 
-                    for _ in range(tickets_per_type):
-                        if tickets_created >= 1000:
-                            break
+                order_status = random.choice([OrderStatus.PAID, OrderStatus.PENDING, OrderStatus.CANCELLED])
+                target_cat = random.choice(purchasable_ticket_categories)
+                ticket_qty = random.randint(1, 3)
 
-                        await uow.ticket.create(
-                            event_id=event_id,
-                            type_id=t_type.id,
-                            price=base_price,
-                            status=TicketStatus.AVAILABLE,
-                            user_id=None,
-                            anonymous_email=None
+                order_items_data = [{"category_id": target_cat.id, "quantity": ticket_qty}]
+
+                order_dto = await uow.order.create(
+                    user_id=buyer_user_id,
+                    anonymous_email=anonymous_email,
+                    order_items=order_items_data
+                )
+                await uow._session.flush()
+
+                if order_status == OrderStatus.PAID:
+                    await uow.order.mark_as_paid(order_dto.id)
+                elif order_status == OrderStatus.CANCELLED:
+                    await uow.order.cancel_if_not_paid(order_dto.id)
+
+                if o_idx % 50 == 0:
+                    print(f"[  75% ] Processed {o_idx}/150 orders...")
+
+        print("[  80% ] Seeding unique event view logs...")
+        processed_views = 0
+        for event_id in all_event_ids:
+            viewers = random.sample(all_user_ids, k=random.randint(5, min(15, len(all_user_ids))))
+
+            if random.random() < 0.7:
+                await uow.view_logs.create_view_log(
+                    table_name=event_model_name,
+                    obj_id=event_id,
+                    user_id=None
+                )
+
+            if viewers:
+                await uow.view_logs.bulk_create_view_logs(
+                    table_name=event_model_name,
+                    obj_ids=[event_id],
+                    user_id=random.choice(viewers)
+                )
+
+            for viewer_id in viewers:
+                async with uow._session.begin_nested():
+                    try:
+                        await uow.view_logs.create_view_log(
+                            table_name=event_model_name,
+                            obj_id=event_id,
+                            user_id=viewer_id
                         )
-                        tickets_created += 1
+                    except IntegrityError:
+                        pass
 
-            if tickets_created < 1000:
-                remainder = 1000 - tickets_created
-                print(f"Adding {remainder} remainder tickets for balance...")
-                for _ in range(remainder):
-                    chosen_event_id, chosen_host_types = random.choice(event_ids)
-                    chosen_type = random.choice(chosen_host_types) if chosen_host_types else random.choice(
-                        orm_ticket_types)
+            processed_views += 1
+            if processed_views % 25 == 0:
+                print(f"[  90% ] Logged view metrics for {processed_views}/100 events...")
 
-                    await uow.ticket.create(
-                        event_id=chosen_event_id,
-                        type_id=chosen_type.id,
-                        price=1500.0,
-                        status=TicketStatus.AVAILABLE,
-                        user_id=None,
-                        anonymous_email=None
-                    )
-                    tickets_created += 1
-
+        print("[  95% ] Committing transaction changes to database...")
         await uow.commit()
+        print("[ 100% ] Database seeding completed successfully.")
 
-    print("\n[SUCCESS] Highly diversified environment is ready!")
-    print(f"-> Created/Skipped structural categories: 50")
-    print(f"-> Created/Skipped unique ticket types: 50")
-    print(f"-> Processed upcoming events: {len(event_ids)}")
-    print(f"-> Total exact tickets available added: {tickets_created}")
+
+async def main():
+    print("[ START ] Starting async system data seed script...")
+    start_time = datetime.now(timezone.utc)
+    try:
+        await seed_system_data()
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+        print(f"[ FINISH ] Done. Execution time: {duration:.2f} seconds.")
+    except Exception as e:
+        print(f"[ CRITICAL ] Seed failed with exception: {e}")
+        raise e
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_system_data())
+    asyncio.run(main())

@@ -33,12 +33,12 @@ class ViewableServiceMixin:
             return db_count
 
     async def increment_views(self: ViewableServiceProtocol, obj_id: int,
-                              actor_id: Optional[int] = None) -> None:
-        if not actor_id:
+                              user_id: Optional[int] = None) -> None:
+        if not user_id:
             return
 
         hll_key = self._get_hll_key(obj_id)
-        is_new_view = await self.cache.pfadd(hll_key, actor_id)
+        is_new_view = await self.cache.pfadd(hll_key, user_id)
 
         if is_new_view:
             cache_key = self._get_cache_key(obj_id)
@@ -50,7 +50,7 @@ class ViewableServiceMixin:
                 await self.uow.view_logs.create_view_log(
                     table_name=self._repo_cls.get_model_name(),
                     obj_id=obj_id,
-                    user_id=actor_id
+                    user_id=user_id
                 )
 
     async def bulk_get_views_counts(self: ViewableServiceProtocol, obj_ids: list[int]) -> dict[int, int]:
@@ -83,12 +83,12 @@ class ViewableServiceMixin:
         return final_counts
 
     async def bulk_increment_views(self: ViewableServiceProtocol, obj_ids: list[int],
-                                   actor_id: Optional[int] = None) -> None:
-        if not actor_id or not obj_ids:
+                                   user_id: Optional[int] = None) -> None:
+        if not user_id or not obj_ids:
             return
 
         hll_keys = [self._get_hll_key(oid) for oid in obj_ids]
-        uniques_mask = await self.cache.bulk_pfadd(hll_keys, actor_id)
+        uniques_mask = await self.cache.bulk_pfadd(hll_keys, user_id)
 
         unique_ids = [oid for oid, is_unique in zip(obj_ids, uniques_mask) if is_unique]
         if not unique_ids:
@@ -103,7 +103,7 @@ class ViewableServiceMixin:
             await self.uow.view_logs.bulk_create_view_logs(
                 table_name=self._repo_cls.get_model_name(),
                 obj_ids=unique_ids,
-                user_id=actor_id
+                user_id=user_id
             )
 
     async def _enrich_items_with_views(self: ViewableServiceProtocol, items: list[Any]) -> list[Any]:
