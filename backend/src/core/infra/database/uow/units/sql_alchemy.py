@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from src.core.infra.database.repositories.base import GenericRepository
+from src.core.infra.database.repositories import GenericRepository
 from src.core.infra.database.uow.units.abstract import AbstractUnitOfWork
 
 

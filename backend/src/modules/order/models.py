@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import ForeignKey, String, Enum as SQLEnum, CheckConstraint, Integer, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 from src.modules.ticket.models import TicketCategory
 
 

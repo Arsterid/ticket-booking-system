@@ -2,7 +2,8 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import selectinload
 
-from src.core.infra.database.repositories.base import GenericRepository
+from src.core.infra.database.query_modifiers import Count, Annotate
+from src.core.infra.database.repositories import GenericRepository
 from src.modules.event.data_objects import EventCategoryDTO, EventDTO
 from src.modules.event.models import Event, EventCategory, EventState, EventStatus
 
@@ -14,14 +15,30 @@ class EventCategoryRepository(
         return await super().get(
             **kwargs,
             with_for_update=True,
-            options=[selectinload(self.model.children)],
+            options=[
+                selectinload(self.model.children),
+                Annotate(
+                    children_count=Count(self.model.children),
+                    events_count=Count(self.model.events),
+                ),
+            ],
         )
 
     async def get_all_with_children(
             self, offset: int = 0, limit: int = 100, filters: dict[str, Any] | None = None, order_by: str | None = None
     ) -> tuple[list[EventCategoryDTO], int]:
-        return await super().get_all_with_pagination(
-            offset=offset, limit=limit, filters=filters, order_by=order_by, options=[selectinload(self.model.children)]
+        return await super().paginate(
+            offset=offset,
+            limit=limit,
+            filters=filters,
+            order_by=order_by,
+            options=[
+                selectinload(self.model.children),
+                Annotate(
+                    children_count=Count(self.model.children),
+                    events_count=Count(self.model.events),
+                ),
+            ],
         )
 
 
@@ -88,7 +105,7 @@ class EventRepository(GenericRepository[Event, EventDTO], model=Event, dto=Event
     async def get_all_upcoming(
             self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
     ) -> tuple[list[EventDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"status": EventStatus.UPCOMING},
@@ -98,7 +115,7 @@ class EventRepository(GenericRepository[Event, EventDTO], model=Event, dto=Event
     async def get_for_moderation(
             self, offset: int = 0, limit: int = 100, filters: dict[str, Any] = None, order_by: str | None = None
     ) -> tuple[list[EventDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"status": EventState.ON_MODERATION},
@@ -113,7 +130,7 @@ class EventRepository(GenericRepository[Event, EventDTO], model=Event, dto=Event
             filters: dict[str, Any] = None,
             order_by: str | None = None,
     ) -> tuple[list[EventDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"user_id": user_id},

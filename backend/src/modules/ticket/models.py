@@ -14,7 +14,7 @@ from sqlalchemy import CheckConstraint, Float, ForeignKey, String, UniqueConstra
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 
 
 class TicketCategory(AbstractORMModel):

@@ -2,7 +2,7 @@ from typing import Any
 
 from sqlalchemy.orm import joinedload
 
-from src.core.infra.database.repositories.base import GenericRepository
+from src.core.infra.database.repositories import GenericRepository
 from src.modules.ticket.data_objects import TicketDTO, TicketCategoryDTO
 from src.modules.ticket.models import Ticket, TicketCategory
 
@@ -17,7 +17,7 @@ class TicketRepository(GenericRepository[Ticket, TicketDTO], model=Ticket, dto=T
             limit: int = 100,
             order_by: str | None = None,
     ) -> tuple[list[TicketDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"order_item.order.user_id": user_id},
@@ -33,7 +33,7 @@ class TicketRepository(GenericRepository[Ticket, TicketDTO], model=Ticket, dto=T
             limit: int = 100,
             order_by: str | None = None,
     ) -> tuple[list[TicketDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"category.event_id": event_id},
@@ -49,7 +49,7 @@ class TicketRepository(GenericRepository[Ticket, TicketDTO], model=Ticket, dto=T
             limit: int = 100,
             order_by: str | None = None,
     ) -> tuple[list[TicketDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"category": category_id},
@@ -82,7 +82,7 @@ class TicketCategoryRepository(
             order_by: str | None = None,
     ) -> tuple[list[TicketDTO], int]:
         from sqlalchemy.orm import joinedload
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"category.event_id": event_id},

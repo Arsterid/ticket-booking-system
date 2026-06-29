@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.database import db_factory
-from src.core.infra.database.uow.units.sql_alchemy import SQLAlchemyUnitOfWork
+from src.core.infra.database.uow.units import SQLAlchemyUnitOfWork
 from src.modules.views.repositories import ViewLogRepository
 from src.modules.event.repositories import EventCategoryRepository, EventRepository
 from src.modules.ticket.repositories import TicketRepository, TicketCategoryRepository

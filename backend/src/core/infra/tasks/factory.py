@@ -2,7 +2,7 @@ import logging
 
 from src.core.settings import get_settings
 from src.core.infra.tasks.config import broker, scheduler
-from src.core.infra.tasks.managers.task_iq import TaskIqTaskManager
+from src.core.infra.tasks.managers import TaskIqTaskManager
 
 
 logger = logging.getLogger("taskiq")

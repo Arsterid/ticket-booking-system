@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.core.infra.database.repositories.base import GenericRepository
+    from src.core.infra.database.repositories import GenericRepository
 
-from src.core.infra.cache.managers.abstract import AbstractCacheManager
+
+from typing import Any, Optional, Protocol, Union, overload
 
 
 class ViewableServiceProtocol(Protocol):
@@ -15,7 +16,7 @@ class ViewableServiceProtocol(Protocol):
     def uow(self) -> Any: ...
 
     @property
-    def cache(self) -> AbstractCacheManager: ...
+    def cache(self) -> Any: ...
 
     @property
     def model_name(self) -> str: ...
@@ -24,6 +25,26 @@ class ViewableServiceProtocol(Protocol):
 
     def _get_hll_key(self, obj_id: int) -> str: ...
 
-    async def bulk_get_views_counts(self: ViewableServiceProtocol, obj_ids: list[int]) -> dict[int, int]: ...
+    @overload
+    async def get_views(self, obj_id: int) -> int: ...
 
-    async def get_views_count(self, obj_id: int) -> int: ...
+    @overload
+    async def get_views(self, obj_id: list[int]) -> dict[int, int]: ...
+
+    async def get_views(self, obj_id: Union[int, list[int]]) -> Union[int, dict[int, int]]: ...
+
+    @overload
+    async def increment_views(self, obj_id: int, user_id: Optional[int] = None) -> None: ...
+
+    @overload
+    async def increment_views(self, obj_id: list[int], user_id: Optional[int] = None) -> None: ...
+
+    async def increment_views(self, obj_id: Union[int, list[int]], user_id: Optional[int] = None) -> None: ...
+
+    @overload
+    def _enrich_with_views(self, items: Any) -> Any: ...
+
+    @overload
+    def _enrich_with_views(self, items: list[Any]) -> list[Any]: ...
+
+    async def _enrich_with_views(self, items: Any | list[Any]) -> Any | list[Any]: ...

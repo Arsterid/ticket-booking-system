@@ -163,7 +163,7 @@ class UserService(GenericService[AppUnitOfWork]):
         self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.user.get_all_with_pagination(filters=filters, offset=offset, limit=limit, order_by=order_by)
+            items, count = await self.uow.user.paginate(filters=filters, offset=offset, limit=limit, order_by=order_by)
             return self._paginate(
                 schema=UserResponseSchema,
                 items=items,

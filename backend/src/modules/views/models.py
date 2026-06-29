@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import String, Integer, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 
 
 class ViewLog(AbstractORMModel):

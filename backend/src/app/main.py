@@ -1,14 +1,8 @@
 from fastapi import FastAPI
+from starlette import status
 
 from src.app.lifespan import app_lifespan
-from src.core.infra.transport.http.exception_handlers import (
-    value_exception_handler,
-    service_exception_handler,
-    object_not_found_handler,
-    forbidden_exception_handler,
-    conflict_exception_handler,
-    unauthorized_exception_handler
-)
+from src.core.infra.transport.http.exception_handlers import create_exception_handler
 from src.app.exceptions import (
     ServiceException,
     ForbiddenException,
@@ -25,12 +19,19 @@ app = FastAPI(
     lifespan=app_lifespan
 )
 
-app.add_exception_handler(ServiceException, service_exception_handler)
-app.add_exception_handler(ValueError, value_exception_handler)
-app.add_exception_handler(ObjectNotFoundException, object_not_found_handler)
-app.add_exception_handler(ConflictException, conflict_exception_handler)
-app.add_exception_handler(UnauthorizedException, unauthorized_exception_handler)
-app.add_exception_handler(ForbiddenException, forbidden_exception_handler)
+EXCEPTION_MAPPING = {
+    ServiceException: status.HTTP_400_BAD_REQUEST,
+    UnauthorizedException: status.HTTP_401_UNAUTHORIZED,
+    ForbiddenException: status.HTTP_403_FORBIDDEN,
+    ObjectNotFoundException: status.HTTP_404_NOT_FOUND,
+    ConflictException: status.HTTP_409_CONFLICT,
+    ValueError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+
+}
+
+for exception_cls, status_code in EXCEPTION_MAPPING.items():
+    handler = create_exception_handler(status_code)
+    app.add_exception_handler(exception_cls, handler)
 
 app.include_router(api_v1_router)
 

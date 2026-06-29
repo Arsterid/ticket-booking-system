@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Generic, Type
 
 if TYPE_CHECKING:
-    from src.core.infra.database.repositories.base import GenericRepository
+    from src.core.infra.database.repositories import GenericRepository
 
 from src.core.annotations import UOW_T
 from src.core.infra.transport.http.annotations import PYDANTIC_MODEL_T

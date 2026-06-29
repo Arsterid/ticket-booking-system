@@ -1,8 +1,8 @@
 from typing import Callable, Type
 
 from src.core.annotations import SERVICE_T, UOW_T
-from src.core.infra.cache.managers.abstract import AbstractCacheManager
-from src.core.infra.tasks.managers.abstract import AbstractTaskManager
+from src.core.infra.cache.managers import AbstractCacheManager
+from src.core.infra.tasks.managers import AbstractTaskManager
 
 
 class UoWServiceFactory:

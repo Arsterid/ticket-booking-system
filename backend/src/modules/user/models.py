@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, CheckConstraint, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 
 
 class UserRole(StrEnum):
@@ -17,13 +17,13 @@ class UserRole(StrEnum):
     @property
     def _weight(self) -> int:
         weights = {
-            UserRole.USER.value: 10,
-            UserRole.ON_VERIFICATION.value: 10,
-            UserRole.VERIFIED_USER.value: 20,
-            UserRole.MODERATOR.value: 30,
-            UserRole.ADMIN.value: 40,
+            UserRole.USER: 10,
+            UserRole.ON_VERIFICATION: 10,
+            UserRole.VERIFIED_USER: 20,
+            UserRole.MODERATOR: 30,
+            UserRole.ADMIN: 40,
         }
-        return weights[self.value]
+        return weights[self]
 
     def __lt__(self, other: "UserRole") -> bool:
         if not isinstance(other, UserRole):

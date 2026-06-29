@@ -1,12 +1,12 @@
 import asyncio
 import sys
 
-from src.core.infra.transport.http.dependencies import get_config
+from src.app.uow import create_app_uow
 from src.core.security.passwords import PasswordManager
-from src.app.main import create_sqlalchemy_uow
+from src.core.settings import get_settings
 from src.modules.user.models import UserRole
 
-config = get_config()
+config = get_settings()
 
 pwd_manager = PasswordManager(algorithm=config.password_algorithm, iterations=config.password_iterations)
 
@@ -19,7 +19,7 @@ async def create_user_cli(email: str, password: str, role_str: str):
         return
 
     print(f"Creating user {email} with role {role.value}...")
-    uow = create_sqlalchemy_uow()
+    uow = create_app_uow()
 
     async with uow:
         existing_user = await uow.user.get_by_email(email)

@@ -1,3 +1,6 @@
+import importlib
+from pathlib import Path
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from taskiq import InMemoryBroker
@@ -9,9 +12,22 @@ from src.core.infra.transport.http.dependencies import get_jwt_manager, get_pass
 from src.core.infra.cache.factory import get_cache_manager
 from src.core.infra.database.orm.base import AbstractORMModel
 from src.core.database import db_factory
-from src.core.security.jwt_tokens import JWTManager
+from src.core.security import JWTManager
 
-from src.modules.order import tasks
+BASE_DIR = Path(__file__).parent.parent
+SRC_DIR = BASE_DIR / "src"
+
+
+def import_all_tasks() -> None:
+    modules_dir = SRC_DIR / "modules"
+
+    for tasks_file in modules_dir.glob("**/tasks.py"):
+        relative_path = tasks_file.relative_to(BASE_DIR)
+        module_name = ".".join(relative_path.with_suffix("").parts)
+        importlib.import_module(module_name)
+
+
+import_all_tasks()
 
 test_config = AppConfig(
     testing=True,
@@ -115,3 +131,18 @@ def create_model_factory():
         return obj
 
     return _create
+
+
+@pytest.fixture
+async def api_client(client, request, get_auth_headers):
+    user_role = getattr(request.cls, "user_role", None) or getattr(request.function, "user_role", None)
+    user_id = getattr(request.cls, "user_id", 1)
+
+    if user_role:
+        headers = get_auth_headers(user_id=user_id, role=user_role)
+        client.headers.update(headers)
+    else:
+        client.headers.pop("Authorization", None)
+
+    return client
+

@@ -1,18 +1,16 @@
 import asyncio
 import random
 from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from src.app.uow import create_app_uow
 from src.core.security.passwords import PasswordManager
 from src.core.settings import get_settings
-
+from src.modules.event.models import EventCategory, EventType, EventState
+from src.modules.order.models import OrderStatus
 from src.modules.user.models import User, UserRole
-from src.modules.event.models import EventCategory, Event, EventType, EventState
-from src.modules.ticket.models import TicketCategory, Ticket, TicketStatus
-from src.modules.order.models import Order, OrderItem, OrderStatus
-from src.modules.views.models import ViewLog
 
 CATEGORIES_POOL = {
     "Музыка": ["Рок и Альтернатива", "Джаз и Блюз", "Электронная музыка", "Классика в соборе", "Поп-хиты"],
@@ -22,7 +20,8 @@ CATEGORIES_POOL = {
     "Развлечения": ["Стендап шоу", "Гастро-фестивали", "Квизы и Настолки", "Ночные маркеты", "Выставки комиксов"]
 }
 
-EVENT_ADJECTIVES = ["Грандиозный", "Камерный", "Ежегодный", "Международный", "Секретный", "Благотворительный", "Юбилейный"]
+EVENT_ADJECTIVES = ["Грандиозный", "Камерный", "Ежегодный", "Международный", "Секретный", "Благотворительный",
+                    "Юбилейный"]
 EVENT_NOUNS = ["Фестиваль", "Воркшоп", "Перформанс", "Концерт", "Турнир", "Симпозиум", "Рейв", "Слёт"]
 
 CITIES_POOL = [

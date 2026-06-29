@@ -3,7 +3,7 @@ from typing import Any, Optional
 from sqlalchemy import insert, update, select, delete
 from sqlalchemy.orm import joinedload
 
-from src.core.infra.database.repositories.base import GenericRepository
+from src.core.infra.database.repositories import GenericRepository
 from src.modules.order.data_objects import OrderItemDTO, OrderDTO
 from src.modules.order.models import Order, OrderItem, OrderStatus
 from src.modules.ticket.models import Ticket, TicketStatus, TicketCategory
@@ -143,7 +143,7 @@ class OrderRepository(GenericRepository[Order, OrderDTO], model=Order, dto=Order
             limit: int = 100,
             order_by: str | None = None
     ) -> tuple[list[OrderDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"user_id": user_id},
@@ -162,7 +162,7 @@ class OrderItemRepository(GenericRepository[OrderItem, OrderItemDTO], model=Orde
             limit: int = 100,
             order_by: str | None = None
     ) -> tuple[list[OrderItemDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
             filters=(filters or {}) | {"order.user_id": user_id},

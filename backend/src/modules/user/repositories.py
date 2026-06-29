@@ -1,8 +1,6 @@
 from typing import Any, Optional
 
-from sqlalchemy import delete, insert, update
-
-from src.core.infra.database.repositories.base import GenericRepository
+from src.core.infra.database.repositories import GenericRepository
 from src.modules.user.data_objects import UserDTO
 from src.modules.user.models import User, UserRole
 
@@ -47,11 +45,17 @@ class UserRepository(GenericRepository[User, UserDTO], model=User, dto=UserDTO):
         return res[0] if res else None
 
     async def get_for_verification(
-        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
+            self,
+            *,
+            offset: int = 0,
+            limit: int = 100,
+            order_by: str | None = None,
+            **kwargs: Any
     ) -> tuple[list[UserDTO], int]:
-        return await super().get_all_with_pagination(
+        return await super().paginate(
             offset=offset,
             limit=limit,
-            filters=(filters or {}) | {"role": UserRole.ON_VERIFICATION},
-            order_by=order_by
+            order_by=order_by,
+            role=UserRole.ON_VERIFICATION,
+            **kwargs
         )
