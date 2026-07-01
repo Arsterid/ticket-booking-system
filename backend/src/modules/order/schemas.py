@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import Field, EmailStr, computed_field
+from pydantic import computed_field, EmailStr, Field
 
-from src.core.infra.transport.http.schemas.base import GenericRequestSchema, GenericResponseSchema, FilterParamsSchema
-from src.modules.order.models import OrderStatus
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from .models import OrderStatus
 
 
 class OrderItemCreateSchema(GenericRequestSchema):

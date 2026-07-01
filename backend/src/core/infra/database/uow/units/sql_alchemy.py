@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Type, get_origin, get_type_hints
+from typing import Any, get_type_hints, Type
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -23,17 +23,13 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         seen_repo_classes: set[Type] = set()
 
         for attr_name, attr_type in hints.items():
-            if get_origin(attr_type) is not None:
-                raise TypeError(
-                    f"Invalid annotation in {self.__class__.__name__}.{attr_name}: "
-                    f"Using Generic types like 'Repository[Model]' is forbidden. "
-                    f"Please specify a concrete repository class."
-                )
+            if attr_name.startswith('_'):
+                continue
 
             if not inspect.isclass(attr_type):
                 raise TypeError(
                     f"Invalid annotation in {self.__class__.__name__}.{attr_name}: "
-                    f"The type hint must be a clean class. "
+                    f"The type hint must resolve to a clean class. "
                     f"Using Union, Optional, or '| None' is forbidden."
                 )
 
@@ -97,6 +93,12 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         self._repositories[name] = repo_instance
         return repo_instance
 
+    def get_repo_cls(self, repo_name: str) -> GenericRepository:
+        hints = get_type_hints(self.__class__)
+        if repo_name not in hints:
+            raise AttributeError(f"'{self.__class__.__name__}' has no registered repository named '{repo_name}'")
+        return hints[repo_name]
+
     async def commit(self):
         if self._session:
             await self._session.commit()
@@ -109,3 +111,6 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         if self._session:
             await self._session.refresh(*args, **kwargs)
 
+    async def flush(self, *args, **kwargs):
+        if self._session:
+            await self._session.flush(*args, **kwargs)

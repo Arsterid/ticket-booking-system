@@ -38,10 +38,11 @@ class TestUserRegistrationTrigger:
                 "order",
                 id=10,
                 anonymous_email="register_test@example.com",
-                order_items=[
-                    {"category_id": ticket_cat.id, "quantity": 1}
-                ]
             )
+            await uow.flush()
+
+            await uow.order_item.filter(order_id=10).create(category_id=ticket_cat.id, quantity=1)
+            await uow.flush()
 
         payload = {"email": "register_test@example.com", "username": "tester", "password": "securepassword123"}
         response = await api_client.post("/users", json=payload)

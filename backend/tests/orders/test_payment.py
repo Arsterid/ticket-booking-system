@@ -12,9 +12,12 @@ class TestOrderPayment:
         async with setup_uow as uow:
             await seed_order_env(uow)
             await create_model_factory(
-                uow, "order", id=777, status=OrderStatus.PENDING, user_id=1, anonymous_email=None,
-                order_items=[{"category_id": 1, "quantity": 1}]
+                uow, "order", id=777, status=OrderStatus.PENDING, user_id=1, anonymous_email=None
             )
+            await uow.flush()
+            item = await uow.order_item.filter(order_id=777).create(category_id=1, quantity=1)
+            await uow.ticket.create(category_id=1, order_item_id=item.id)
+            await uow.flush()
 
         response = await api_client.patch("/orders/777/pay")
         assert response.status_code == status.HTTP_200_OK
@@ -28,9 +31,12 @@ class TestOrderPayment:
         async with setup_uow as uow:
             await seed_order_env(uow)
             await create_model_factory(
-                uow, "order", id=888, status=OrderStatus.PENDING, user_id=1, anonymous_email=None,
-                order_items=[{"category_id": 1, "quantity": 1}]
+                uow, "order", id=888, status=OrderStatus.PENDING, user_id=1, anonymous_email=None
             )
+            await uow.flush()
+            item = await uow.order_item.filter(order_id=888).create(category_id=1, quantity=1)
+            await uow.ticket.create(category_id=1, order_item_id=item.id)
+            await uow.flush()
 
         idempotency_key = str(uuid.uuid4())
         headers = {"Idempotency-Key": idempotency_key}
@@ -47,9 +53,12 @@ class TestOrderPayment:
         async with setup_uow as uow:
             await seed_order_env(uow)
             await create_model_factory(
-                uow, "order", id=999, status=OrderStatus.PENDING, user_id=1, anonymous_email=None,
-                order_items=[{"category_id": 1, "quantity": 1}]
+                uow, "order", id=999, status=OrderStatus.PENDING, user_id=1, anonymous_email=None
             )
+            await uow.flush()
+            item = await uow.order_item.filter(order_id=999).create(category_id=1, quantity=1)
+            await uow.ticket.create(category_id=1, order_item_id=item.id)
+            await uow.flush()
 
         idempotency_key = str(uuid.uuid4())
         headers = {"Idempotency-Key": idempotency_key}
@@ -74,9 +83,12 @@ class TestOrderPayment:
         async with setup_uow as uow:
             await seed_order_env(uow)
             await create_model_factory(
-                uow, "order", id=444, status=invalid_status, user_id=1, anonymous_email=None,
-                order_items=[{"category_id": 1, "quantity": 1}]
+                uow, "order", id=444, status=invalid_status, user_id=1, anonymous_email=None
             )
+            await uow.flush()
+            item = await uow.order_item.filter(order_id=444).create(category_id=1, quantity=1)
+            await uow.ticket.create(category_id=1, order_item_id=item.id)
+            await uow.flush()
 
         response = await api_client.patch("/orders/444/pay")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -84,6 +96,7 @@ class TestOrderPayment:
     async def test_pay_non_existent_order(self, api_client, setup_uow, seed_order_env):
         async with setup_uow as uow:
             await seed_order_env(uow)
+            await uow.flush()
 
         response = await api_client.patch("/orders/999999/pay")
         assert response.status_code == status.HTTP_404_NOT_FOUND

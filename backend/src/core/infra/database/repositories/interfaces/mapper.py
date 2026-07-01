@@ -32,11 +32,10 @@ class RepositoryMapper(Generic[ORM_MODEL_T, DTO_T]):
             first_instance = first_instance[0]
 
         first_insp = inspect(first_instance)
-        mapper = first_insp if hasattr(first_insp, "mapper") else first_insp.mapper
+        mapper = first_insp.mapper if hasattr(first_insp, "mapper") else first_insp
 
         hybrid_fields = {attr.__name__ for attr in mapper.all_orm_descriptors if isinstance(attr, hybrid_property)}
         relationships = mapper.relationships
-        dto_class = self.dto
 
         items_dto = []
         for instance in instances:
@@ -57,6 +56,6 @@ class RepositoryMapper(Generic[ORM_MODEL_T, DTO_T]):
                     if f not in obj_insp.unloaded:
                         loaded_data[f] = getattr(actual_instance, f)
 
-            items_dto.append(dto_class(**loaded_data))
+            items_dto.append(self.dto(**loaded_data))
 
         return items_dto if is_sequence else items_dto[0]

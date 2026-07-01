@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.core.infra.database.repositories.data_objects import BaseDTO
-from src.modules.event.models import EventState, EventStatus, EventType
+from src.core.infra.database.repositories.query.data_objects import BaseDTO
+from .models import EventState, EventStatus, EventType
 
 
 @dataclass(frozen=True)

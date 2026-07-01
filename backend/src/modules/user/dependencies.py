@@ -3,10 +3,10 @@ from typing import Annotated, Optional
 from fastapi import Depends
 
 from src.core.infra.database.uow_factory import get_uow_factory
-from src.modules.user.models import UserRole
-from src.modules.user.roles import RoleChecker
-from src.modules.user.schemas import UsersFilterParamsSchema
-from src.modules.user.services import UserService
+from .models import UserRole
+from .roles import RoleChecker
+from .schemas import UsersFilterParamsSchema
+from .services import UserService
 
 UserServiceDep = Annotated[UserService, Depends(get_uow_factory(UserService))]
 

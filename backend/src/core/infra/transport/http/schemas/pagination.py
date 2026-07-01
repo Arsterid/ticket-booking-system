@@ -1,44 +1,14 @@
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
-from src.core.infra.database.constants import DB_INT_MAX, DB_INT_MIN
-
-
-class GenericResponseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-
-class GenericRequestSchema(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    @model_validator(mode="before")
-    @classmethod
-    def check_int_overflow(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            for key, value in data.items():
-                if isinstance(value, int) and not isinstance(value, bool):
-                    if not (DB_INT_MIN <= value <= DB_INT_MAX):
-                        raise ValueError(f"Value for field '{key}' exceeds database integer limits.")
-        return data
+from .generic import GenericRequestSchema
 
 
 class PaginatedResponseSchema[T](BaseModel):
     count: int
     max_pages: int
     results: List[T]
-
-
-class GenericIdResponseSchema(BaseModel):
-    id: int
-
-
-class GenericModerationSchema(BaseModel):
-    result: bool
-
-
-class GenericSuccessResponseSchema(BaseModel):
-    success: bool
 
 
 class PaginationParamsSchema(GenericRequestSchema):

@@ -1,15 +1,22 @@
+from collections import Counter
 from typing import Any, Optional, Union, overload
 
-from src.modules.views.protocols import ViewableServiceProtocol
+from .protocols import ViewableServiceProtocol
 
 
 class ViewableServiceMixin:
 
+    def _get_model_name(self) -> str:
+        raise NotImplementedError(
+            f"Service '{self.__class__.__name__}' uses ViewableServiceMixin "
+            f"but does not implement the '_get_model_name()' method."
+        )
+
     def _get_cache_key(self: ViewableServiceProtocol, obj_id: int) -> str:
-        return f"views:{self._repo_cls.get_model_name()}:{obj_id}"
+        return f"views:{self._get_model_name()}:{obj_id}"
 
     def _get_hll_key(self: ViewableServiceProtocol, obj_id: int) -> str:
-        return f"views:{self._repo_cls.get_model_name()}:{obj_id}:daily_hll"
+        return f"views:{self._get_model_name()}:{obj_id}:daily_hll"
 
     @overload
     async def get_views(self: ViewableServiceProtocol, obj_id: int) -> int:
@@ -37,10 +44,17 @@ class ViewableServiceMixin:
 
             if missing_ids:
                 async with self.uow:
-                    db_results = await self.uow.view_logs.get_views(
-                        table_name=self._repo_cls.get_model_name(),
-                        obj_id=missing_ids
+                    logs = await (
+                        self.uow.view_logs
+                        .filter(
+                            object_type=self._get_model_name(),
+                            object_id__in=missing_ids
+                        )
+                        .all()
                     )
+
+                counts_map = Counter(log.object_id for log in logs)
+                db_results = {oid: counts_map[oid] for oid in missing_ids}
 
                 final_counts.update(db_results)
                 cache_mapping = {id_to_key[m_id]: db_results[m_id] for m_id in missing_ids}
@@ -61,9 +75,13 @@ class ViewableServiceMixin:
                 return int(cached_views)
 
             async with self.uow:
-                db_count = await self.uow.view_logs.get_views(
-                    table_name=self._repo_cls.get_model_name(),
-                    obj_id=obj_id
+                db_count = await (
+                    self.uow.view_logs
+                    .filter(
+                        object_type=self._get_model_name(),
+                        object_id=obj_id
+                    )
+                    .count()
                 )
 
             await self.cache.set(cache_key, db_count, ttl=86400)
@@ -95,11 +113,16 @@ class ViewableServiceMixin:
 
             await self.cache.incr(target_cache_keys, ttl=86400, expire_keys=target_hll_keys)
 
+            view_logs_data = [
+                {"object_type": self._get_model_name(), "object_id": oid, "user_id": user_id}
+                for oid in unique_ids
+            ]
+
             async with self.uow:
-                await self.uow.view_logs.log_view(
-                    table_name=self._repo_cls.get_model_name(),
-                    obj_id=unique_ids,
-                    user_id=user_id
+                await self.uow.view_logs.create(
+                    view_logs_data,
+                    on_conflict_do_nothing=True,
+                    index_elements=["object_type", "object_id", "user_id"]
                 )
             return
 
@@ -112,18 +135,20 @@ class ViewableServiceMixin:
             await self.cache.expire(hll_key, 86400)
 
             async with self.uow:
-                await self.uow.view_logs.log_view(
-                    table_name=self._repo_cls.get_model_name(),
-                    obj_id=obj_id,
-                    user_id=user_id
+                await self.uow.view_logs.create(
+                    object_type=self._get_model_name(),
+                    object_id=obj_id,
+                    user_id=user_id,
+                    on_conflict_do_nothing=True,
+                    index_elements=["object_type", "object_id", "user_id"]
                 )
 
     @overload
-    def _enrich_with_views(self: ViewableServiceProtocol, items: Any) -> Any:
+    async def _enrich_with_views(self: ViewableServiceProtocol, items: Any) -> Any:
         ...
 
     @overload
-    def _enrich_with_views(self: ViewableServiceProtocol, items: list[Any]) -> list[Any]:
+    async def _enrich_with_views(self: ViewableServiceProtocol, items: list[Any]) -> list[Any]:
         ...
 
     async def _enrich_with_views(self: ViewableServiceProtocol, items: Any | list[Any]) -> Any | list[Any]:

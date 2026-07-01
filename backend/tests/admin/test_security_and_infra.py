@@ -70,7 +70,10 @@ class TestAdminEndpointsPermissions:
     )
     async def test_admin_endpoints_forbidden_for_regular_user(self, api_client, method, url, payload):
         http_method = getattr(api_client, method.lower())
-        response = await http_method(url, json=payload)
+        kwargs = {}
+        if payload is not None:
+            kwargs["json"] = payload
+        response = await http_method(url, **kwargs)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -87,5 +90,8 @@ class TestAdminEndpointsUnauthorized:
     )
     async def test_admin_endpoints_unauthorized(self, api_client, method, url, payload):
         http_method = getattr(api_client, method.lower())
-        response = await http_method(url, json=payload, headers={})
+        kwargs = {"headers": {}}
+        if payload is not None:
+            kwargs["json"] = payload
+        response = await http_method(url, **kwargs)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED

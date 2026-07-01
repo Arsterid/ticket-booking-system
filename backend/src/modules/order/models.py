@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.modules.ticket.models import Ticket
+
 from enum import StrEnum
 from typing import Optional
 
@@ -47,3 +52,5 @@ class OrderItem(AbstractORMModel):
     quantity: Mapped[int] = mapped_column(Integer)
 
     purchase_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="order_item")

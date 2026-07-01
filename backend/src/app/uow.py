@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from src.core.database import db_factory
+from src.core.infra.database.repositories import Repository
 from src.core.infra.database.uow.units import SQLAlchemyUnitOfWork
-from src.modules.views.repositories import ViewLogRepository
-from src.modules.event.repositories import EventCategoryRepository, EventRepository
-from src.modules.ticket.repositories import TicketRepository, TicketCategoryRepository
-from src.modules.order.repositories import OrderRepository, OrderItemRepository
-from src.modules.user.repositories import UserRepository
+from src.modules.event.data_objects import EventCategoryDTO, EventDTO
+from src.modules.event.models import Event, EventCategory
+from src.modules.order.data_objects import OrderDTO, OrderItemDTO
+from src.modules.order.models import Order, OrderItem
+from src.modules.ticket.data_objects import TicketCategoryDTO, TicketDTO
+from src.modules.ticket.models import Ticket, TicketCategory
+from src.modules.user.data_objects import UserDTO
+from src.modules.user.models import User
+from src.modules.views.data_objects import ViewLogDTO
+from src.modules.views.models import ViewLog
 
 
 class AppUnitOfWork(SQLAlchemyUnitOfWork):
@@ -17,26 +23,22 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
     (IDE auto-completion, mypy/pyright) and runtime initialization.
 
     Strict validation rules enforced during initialization:
-    - Attributes must be strictly type-hinted with concrete repository classes.
-    - Raw GenericRepository or generic placeholders (e.g., Repo[Model]) are forbidden.
+    - Attributes must be strictly type-hinted using the Repository[Model, DTO] marker.
+    - Bare GenericRepository or raw class injections without generic arguments are forbidden.
     - Complex types like Union, Optional, or '| None' are forbidden.
-    - Reusing the same repository class across multiple attributes is forbidden.
+    - Automatically generated repository classes are isolated and strictly unique per attribute.
 
     Format:
-        attribute_name: ConcreteRepositoryClass
+        attribute_name: Repository[Model, DTO]
     """
-
-    user: UserRepository
-
-    event: EventRepository
-    event_category: EventCategoryRepository
-
-    ticket: TicketRepository
-    ticket_category: TicketCategoryRepository
-    order: OrderRepository
-    order_item: OrderItemRepository
-
-    view_logs: ViewLogRepository
+    user: Repository[User, UserDTO]
+    event: Repository[Event, EventDTO]
+    event_category: Repository[EventCategory, EventCategoryDTO]
+    ticket: Repository[Ticket, TicketDTO]
+    ticket_category: Repository[TicketCategory, TicketCategoryDTO]
+    order: Repository[Order, OrderDTO]
+    order_item: Repository[OrderItem, OrderItemDTO]
+    view_logs: Repository[ViewLog, ViewLogDTO]
 
 
 def create_app_uow() -> AppUnitOfWork:

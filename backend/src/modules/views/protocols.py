@@ -1,16 +1,7 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from src.core.infra.database.repositories import GenericRepository
-
-
 from typing import Any, Optional, Protocol, Union, overload
 
 
 class ViewableServiceProtocol(Protocol):
-    _repo_cls: "GenericRepository"
 
     @property
     def uow(self) -> Any: ...
@@ -18,8 +9,7 @@ class ViewableServiceProtocol(Protocol):
     @property
     def cache(self) -> Any: ...
 
-    @property
-    def model_name(self) -> str: ...
+    def _get_model_name(self) -> str: ...
 
     def _get_cache_key(self, obj_id: int) -> str: ...
 

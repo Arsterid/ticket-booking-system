@@ -1,9 +1,10 @@
 from fastapi import APIRouter, status
 
-from src.core.infra.transport.http.schemas.base import GenericSuccessResponseSchema
+from src.core.infra.transport.http import GenericSuccessResponseSchema
 from src.modules.user.dependencies import OptionalUserIdDep
-from src.modules.views.dependencies import DynamicServiceDep
-from src.modules.views.schemas import RegisterViewsRequestSchema
+from .dependencies import DynamicServiceDep
+from .schemas import RegisterViewsRequestSchema
+
 
 views_router = APIRouter(
     prefix="/views",

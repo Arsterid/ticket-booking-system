@@ -15,12 +15,17 @@ class TestModerationEndpointsPermissions:
         ],
     )
     async def test_moderation_endpoints_forbidden_for_regular_user(
-        self, api_client, setup_uow, create_model_factory, method, url, payload
+            self, api_client, setup_uow, create_model_factory, method, url, payload
     ):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=1, email="user@test.com", username="user", password="pwd")
 
         http_method = getattr(api_client, method.lower())
-        response = await http_method(url, json=payload)
+
+        kwargs = {}
+        if payload is not None:
+            kwargs["json"] = payload
+
+        response = await http_method(url, **kwargs)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN

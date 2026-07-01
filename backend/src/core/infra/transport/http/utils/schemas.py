@@ -1,9 +1,8 @@
-from copy import deepcopy
 from typing import Any, Type
 
 from pydantic import BaseModel
 
-from src.core.infra.transport.http.annotations import PYDANTIC_MODEL_T
+from ..annotations import PYDANTIC_MODEL_T
 
 
 def partial_model(base_model: Type[BaseModel]):

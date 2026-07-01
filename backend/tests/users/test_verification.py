@@ -13,8 +13,8 @@ class TestUserVerificationApply:
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {"success": True}
 
-    async def test_apply_for_verification_unauthorized(self, api_client):
-        response = await api_client.post("/users/verification/apply", headers={})
+    async def test_apply_for_verification_unauthorized(self, client):
+        response = await client.post("/users/verification/apply", headers={})
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.parametrize("initial_role", ["on_verification", "verified_user"])

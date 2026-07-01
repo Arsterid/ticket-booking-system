@@ -1,4 +1,4 @@
-from src.core.infra.transport.http.schemas.base import GenericRequestSchema
+from src.core.infra.transport.http import GenericRequestSchema
 
 
 class RegisterViewsRequestSchema(GenericRequestSchema):

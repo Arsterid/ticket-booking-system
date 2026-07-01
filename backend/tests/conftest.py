@@ -127,7 +127,7 @@ def create_model_factory():
     async def _create(uow, repo_attr, **kwargs):
         repo = getattr(uow, repo_attr)
         obj = await repo.create(**kwargs)
-        await uow._session.flush()
+        await uow.flush()
         return obj
 
     return _create

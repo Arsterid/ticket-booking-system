@@ -2,13 +2,12 @@ from typing import Any
 
 from src.app.exceptions import ObjectNotFoundException, WrongStateException
 from src.app.uow import AppUnitOfWork
-from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
+from src.core.infra.transport.http import PaginatedResponseSchema
 from src.domain.services.base import GenericService
 from src.modules.event.models import EventStatus
-from src.modules.ticket.data_objects import TicketCategoryDTO
-from src.modules.ticket.schemas import (
-    TicketResponseSchema, TicketCategoryCreateSchema, TicketCategoryResponseSchema, TicketCategoryUpdateSchema
-)
+from .data_objects import TicketCategoryDTO
+from .schemas import (TicketCategoryCreateSchema, TicketCategoryResponseSchema, TicketCategoryUpdateSchema,
+                      TicketResponseSchema)
 
 
 class TicketService(GenericService[AppUnitOfWork]):
@@ -22,12 +21,11 @@ class TicketService(GenericService[AppUnitOfWork]):
             order_by: str | None = None,
     ) -> PaginatedResponseSchema[TicketResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.ticket.get_all_by_user_id(
-                filters=filters,
-                user_id=user_id,
-                offset=offset,
-                limit=limit,
-                order_by=order_by,
+            items, count = await (
+                self.uow.ticket
+                .filter(order_item__order__user_id=user_id, **(filters or {}))
+                .order_by(order_by)
+                .paginate(offset=offset, limit=limit)
             )
 
             return self._paginate(
@@ -55,8 +53,11 @@ class TicketService(GenericService[AppUnitOfWork]):
                     value=event_id,
                 )
 
-            items, count = await self.uow.ticket.get_all_by_event_id(
-                filters=filters, event_id=event_id, offset=offset, limit=limit, order_by=order_by
+            items, count = await (
+                self.uow.ticket
+                .filter(category__event_id=event_id, **(filters or {}))
+                .order_by(order_by)
+                .paginate(offset=offset, limit=limit)
             )
 
             return self._paginate(
@@ -101,19 +102,20 @@ class TicketCategoryService(GenericService[AppUnitOfWork]):
         async with self.uow:
             await self._validate_modification(user_id=user_id, obj_id=obj_id)
 
-            updated_category = await self.uow.ticket_category.update(
-                filters={"obj_id": obj_id},
-                **data.model_dump(exclude_unset=True)
+            updated_category = await (
+                self.uow.ticket_category
+                .filter(id=obj_id)
+                .update(**data.model_dump(exclude_unset=True))
             )
 
             await self.uow.commit()
-            return TicketCategoryResponseSchema.model_validate(updated_category[0])
+            return TicketCategoryResponseSchema.model_validate(updated_category)
 
     async def delete(self, user_id: int, obj_id: int) -> bool:
         async with self.uow:
             await self._validate_modification(user_id=user_id, obj_id=obj_id)
 
-            await self.uow.ticket_category.delete(obj_id=obj_id)
+            await self.uow.ticket_category.filter(id=obj_id).delete()
 
             await self.uow.commit()
             return True
@@ -133,17 +135,20 @@ class TicketCategoryService(GenericService[AppUnitOfWork]):
             if not event_obj:
                 raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=event_id)
 
-            filters: dict[str, Any] = (filters or {}) | {"event_id": event_id}
+            query_filters: dict[str, Any] = (filters or {}) | {"category__event_id": event_id}
 
             if event_obj.user_id != user_id:
                 if event_obj.status != EventStatus.UPCOMING:
                     raise ObjectNotFoundException(table=self.uow.event.get_model_name(), value=event_id)
 
-                filters["event.status"] = EventStatus.UPCOMING
+                query_filters["event__status"] = EventStatus.UPCOMING
 
-            items, count = await self.uow.ticket_category.get_all_by_event_id(
-                filters=filters, event_id=event_id, offset=offset, limit=limit, order_by=order_by
+            items, count = await (
+                self.uow.ticket_category
+                .filter(**query_filters)
+                .with_joined("items")
+                .order_by(order_by)
+                .paginate(offset=offset, limit=limit)
             )
 
             return self._paginate(schema=TicketCategoryResponseSchema, items=items, total_items=count, limit=limit)
-

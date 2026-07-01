@@ -3,11 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.domain.services import GenericService
-    from src.core.infra.database.repositories import GenericRepository
-    from src.core.infra.database.uow.units import AbstractUnitOfWork
-    from src.core.infra.database.orm.base import BaseORMModel
-    from src.core.infra.database.repositories.data_objects import BaseDTO
+    pass
 
 from typing import TypeVar
 

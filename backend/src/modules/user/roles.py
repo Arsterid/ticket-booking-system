@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.core.infra.transport.http.dependencies import JWTManagerDep
-from src.modules.user.models import UserRole
+from .models import UserRole
 
 user_auth_scheme = HTTPBearer(scheme_name="User_JWT_Token", auto_error=False)
 

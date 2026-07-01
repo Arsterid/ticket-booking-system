@@ -1,6 +1,7 @@
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
 from typing import Any, Callable, Coroutine
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 
 def _build_error_content(exc: Exception) -> dict[str, Any]:
@@ -12,11 +13,12 @@ def _build_error_content(exc: Exception) -> dict[str, Any]:
 
 
 def create_exception_handler(
-    status_code: int,
+        status_code: int,
 ) -> Callable[[Request, Exception], Coroutine[Any, Any, JSONResponse]]:
     async def handler(request: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(
             status_code=status_code,
             content=_build_error_content(exc)
         )
+
     return handler

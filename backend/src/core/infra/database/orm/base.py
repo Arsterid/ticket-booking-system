@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Integer, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
 
-from common.utils.strings import camel_to_snake, pluralize_eng
+from src.common.utils.strings import camel_to_snake, pluralize_eng
 
 
 class BaseORMModel(DeclarativeBase):

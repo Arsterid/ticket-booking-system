@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 from src.core.annotations import UOW_T
 from src.core.infra.transport.http.annotations import PYDANTIC_MODEL_T
 from src.core.infra.cache.managers.abstract import AbstractCacheManager
-from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
+from src.core.infra.transport.http.schemas.pagination import PaginatedResponseSchema
 from src.core.infra.tasks.managers.abstract import AbstractTaskManager
 
 
