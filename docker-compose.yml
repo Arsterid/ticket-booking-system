@@ -88,7 +88,7 @@ services:
       dockerfile: Dockerfile
       target: backend
     container_name: taskiq_worker
-    command: taskiq worker src.core.infra.tasks.config:broker -fsd
+    command: taskiq worker src.core.infra.tasks.config:broker --workers 1
     environment: *backend_env
     depends_on:
       db:
