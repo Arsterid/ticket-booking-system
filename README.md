@@ -96,8 +96,6 @@ The system features advanced asynchronous task queuing, strict data validation p
             ├── user/           # User profiles, weight roles, and validation tasks
             └── views/          # SSR views, template engines mounting, and page routers
 ```
-
-```markdown
 ## Infrastructure Design
 
 The application separates concerns into distinct execution contexts via an optimized, modular multi-file container configuration:
@@ -108,7 +106,8 @@ The application separates concerns into distinct execution contexts via an optim
 * **Hardened Production Overlay (`docker-compose.prod.yml`):** A strict isolation layer that hooks Telemetry services (**Prometheus** and **Grafana**) deep into the private backend perimeter without revealing diagnostic listening sockets to the public internet (`ports: !reset []`).
 * **Optimized Multi-Stage Build (`Dockerfile`):** Implements specialized build target stages (`tests`, `lint`, `backend`) powered by `uv` for minimal image foot-printing. The production tier strips development utilities and verification suites out of final artifacts.
 * **Telemetry & Dependency Guards:** Prometheus targets dynamically poll core operational parameters under static Bearer Token authentication mounted via Docker Secrets. Healthcheck cascades (`pg_isready`, `keydb-cli ping`, `urllib.request`) enforce linear service startups across execution groups.
-```
+
+
 ## Installation and Setup
 
 ### 1. Clone the repository
