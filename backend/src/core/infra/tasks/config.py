@@ -1,8 +1,7 @@
-from taskiq import InMemoryBroker, TaskiqScheduler
+from taskiq import InMemoryBroker, TaskiqEvents, TaskiqScheduler
 from taskiq_redis import ListQueueBroker, RedisAsyncResultBackend, RedisScheduleSource
 
 from src.core.settings import get_settings
-from src.modules.order import tasks  # noqa: F401
 
 settings = get_settings()
 
@@ -18,3 +17,8 @@ scheduler = TaskiqScheduler(
     broker=broker,
     sources=scheduler_sources,
 )
+
+
+@broker.on_event(TaskiqEvents.WORKER_STARTUP)
+async def import_tasks(context):
+    from src.modules.order import tasks  # noqa: F401
