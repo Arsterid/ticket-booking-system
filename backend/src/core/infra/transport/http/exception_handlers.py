@@ -1,6 +1,7 @@
-from fastapi import Request, status
+from typing import Any, Callable, Coroutine
+
+from fastapi import Request
 from fastapi.responses import JSONResponse
-from typing import Any
 
 
 def _build_error_content(exc: Exception) -> dict[str, Any]:
@@ -11,43 +12,13 @@ def _build_error_content(exc: Exception) -> dict[str, Any]:
     return content
 
 
-async def value_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content=_build_error_content(exc)
-    )
+def create_exception_handler(
+        status_code: int,
+) -> Callable[[Request, Exception], Coroutine[Any, Any, JSONResponse]]:
+    async def handler(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            status_code=status_code,
+            content=_build_error_content(exc)
+        )
 
-
-async def service_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content=_build_error_content(exc)
-    )
-
-
-async def object_not_found_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content=_build_error_content(exc)
-    )
-
-
-async def forbidden_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_403_FORBIDDEN,
-        content=_build_error_content(exc)
-    )
-
-
-async def conflict_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT,
-        content=_build_error_content(exc)
-    )
-
-
-async def unauthorized_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        content=_build_error_content(exc)
-    )
+    return handler

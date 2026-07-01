@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from src.core.infra.database.repositories.data_objects import BaseDTO
-from src.modules.user.models import UserRole
+from src.core.infra.database.repositories.query.data_objects import BaseDTO
+from .models import UserRole
 
 
 @dataclass(frozen=True)

@@ -3,9 +3,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from src.core.infra.database.uow_factory import get_uow_factory
-from src.modules.ticket.schemas import TicketsByEventFilterParamsSchema, TicketsFilterParamsSchema, \
-    TicketCategoryFilterParamsSchema
-from src.modules.ticket.services import TicketService, TicketCategoryService
+from .schemas import TicketCategoryFilterParamsSchema, TicketsByEventFilterParamsSchema, TicketsFilterParamsSchema
+from .services import TicketCategoryService, TicketService
 
 TicketServiceDep = Annotated[TicketService, Depends(get_uow_factory(TicketService))]
 TicketCategoryServiceDep = Annotated[TicketCategoryService, Depends(get_uow_factory(TicketCategoryService))]

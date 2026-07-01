@@ -1,12 +1,10 @@
 from fastapi import APIRouter, status
 
-from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
-from src.modules.ticket.dependencies import TicketServiceDep, TicketsFiltersDep, TicketCategoryServiceDep, \
-    TicketCategoryFiltersDep
-from src.modules.ticket.schemas import (
-    TicketResponseSchema, TicketCategoryResponseSchema, TicketCategoryCreateSchema, TicketCategoryUpdateSchema,
-)
-from src.modules.user.dependencies import AnyUserIdDep, VerifiedUserIdDep, OptionalUserIdDep
+from src.core.infra.transport.http import PaginatedResponseSchema
+from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep, VerifiedUserIdDep
+from .dependencies import TicketCategoryFiltersDep, TicketCategoryServiceDep, TicketServiceDep, TicketsFiltersDep
+from .schemas import (TicketCategoryCreateSchema, TicketCategoryResponseSchema, TicketCategoryUpdateSchema,
+                      TicketResponseSchema)
 
 ticket_router = APIRouter(
     prefix="/tickets",

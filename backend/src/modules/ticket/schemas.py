@@ -1,10 +1,9 @@
 from typing import Optional
 
-from pydantic import EmailStr, Field, field_validator
+from pydantic import Field, field_validator
 
-from src.core.infra.transport.http.schemas.base import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
-from src.core.infra.transport.http.utils.schemas import partial_model
-from src.modules.ticket.models import TicketStatus
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, partial_model
+from .models import TicketStatus
 
 
 class TicketCreateSchema(GenericRequestSchema):

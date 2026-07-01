@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from sqlalchemy import DateTime, ForeignKey, String, case, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 
 
 class EventCategory(AbstractORMModel):

@@ -1,12 +1,10 @@
 from fastapi import APIRouter, status
 from starlette.requests import Request
 
-from src.core.infra.transport.http.idempotency import idempotent_endpoint
-from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema, GenericSuccessResponseSchema
-from src.modules.order.dependencies import OrderServiceDep, OrderFilterParamsSchemaDep, OrderItemFilterParamsSchemaDep
-from src.modules.order.schemas import OrderResponseSchema, OrderCreateSchema, OrderFilterParamsSchema, \
-    OrderItemFilterParamsSchema, OrderItemResponseSchema
-from src.modules.user.dependencies import OptionalUserIdDep, AnyUserIdDep
+from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep
+from .dependencies import OrderFilterParamsSchemaDep, OrderItemFilterParamsSchemaDep, OrderServiceDep
+from .schemas import OrderCreateSchema, OrderItemResponseSchema, OrderResponseSchema
+from src.core.infra.transport.http import GenericSuccessResponseSchema, idempotent_endpoint, PaginatedResponseSchema
 
 orders_router = APIRouter(
     prefix="/orders",

@@ -2,9 +2,9 @@ from typing import Optional
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
-from src.core.infra.transport.http.schemas.base import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
 from src.core.infra.transport.http.utils.schemas import partial_model
-from src.modules.event.models import EventType
+from .models import EventType
 
 
 class EventCreateSchema(GenericRequestSchema):
@@ -53,7 +53,7 @@ class EventCategoryResponseSchema(GenericResponseSchema):
     name: str
     parent_id: Optional[int] = None
     can_create_events: Optional[bool] = None
-    can_create_subcategories: Optional[bool] = None  # TODO fix category parameters in admin.
+    can_create_subcategories: Optional[bool] = None
 
 
 class EventResponseSchema(GenericResponseSchema):

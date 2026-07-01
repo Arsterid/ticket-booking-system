@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.modules.ticket.models import Ticket
+
 from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import ForeignKey, String, Enum as SQLEnum, CheckConstraint, Integer, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.infra.database.orm.base import AbstractORMModel
+from src.core.infra.database.orm import AbstractORMModel
 from src.modules.ticket.models import TicketCategory
 
 
@@ -47,3 +52,5 @@ class OrderItem(AbstractORMModel):
     quantity: Mapped[int] = mapped_column(Integer)
 
     purchase_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    tickets: Mapped[list["Ticket"]] = relationship("Ticket", back_populates="order_item")

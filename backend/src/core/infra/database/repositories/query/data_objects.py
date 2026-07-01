@@ -25,10 +25,6 @@ class ModificationResult:
     def scalar_returning(self) -> Optional[Any]:
         return self.returning_rows[0][0] if self.returning_rows else None
 
-    @property
-    def returning_scalars(self) -> list[Any]:
-        return [row[0] for row in self.returning_rows] if self.returning_rows else []
-
 
 @dataclass(frozen=True)
 class CreationResult(Generic[DTO_T]):

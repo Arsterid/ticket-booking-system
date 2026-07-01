@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
-    from src.domain.services.base import GenericService
-    from src.core.infra.database.repositories.base import GenericRepository
-    from src.core.infra.database.uow.units.abstract import AbstractUnitOfWork
-    from src.core.infra.database.orm.base import BaseORMModel
-    from src.core.infra.database.repositories.data_objects import BaseDTO
+    pass
 
 from typing import TypeVar
+
 
 SERVICE_T = TypeVar("SERVICE_T", bound="GenericService")
 REPOSITORY_T = TypeVar("REPOSITORY_T", bound="GenericRepository")

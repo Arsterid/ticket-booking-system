@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, TYPE_CHECKING
+
+from src.core.infra.database.repositories import BaseDTO
 
 if TYPE_CHECKING:
     from src.modules.ticket.data_objects import TicketCategoryDTO
 
 
 @dataclass(slots=True)
-class OrderItemDTO:
+class OrderItemDTO(BaseDTO):
     id: int
     order_id: int
     category_id: int
@@ -17,7 +20,7 @@ class OrderItemDTO:
 
 
 @dataclass(slots=True)
-class OrderDTO:
+class OrderDTO(BaseDTO):
     id: int
     user_id: Optional[int]
     anonymous_email: Optional[str]

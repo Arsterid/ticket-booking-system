@@ -3,12 +3,12 @@ from typing import Annotated
 from fastapi import Depends
 
 from src.core.infra.database.uow_factory import get_uow_factory
-from src.modules.event.schemas import (
+from .schemas import (
     EventCategoryFilterParamsSchema,
     EventsByUserFilterParamsSchema,
     UpcomingEventsFilterParamsSchema,
 )
-from src.modules.event.services import EventService
+from .services import EventService
 
 EventServiceDep = Annotated[EventService, Depends(get_uow_factory(EventService))]
 

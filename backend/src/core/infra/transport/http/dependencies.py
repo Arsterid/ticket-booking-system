@@ -2,9 +2,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from src.core.infra.transport.http.schemas.base import PaginationParamsSchema
-from src.core.security.jwt_tokens import JWTManager
-from src.core.security.passwords import PasswordManager
+from .schemas.pagination import PaginationParamsSchema
+from src.core.security import JWTManager, PasswordManager
 from src.core.settings import AppConfig, get_settings
 
 

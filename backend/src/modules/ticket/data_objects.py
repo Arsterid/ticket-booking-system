@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.core.infra.database.repositories.data_objects import BaseDTO
+from src.core.infra.database.repositories.query.data_objects import BaseDTO
 from src.modules.event.data_objects import EventDTO
 from src.modules.order.data_objects import OrderItemDTO
-from src.modules.ticket.models import TicketStatus
+from .models import TicketStatus
 
 
 @dataclass(frozen=True)

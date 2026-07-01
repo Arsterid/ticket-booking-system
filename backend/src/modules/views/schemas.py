@@ -1,6 +1,6 @@
-from src.core.infra.transport.http.schemas.base import GenericRequestSchema
+from src.core.infra.transport.http import GenericRequestSchema
 
 
-class BulkViewsSchema(GenericRequestSchema):
+class RegisterViewsRequestSchema(GenericRequestSchema):
     model_name: str
     object_ids: list[int]

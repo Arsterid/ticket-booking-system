@@ -1,7 +1,7 @@
 from src.core.infra.mail.factory import get_email_service
 from src.core.infra.tasks.config import broker
 from src.core.infra.tasks.factory import logger
-from src.modules.order.dependencies import OrderServiceDep
+from .dependencies import OrderServiceDep
 
 
 @broker.task(task_name="order:cancel_reservation")

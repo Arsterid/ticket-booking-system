@@ -1,12 +1,13 @@
 from typing import Any
 
+from src.app.exceptions import ObjectNotFoundException, ServiceException, UniqueFieldException
 from src.app.uow import AppUnitOfWork
+from src.core.infra.transport.http import PaginatedResponseSchema
 from src.core.infra.transport.http.dependencies import PasswordManager
-from src.core.infra.transport.http.schemas.base import PaginatedResponseSchema
-from src.domain.services.base import GenericService
-from src.app.exceptions import ServiceException, ObjectNotFoundException, UniqueFieldException
+
 from src.core.security.jwt_tokens import JWTManager
-from src.modules.user.exceptions import (
+from src.domain.services.base import GenericService
+from .exceptions import (
     CannotBanAdminException,
     CannotBanYourselfException,
     CannotUnbanYourselfException,
@@ -16,8 +17,8 @@ from src.modules.user.exceptions import (
     UserIsNotBannedException,
     UserVerificationConflictException,
 )
-from src.modules.user.models import UserRole
-from src.modules.user.schemas import (
+from .models import UserRole
+from .schemas import (
     UserCreateResponseSchema,
     UserCreateSchema,
     UserLoginResponseSchema,
@@ -29,7 +30,11 @@ from src.modules.user.schemas import (
 class UserService(GenericService[AppUnitOfWork]):
     async def create(self, pwd_manager: PasswordManager, data: UserCreateSchema) -> UserCreateResponseSchema:
         async with self.uow:
-            existing_obj = await self.uow.user.get_by_email(data.email)
+            try:
+                existing_obj = await self.uow.user.get(email=data.email)
+            except ValueError:
+                existing_obj = None
+
             if existing_obj:
                 raise UniqueFieldException(
                     field="email",
@@ -48,10 +53,13 @@ class UserService(GenericService[AppUnitOfWork]):
             return UserCreateResponseSchema.model_validate(obj)
 
     async def authenticate(
-        self, data: UserLoginSchema, pwd_manager: PasswordManager, jwt_manager: JWTManager
+            self, data: UserLoginSchema, pwd_manager: PasswordManager, jwt_manager: JWTManager
     ) -> UserLoginResponseSchema:
         async with self.uow:
-            user = await self.uow.user.get_by_email(data.email)
+            try:
+                user = await self.uow.user.get(email=data.email)
+            except ValueError:
+                user = None
 
             if not user or not pwd_manager.verify_password(data.password, user.password):
                 raise IncorrectLoginDataException()
@@ -70,7 +78,11 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def apply_for_verification(self, user_id: int) -> bool:
         async with self.uow:
-            user_dto = await self.uow.user.apply_for_verification(user_id=user_id)
+            user_dto = await (
+                self.uow.user
+                .filter(id=user_id, role=UserRole.USER, is_active=True)
+                .update(role=UserRole.ON_VERIFICATION)
+            )
 
             if user_dto is not None:
                 await self.uow.commit()
@@ -91,10 +103,12 @@ class UserService(GenericService[AppUnitOfWork]):
 
     async def verify(self, user_id: int, result: bool) -> bool:
         async with self.uow:
-            user_dto = (
-                await self.uow.user.verification_approve(user_id=user_id)
-                if result
-                else await self.uow.user.verification_decline(user_id=user_id)
+            target_role = UserRole.VERIFIED_USER if result else UserRole.USER
+
+            user_dto = await (
+                self.uow.user
+                .filter(id=user_id, role=UserRole.ON_VERIFICATION, is_active=True)
+                .update(role=target_role)
             )
 
             if user_dto is not None:
@@ -119,7 +133,7 @@ class UserService(GenericService[AppUnitOfWork]):
             raise CannotBanYourselfException()
 
         async with self.uow:
-            user_dto = await self.uow.user.ban(user_id=user_id)
+            user_dto = await self.uow.user.filter(id=user_id, role__ne=UserRole.ADMIN).update(is_active=False)
 
             if user_dto is not None:
                 await self.uow.commit()
@@ -143,7 +157,7 @@ class UserService(GenericService[AppUnitOfWork]):
             raise CannotUnbanYourselfException()
 
         async with self.uow:
-            user_dto = await self.uow.user.unban(user_id=user_id)
+            user_dto = await self.uow.user.filter(id=user_id).update(is_active=True)
 
             if user_dto is not None:
                 await self.uow.commit()
@@ -160,10 +174,11 @@ class UserService(GenericService[AppUnitOfWork]):
             raise ServiceException("Unexpected user state.")
 
     async def get_all(
-        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
+            self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.user.get_all_with_pagination(filters=filters, offset=offset, limit=limit, order_by=order_by)
+            items, count = await self.uow.user.filter(**filters).order_by(order_by).paginate(limit=limit, offset=offset)
             return self._paginate(
                 schema=UserResponseSchema,
                 items=items,
@@ -172,11 +187,15 @@ class UserService(GenericService[AppUnitOfWork]):
             )
 
     async def get_for_verification(
-        self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100, order_by: str | None = None
+            self, *, filters: dict[str, Any] | None = None, offset: int = 0, limit: int = 100,
+            order_by: str | None = None
     ) -> PaginatedResponseSchema[UserResponseSchema]:
         async with self.uow:
-            items, count = await self.uow.user.get_for_verification(
-                filters=filters, offset=offset, limit=limit, order_by=order_by
+            items, count = (
+                await self.uow.user
+                .filter(role=UserRole.ON_VERIFICATION, **(filters or {}))
+                .order_by(order_by)
+                .paginate(limit=limit, offset=offset)
             )
             return self._paginate(
                 schema=UserResponseSchema,
