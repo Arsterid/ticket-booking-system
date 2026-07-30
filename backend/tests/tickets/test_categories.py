@@ -33,13 +33,13 @@ class TestTicketCategories:
                 total_quantity=100
             )
 
-        response = await api_client.get("/categories/10?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/10?limit=10&offset=0")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["count"] == 1
 
     async def test_get_all_categories_event_not_found(self, api_client):
-        response = await api_client.get("/categories/999?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/999?limit=10&offset=0")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_all_categories_not_owner_not_upcoming(self, api_client, setup_uow, create_model_factory):
@@ -60,7 +60,7 @@ class TestTicketCategories:
                 category_id=101
             )
 
-        response = await api_client.get("/categories/11?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/11?limit=10&offset=0")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_create_ticket_category_success(self, api_client, setup_uow, create_model_factory):
@@ -86,7 +86,7 @@ class TestTicketCategories:
             "price": 500,
             "total_quantity": 50
         }
-        response = await api_client.post("/categories", json=payload)
+        response = await api_client.post("/tickets/categories", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
 
     async def test_create_ticket_category_event_not_found(self, api_client):
@@ -96,7 +96,7 @@ class TestTicketCategories:
             "price": 500,
             "total_quantity": 50
         }
-        response = await api_client.post("/categories", json=payload)
+        response = await api_client.post("/tickets/categories", json=payload)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_create_ticket_category_not_owner(self, api_client, setup_uow, create_model_factory):
@@ -123,7 +123,7 @@ class TestTicketCategories:
             "price": 500,
             "total_quantity": 50
         }
-        response = await api_client.post("/categories", json=payload)
+        response = await api_client.post("/tickets/categories", json=payload)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_create_ticket_category_wrong_event_state(self, api_client, setup_uow, create_model_factory):
@@ -149,7 +149,7 @@ class TestTicketCategories:
             "price": 500,
             "total_quantity": 50
         }
-        response = await api_client.post("/categories", json=payload)
+        response = await api_client.post("/tickets/categories", json=payload)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_update_ticket_category_success(self, api_client, setup_uow, create_model_factory):
@@ -182,15 +182,16 @@ class TestTicketCategories:
             "name": "Unique Patched Category Name",
             "price": 150
         }
-        response = await api_client.patch("/categories/2", json=payload)
+        response = await api_client.patch("/tickets/categories/2", json=payload)
         assert response.status_code == status.HTTP_200_OK
 
     async def test_update_ticket_category_not_found(self, api_client):
         payload = {
             "name": "Nonexistent Category Name"
         }
-        response = await api_client.patch("/categories/999", json=payload)
+        response = await api_client.patch("/tickets/categories/999", json=payload)
         assert response.status_code == status.HTTP_404_NOT_FOUND
+    
     async def test_update_ticket_category_not_owner(self, api_client, setup_uow, create_model_factory):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=1, email="owner7@test.com", password="pwd")
@@ -221,7 +222,7 @@ class TestTicketCategories:
         payload = {
             "name": "Malicious Name Update"
         }
-        response = await api_client.patch("/categories/3", json=payload)
+        response = await api_client.patch("/tickets/categories/3", json=payload)
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_ticket_category_success(self, api_client, setup_uow, create_model_factory):
@@ -250,11 +251,11 @@ class TestTicketCategories:
                 total_quantity=100
             )
 
-        response = await api_client.delete("/categories/4")
+        response = await api_client.delete("/tickets/categories/4")
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_delete_ticket_category_not_found(self, api_client):
-        response = await api_client.delete("/categories/999")
+        response = await api_client.delete("/tickets/categories/999")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_ticket_category_not_owner(self, api_client, setup_uow, create_model_factory):
@@ -284,5 +285,5 @@ class TestTicketCategories:
                 total_quantity=100
             )
 
-        response = await api_client.delete("/categories/5")
+        response = await api_client.delete("/tickets/categories/5")
         assert response.status_code == status.HTTP_404_NOT_FOUND

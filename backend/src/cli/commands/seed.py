@@ -112,12 +112,11 @@ class SeedCommand(BaseCommand):
             self.update_sub(f"Truncating {table_name} ({idx}/{len(repos)})...")
             await uow._session.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE;"))
 
-
     async def _seed_admin(self, uow) -> None:
         admin_raw_password = "".join(
             random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$", k=14)
         )
-        admin_hashed_password = self.pwd_manager.hash_password(admin_raw_password)
+        admin_hashed_password = await self.pwd_manager.hash_password(admin_raw_password)
         admin_obj = await uow.user.get(email="admin@test.ru")
         if admin_obj is None:
             admin_obj = await uow.user.create(
@@ -146,7 +145,7 @@ class SeedCommand(BaseCommand):
         runtime_raw_password = "".join(
             random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$", k=14)
         )
-        runtime_hashed_password = self.pwd_manager.hash_password(runtime_raw_password)
+        runtime_hashed_password = await self.pwd_manager.hash_password(runtime_raw_password)
 
         for i in range(1, count + 1):
             f_name = random.choice(FIRST_NAMES)

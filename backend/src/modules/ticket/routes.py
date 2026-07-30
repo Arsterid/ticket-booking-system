@@ -28,7 +28,6 @@ async def get_all_by_current_user(
 
 category_router = APIRouter(
     prefix="/categories",
-    tags=["ticket-categories"],
     responses={404: {"description": "Not found"}},
 )
 

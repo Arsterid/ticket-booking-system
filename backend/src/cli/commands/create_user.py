@@ -48,7 +48,7 @@ class CreateUserCommand(BaseCommand):
             algorithm=config.password_algorithm,
             iterations=config.password_iterations
         )
-        hashed_password = pwd_manager.hash_password(password)
+        hashed_password = await pwd_manager.hash_password(password)
 
         self.start_step("create")
         self.update_sub(f"Writing row for {email}...")
