@@ -41,7 +41,7 @@ class UserService(GenericService[AppUnitOfWork]):
                     value=data.email,
                 )
 
-            hashed_password = pwd_manager.hash_password(data.password)
+            hashed_password = await pwd_manager.hash_password(data.password)
             user_data = data.model_dump()
             user_data["password"] = hashed_password
 
@@ -61,7 +61,7 @@ class UserService(GenericService[AppUnitOfWork]):
             except ValueError:
                 user = None
 
-            if not user or not pwd_manager.verify_password(data.password, user.password):
+            if not user or not await pwd_manager.verify_password(data.password, user.password):
                 raise IncorrectLoginDataException()
 
             if not user.is_active:

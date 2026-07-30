@@ -33,7 +33,7 @@ class TestUserAuth:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     async def test_login_success(self, api_client, setup_uow, pwd_manager, create_model_factory):
-        hashed_password = pwd_manager.hash_password("correct_password")
+        hashed_password = await pwd_manager.hash_password("correct_password")
         async with setup_uow as uow:
             await create_model_factory(
                 uow, "user", email="login_test@example.com", username="login_tester", password=hashed_password

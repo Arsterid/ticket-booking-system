@@ -14,7 +14,6 @@ api_v1_router = APIRouter(
 api_v1_router.include_router(moderation_router)
 api_v1_router.include_router(admin_router)
 api_v1_router.include_router(event_router)
-api_v1_router.include_router(category_router)
 api_v1_router.include_router(orders_router)
 api_v1_router.include_router(ticket_router)
 api_v1_router.include_router(user_router)
