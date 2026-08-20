@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.core.infra.database.repositories import BaseDTO
+from src.core.infra.database import BaseDTO
 
 
 @dataclass

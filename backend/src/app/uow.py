@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.core.database import db_factory
+from src.core.infra.database.exceptions.factory import create_postgres_exception_mapper
 from src.core.infra.database.repositories import Repository
 from src.core.infra.database.uow.units import SQLAlchemyUnitOfWork
 from src.modules.event.data_objects import EventCategoryDTO, EventDTO
@@ -42,4 +43,7 @@ class AppUnitOfWork(SQLAlchemyUnitOfWork):
 
 
 def create_app_uow() -> AppUnitOfWork:
-    return AppUnitOfWork(session_factory=db_factory.get_session_maker())
+    return AppUnitOfWork(
+        db_factory=db_factory,
+        exception_mapper=create_postgres_exception_mapper()
+    )

@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi import status
-from datetime import datetime, timedelta, timezone
+
 from src.modules.event.models import EventState
 
 
@@ -24,12 +26,11 @@ class TestModeratorEvents:
                 event_type="online",
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
             )
+            await uow.commit()
 
         response = await api_client.get("/moderation/events?limit=10&offset=0")
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "results" in data
-        assert len(data["results"]) == 1
+        assert response.json()["results"][0]["title"] == "Pending Event"
 
     @pytest.mark.parametrize("result", [True, False])
     async def test_moderate_event_success(self, api_client, setup_uow, create_model_factory, result):
@@ -49,22 +50,29 @@ class TestModeratorEvents:
                 state=EventState.ON_MODERATION,
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
             )
+            await uow.commit()
 
-        payload = {"result": result}
-        response = await api_client.patch("/moderation/events/1", json=payload)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json() == {"success": True}
+        response = await api_client.patch("/moderation/events/1", json={"result": result})
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await api_client.get("/events/1")
+        if result:
+            assert response.status_code == status.HTTP_200_OK
+            assert response.json()["title"] == "Pending Event"
+        else:
+            assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_moderate_event_not_found(self, api_client, setup_uow, create_model_factory):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
+            await uow.commit()
 
-        payload = {"result": True}
-        response = await api_client.patch("/moderation/events/9999", json=payload)
+        response = await api_client.patch("/moderation/events/2147483646", json={"result": True})
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize("already_moderated_state", ["approved", "rejected"])
-    async def test_moderate_event_idempotency(self, api_client, setup_uow, create_model_factory, already_moderated_state):
+    async def test_moderate_event_idempotency(self, api_client, setup_uow, create_model_factory,
+                                              already_moderated_state):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=1, email="author@test.com", username="author", password="pwd")
             await create_model_factory(uow, "user", id=2, email="mod@test.com", username="mod", password="pwd")
@@ -81,7 +89,8 @@ class TestModeratorEvents:
                 state=already_moderated_state,
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
             )
+            await uow.commit()
 
-        payload = {"result": True}
-        response = await api_client.patch("/moderation/events/1", json=payload)
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+        response = await api_client.patch("/moderation/events/1", json={
+            "result": True if already_moderated_state == "approved" else False})
+        assert response.status_code == status.HTTP_204_NO_CONTENT

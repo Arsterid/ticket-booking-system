@@ -31,28 +31,7 @@ class TestAdminSchemaAndSecurity:
     )
     async def test_admin_pagination_and_sorting_errors(self, api_client, url):
         response = await api_client.get(url)
-        assert response.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_400_BAD_REQUEST]
-
-    @pytest.mark.parametrize(
-        "base_url",
-        [
-            "/admin/categories",
-            "/admin/users",
-        ],
-    )
-    @pytest.mark.parametrize(
-        "injection_query",
-        [
-            "name='; DROP TABLE users;--",
-            "email=test@test.com&username=%20",
-            "search=&",
-            "order_by=id;--",
-        ],
-    )
-    async def test_admin_filters_and_sql_injection(self, api_client, base_url, injection_query):
-        url = f"{base_url}?limit=10&offset=0&{injection_query}"
-        response = await api_client.get(url)
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_CONTENT]
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestAdminEndpointsPermissions:

@@ -1,9 +1,12 @@
 from fastapi import APIRouter, status
+from starlette.requests import Request
 
+from src.core.infra.transport.http import cached_endpoint, CacheTag, PaginatedResponseSchema
 from src.core.infra.transport.http.annotations import Int32Path
 from src.modules.ticket.dependencies import TicketsByEventFiltersDep, TicketServiceDep
 from src.modules.ticket.schemas import TicketResponseSchema
-from src.modules.user.dependencies import VerifiedUserIdDep
+from src.modules.user.dependencies import OptionalUserIdDep, VerifiedUserIdDep
+from src.modules.views.schemas import RegisterViewsRequestSchema
 from .dependencies import (
     EventCategoryFiltersDep,
     EventsByUserFiltersDep,
@@ -16,7 +19,6 @@ from .schemas import (
     EventResponseSchema,
     EventUpdateSchema,
 )
-from src.core.infra.transport.http import GenericSuccessResponseSchema, PaginatedResponseSchema
 
 event_router = APIRouter(
     prefix="/events",
@@ -25,22 +27,23 @@ event_router = APIRouter(
 )
 
 
-@event_router.get(
-    "/categories", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
-)
+@event_router.get("/categories", status_code=status.HTTP_200_OK)
+@cached_endpoint(tags=[CacheTag.EVENT_CATEGORIES])
 async def get_categories(
-        event_service: EventServiceDep, filters: EventCategoryFiltersDep
+        request: Request,
+        service: EventServiceDep,
+        filters: EventCategoryFiltersDep,
 ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
-    return await event_service.get_categories(
+    return await service.get_categories(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
     )
 
 
-@event_router.get("/my", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventResponseSchema])
-async def get_all_by_current_user(
-        event_service: EventServiceDep, user_id: VerifiedUserIdDep, filters: EventsByUserFiltersDep
+@event_router.get("/my", status_code=status.HTTP_200_OK)
+async def get_all_private(
+        service: EventServiceDep, user_id: VerifiedUserIdDep, filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_all_by_user_id(
+    return await service.get_all_by_user_id(
         user_id=user_id,
         offset=filters.offset,
         limit=filters.limit,
@@ -49,32 +52,33 @@ async def get_all_by_current_user(
     )
 
 
-@event_router.post("", status_code=status.HTTP_201_CREATED, response_model=EventResponseSchema)
-async def create(
-        event_service: EventServiceDep, body: EventCreateSchema, user_id: VerifiedUserIdDep
-) -> EventResponseSchema:
-    return await event_service.create(data=body, user_id=user_id)
-
-
-@event_router.get("", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventResponseSchema])
-async def get_all_upcoming(
-        event_service: EventServiceDep, filters: UpcomingEventsFiltersDep
-) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_all_upcoming(
-        offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
+@event_router.post("/views", status_code=status.HTTP_204_NO_CONTENT)
+async def increment_views(
+        body: RegisterViewsRequestSchema,
+        service: EventServiceDep,
+        user_id: OptionalUserIdDep
+):
+    await service.increment_views(
+        obj_id=body.object_ids,
+        user_id=user_id
     )
 
 
-@event_router.get(
-    "/{event_id}/tickets", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[TicketResponseSchema]
-)
-async def get_all_tickets_for_current_users_event(
+@event_router.get("/my/{event_id}", status_code=status.HTTP_200_OK)
+async def get_private(
+        service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep
+) -> EventResponseSchema:
+    return await service.get(obj_id=event_id, user_id=user_id)
+
+
+@event_router.get("/{event_id}/tickets", status_code=status.HTTP_200_OK)
+async def get_tickets(
         event_id: Int32Path,
-        ticket_service: TicketServiceDep,
+        service: TicketServiceDep,
         user_id: VerifiedUserIdDep,
         filters: TicketsByEventFiltersDep
 ) -> PaginatedResponseSchema[TicketResponseSchema]:
-    return await ticket_service.get_all_by_event_id(
+    return await service.get_all_by_event_id(
         user_id=user_id,
         event_id=event_id,
         offset=filters.offset,
@@ -84,32 +88,51 @@ async def get_all_tickets_for_current_users_event(
     )
 
 
-@event_router.patch("/{event_id}/publish", status_code=status.HTTP_200_OK, response_model=GenericSuccessResponseSchema)
-async def publish(
-        event_service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep
-) -> GenericSuccessResponseSchema:
-    result = await event_service.publish(event_id=event_id, user_id=user_id)
-    return GenericSuccessResponseSchema(success=result)
-
-
-@event_router.patch("/{event_id}/cancel", status_code=status.HTTP_200_OK, response_model=GenericSuccessResponseSchema)
-async def cancel(
-        event_service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep
-) -> GenericSuccessResponseSchema:
-    await event_service.cancel(event_id=event_id, user_id=user_id)
-    return GenericSuccessResponseSchema(success=True)
-
-
-@event_router.get("/{event_id}", status_code=status.HTTP_200_OK, response_model=EventResponseSchema)
-async def details(
-        event_service: EventServiceDep, event_id: Int32Path
+@event_router.get("/{event_id}", status_code=status.HTTP_200_OK)
+async def get_public(
+        service: EventServiceDep, event_id: Int32Path
 ) -> EventResponseSchema:
-    return await event_service.get_upcoming(obj_id=event_id)
+    return await service.get_public(obj_id=event_id)
 
 
-@event_router.patch("/{event_id}", status_code=status.HTTP_200_OK, response_model=GenericSuccessResponseSchema)
+@event_router.patch("/{event_id}/publish", status_code=status.HTTP_204_NO_CONTENT)
+async def publish(
+        service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep
+):
+    await service.publish(event_id=event_id, user_id=user_id)
+
+
+@event_router.patch("/{event_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel(
+        service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep
+):
+    await service.cancel(event_id=event_id, user_id=user_id)
+
+
+@event_router.patch("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update(
-        event_service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep, body: EventUpdateSchema
-) -> GenericSuccessResponseSchema:
-    result = await event_service.update(event_id=event_id, user_id=user_id, data=body)
-    return GenericSuccessResponseSchema(success=result)
+        service: EventServiceDep, event_id: Int32Path, user_id: VerifiedUserIdDep, body: EventUpdateSchema
+):
+    await service.update(event_id=event_id, user_id=user_id, data=body)
+
+
+@event_router.post("", status_code=status.HTTP_201_CREATED)
+async def create(
+        service: EventServiceDep, body: EventCreateSchema, user_id: VerifiedUserIdDep
+) -> EventResponseSchema:
+    return await service.create(data=body, user_id=user_id)
+
+
+@event_router.get("", status_code=status.HTTP_200_OK)
+@cached_endpoint(tags=CacheTag.UPCOMING_EVENTS)
+async def get_all_public(
+        request: Request,
+        service: EventServiceDep,
+        filters: UpcomingEventsFiltersDep
+) -> PaginatedResponseSchema[EventResponseSchema]:
+    return await service.get_all_public(
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.specific_filters
+    )

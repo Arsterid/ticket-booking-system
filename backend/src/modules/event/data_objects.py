@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.core.infra.database.repositories.query.data_objects import BaseDTO
+from src.core.infra.database import BaseDTO
 from .models import EventState, EventStatus, EventType
 
 

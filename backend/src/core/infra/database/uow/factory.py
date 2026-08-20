@@ -5,7 +5,7 @@ from src.core.infra.cache.managers import AbstractCacheManager
 from src.core.infra.tasks.managers import AbstractTaskManager
 
 
-class UoWServiceFactory:
+class ServiceFactory:
     def __init__(
             self,
             service_cls: Type[SERVICE_T],
@@ -18,5 +18,5 @@ class UoWServiceFactory:
         self.tasks_factory = tasks_factory
         self.cache_factory = cache_factory
 
-    def __call__(self) -> SERVICE_T:
+    async def __call__(self) -> SERVICE_T:
         return self.service_cls(uow=self.uow_factory(), tasks=self.tasks_factory(), cache=self.cache_factory())

@@ -16,12 +16,16 @@ class AppConfig(BaseSettings):
     db_port: str = "5432"
     db_driver: str = "asyncpg"
     db: str = "postgresql"
+    db_pool_size: Optional[int] = 50
+    db_max_overflow: Optional[int] = 25
+    db_pool_timeout: Optional[int] = 30
 
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_user: Optional[str] = None
     redis_password: Optional[str] = None
     redis_db: int = 0
+    redis_pool_size: Optional[int] = 50
 
     jwt_secret_key: str = "<KEY>"
     jwt_algorithm: str = "HS256"
@@ -30,6 +34,7 @@ class AppConfig(BaseSettings):
     password_algorithm: str = "sha256"
     password_iterations: int = 600000
 
+    enable_metrics: bool = False
     metrics_token: str = "<METRICS_TOKEN>"
 
     mail_username: Optional[str] = None

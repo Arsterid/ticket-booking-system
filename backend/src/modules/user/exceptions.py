@@ -1,4 +1,4 @@
-from src.app.exceptions import ServiceException, ForbiddenException, ConflictException, UnauthorizedException
+from src.app.exceptions import ConflictException, ForbiddenException, UnauthorizedException
 
 
 class IncorrectLoginDataException(UnauthorizedException):
@@ -6,24 +6,14 @@ class IncorrectLoginDataException(UnauthorizedException):
         super().__init__("Incorrect login data.")
 
 
-class UserIsBannedException(ServiceException):
+class UserIsBannedException(ConflictException):
     def __init__(self):
         super().__init__("User is banned.")
 
 
-class UserIsNotBannedException(ServiceException):
+class CurrentUserIsBannedException(ForbiddenException):
     def __init__(self):
-        super().__init__("User is not banned.")
-
-
-class UserVerificationConflictException(ConflictException):
-    def __init__(self):
-        super().__init__("User is already verified, pending verification, or inactive.")
-
-
-class UserIsNotAppliedToVerificationException(ServiceException):
-    def __init__(self):
-        super().__init__("User was not applied to verification.")
+        super().__init__("User is banned.")
 
 
 class CannotBanAdminException(ForbiddenException):
@@ -31,16 +21,11 @@ class CannotBanAdminException(ForbiddenException):
         super().__init__("You cannot ban user with administrator right.")
 
 
-class CannotBanYourselfException(ForbiddenException):
+class CannotBanYourselfException(ConflictException):
     def __init__(self):
         super().__init__("You cannot ban yourself.")
 
 
 class CannotUnbanYourselfException(ForbiddenException):
     def __init__(self):
-        super().__init__("You cannot ban yourself.")
-
-
-class AlreadyRegisteredException(ConflictException):
-    def __init__(self):
-        super().__init__("User with this email already registered, cannot reserve as anonym.")
+        super().__init__("You cannot unban yourself.")

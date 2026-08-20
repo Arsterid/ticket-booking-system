@@ -1,6 +1,7 @@
-import pytest
+from datetime import datetime, timedelta, timezone
+
 from fastapi import status
-from datetime import datetime, timezone, timedelta
+
 from src.modules.event.models import EventState, EventType
 
 
@@ -9,9 +10,6 @@ class TestUserRegistrationTrigger:
         async with setup_uow as uow:
             author = await create_model_factory(uow, "user", email="author@test.com", username="author", password="pwd")
             event_cat = await create_model_factory(uow, "event_category", name="Music")
-
-            future_date = datetime.now(timezone.utc) + timedelta(days=10)
-
             event = await create_model_factory(
                 uow,
                 "event",
@@ -21,9 +19,8 @@ class TestUserRegistrationTrigger:
                 description="D",
                 category_id=event_cat.id,
                 event_type=EventType.ONLINE,
-                event_date=future_date,
+                event_date=datetime.now(timezone.utc) + timedelta(days=10),
             )
-
             ticket_cat = await create_model_factory(
                 uow,
                 "ticket_category",
@@ -32,17 +29,14 @@ class TestUserRegistrationTrigger:
                 price=100,
                 total_quantity=10,
             )
-
             await create_model_factory(
                 uow,
                 "order",
                 id=10,
                 anonymous_email="register_test@example.com",
             )
-            await uow.flush()
-
             await uow.order_item.filter(order_id=10).create(category_id=ticket_cat.id, quantity=1)
-            await uow.flush()
+            await uow.commit()
 
         payload = {"email": "register_test@example.com", "username": "tester", "password": "securepassword123"}
         response = await api_client.post("/users", json=payload)

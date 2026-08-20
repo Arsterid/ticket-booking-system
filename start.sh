@@ -23,6 +23,7 @@ show_help() {
     echo "  demo         Lightweight demo stack behind Nginx proxy"
     echo "  prod         Hardened production environment"
     echo "  test         Run unit and integration tests"
+    echo "  load_test    Run locust container for load tests"
     echo "  lint         Run linters and static type checkers"
     echo ""
     echo "Flags:"
@@ -93,6 +94,10 @@ case "$ENV" in
     test)
         COMPOSE_FILES="-f docker-compose.test.yml"
         START_CMD="run --rm tests"
+        ;;
+    load_test)
+        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.load.yml"
+        START_CMD="up -d --build"
         ;;
     lint)
         COMPOSE_FILES="-f docker-compose.test.yml"

@@ -102,6 +102,9 @@ class SeedCommand(BaseCommand):
 
         self.start_step("views")
         await self._seed_view_logs(uow)
+
+        await uow.commit()
+
         self._print_dashboard(users_count, events_count, orders_count)
 
     async def _clean_tables(self, uow) -> None:
@@ -335,7 +338,6 @@ class SeedCommand(BaseCommand):
                 uow.view_logs, bulk_views_data, on_conflict_do_nothing=True,
                 index_elements=["object_type", "object_id", "user_id"]
             )
-
 
     def _print_dashboard(self, users: int, events: int, orders: int) -> None:
         from src.cli.colors import CLR_BOLD, CLR_GREEN, CLR_RESET

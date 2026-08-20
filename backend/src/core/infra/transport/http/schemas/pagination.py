@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,7 +8,7 @@ from .generic import GenericRequestSchema
 class PaginatedResponseSchema[T](BaseModel):
     count: int
     max_pages: int
-    results: List[T]
+    results: list[T]
 
 
 class PaginationParamsSchema(GenericRequestSchema):
@@ -17,13 +17,15 @@ class PaginationParamsSchema(GenericRequestSchema):
 
 
 class FilterParamsSchema(PaginationParamsSchema):
-    order_by: Optional[str] = Field(
+    order_by: str | None = Field(
         default=None, description="Field to sort by. The '-' sign before the name means DESC."
     )
 
+    _BASE_FIELDS = {"limit", "offset", "order_by"}
+
     @field_validator("order_by")
     @classmethod
-    def validate_order_by(cls, v: Optional[str]) -> Optional[str]:
+    def validate_order_by(cls, v: str | None) -> str | None:
         if v is not None:
             cleaned = v.lstrip("-").strip()
             if not cleaned or not cleaned.isidentifier():
@@ -32,8 +34,8 @@ class FilterParamsSchema(PaginationParamsSchema):
 
     @property
     def specific_filters(self) -> dict[str, Any]:
-        base_fields = set(FilterParamsSchema.model_fields.keys())
-        return self.model_dump(
-            exclude=base_fields,
-            exclude_none=True,
-        )
+        full_data = self.model_dump(exclude_none=True)
+        return {
+            k: v for k, v in full_data.items()
+            if k not in self._BASE_FIELDS
+        }

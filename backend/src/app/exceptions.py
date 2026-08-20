@@ -2,9 +2,9 @@ from typing import Any
 
 
 class ServiceException(Exception):
-    def __init__(self, message: str, extra: dict[str, Any] | None = None):
+    def __init__(self, message: str):
         self.message = message
-        self.extra = extra or {}
+        self.extra: dict[str, Any] = {}
         super().__init__(message)
 
 
@@ -22,53 +22,44 @@ class UnauthorizedException(ServiceException):
 
 class ObjectNotFoundException(ServiceException):
     def __init__(self, table: str, value: any, field: str = "id"):
-        message = f"Object in table '{table}' with {field} '{value}' does not exist"
+        if isinstance(value, (list, tuple, set)):
+            vals = ", ".join(map(str, value))
+            message = f"Objects in table '{table}' with {field}s in [{vals}] do not exist"
+        else:
+            message = f"Object in table '{table}' with {field} '{value}' does not exist"
 
         super().__init__(message)
+        self.extra = {
+            "table": table,
+            "field": field,
+            "value": value,
+        }
 
 
-class UniqueFieldException(ServiceException):
+class UniqueFieldException(ConflictException):
     def __init__(self, field: str, value: any):
         message = f"Object with unique field '{field}' with value '{value}' already exists."
 
         super().__init__(message)
+        self.extra = {
+            "field": field,
+            "value": value,
+        }
 
 
-class WrongStateException(ServiceException):
-    def __init__(self, expected: str, current: str | None = None):
-        message = f"Cannot perform this operation due to the object state. Expected: '{expected}'"
+class WrongStateException(ConflictException):
+    def __init__(self, expected: str | list[str], current: str | None = None) -> None:
+        if isinstance(expected, list):
+            expected_str = ", ".join(f"'{state}'" for state in expected)
+        else:
+            expected_str = f"'{expected}'"
+
+        message = f"Cannot perform this operation due to the object state. Expected: {expected_str}"
         if current is not None:
             message += f", current: '{current}'"
 
         super().__init__(message)
-
-
-class ParametersConflictException(ServiceException):
-    def __init__(self, options: list[str]):
-        self.options = options
-
-        options_str = ", ".join(str(opt) for opt in options)
-        message = f"Only one of the following parameters is allowed: {options_str}, but multiple were provided."
-
-        super().__init__(message)
-
-
-class MissingParameterException(ServiceException):
-    def __init__(self, options: list[str]):
-        self.options = options
-
-        options_str = ", ".join(str(opt) for opt in options)
-        message = f"At least one of the following parameters is required: {options_str}, but none were provided."
-
-        super().__init__(message)
-
-
-class RaceConditionException(ConflictException):
-    def __init__(self, table: str, value: any, field: str = "id"):
-        message = f"Object in '{table}' with {field} '{value}' was already changed by another actor concurrently."
-        super().__init__(message)
-
-
-class ValidationException(ServiceException):
-    def __init__(self, message: str):
-        super().__init__(message)
+        self.extra = {
+            "expected": expected_str,
+            "current": current,
+        }

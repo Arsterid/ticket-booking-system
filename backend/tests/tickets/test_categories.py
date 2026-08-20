@@ -1,6 +1,7 @@
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from fastapi import status
+
 from src.modules.event.models import EventState, EventType
 
 
@@ -32,14 +33,14 @@ class TestTicketCategories:
                 price=100,
                 total_quantity=100
             )
+            await uow.commit()
 
-        response = await api_client.get("/tickets/categories/10?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/10")
         assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["count"] == 1
+        assert response.json()["count"] == 1
 
     async def test_get_all_categories_event_not_found(self, api_client):
-        response = await api_client.get("/tickets/categories/999?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/2147483646")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_all_categories_not_owner_not_upcoming(self, api_client, setup_uow, create_model_factory):
@@ -59,8 +60,9 @@ class TestTicketCategories:
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=101
             )
+            await uow.commit()
 
-        response = await api_client.get("/tickets/categories/11?limit=10&offset=0")
+        response = await api_client.get("/tickets/categories/11")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_create_ticket_category_success(self, api_client, setup_uow, create_model_factory):
@@ -79,6 +81,7 @@ class TestTicketCategories:
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=102,
             )
+            await uow.commit()
 
         payload = {
             "event_id": 12,
@@ -116,6 +119,7 @@ class TestTicketCategories:
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=103
             )
+            await uow.commit()
 
         payload = {
             "event_id": 13,
@@ -142,6 +146,7 @@ class TestTicketCategories:
                 event_date=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=104
             )
+            await uow.commit()
 
         payload = {
             "event_id": 14,
@@ -150,7 +155,7 @@ class TestTicketCategories:
             "total_quantity": 50
         }
         response = await api_client.post("/tickets/categories", json=payload)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_409_CONFLICT
 
     async def test_update_ticket_category_success(self, api_client, setup_uow, create_model_factory):
         async with setup_uow as uow:
@@ -177,13 +182,14 @@ class TestTicketCategories:
                 price=100,
                 total_quantity=100
             )
+            await uow.commit()
 
         payload = {
             "name": "Unique Patched Category Name",
             "price": 150
         }
         response = await api_client.patch("/tickets/categories/2", json=payload)
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_update_ticket_category_not_found(self, api_client):
         payload = {
@@ -191,7 +197,7 @@ class TestTicketCategories:
         }
         response = await api_client.patch("/tickets/categories/999", json=payload)
         assert response.status_code == status.HTTP_404_NOT_FOUND
-    
+
     async def test_update_ticket_category_not_owner(self, api_client, setup_uow, create_model_factory):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=1, email="owner7@test.com", password="pwd")
@@ -218,6 +224,7 @@ class TestTicketCategories:
                 price=100,
                 total_quantity=100
             )
+            await uow.commit()
 
         payload = {
             "name": "Malicious Name Update"
@@ -250,12 +257,13 @@ class TestTicketCategories:
                 price=100,
                 total_quantity=100
             )
+            await uow.commit()
 
         response = await api_client.delete("/tickets/categories/4")
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_delete_ticket_category_not_found(self, api_client):
-        response = await api_client.delete("/tickets/categories/999")
+        response = await api_client.delete("/tickets/categories/2147483646")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_ticket_category_not_owner(self, api_client, setup_uow, create_model_factory):
@@ -284,6 +292,7 @@ class TestTicketCategories:
                 price=100,
                 total_quantity=100
             )
+            await uow.commit()
 
         response = await api_client.delete("/tickets/categories/5")
         assert response.status_code == status.HTTP_404_NOT_FOUND

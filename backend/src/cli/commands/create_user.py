@@ -1,6 +1,4 @@
-import sys
 from src.cli.base import BaseCommand
-from src.cli.colors import CLR_RED, CLR_RESET, CLR_GREEN
 from src.core.security.passwords import PasswordManager
 from src.core.settings import get_settings
 from src.modules.user.models import UserRole
@@ -53,4 +51,4 @@ class CreateUserCommand(BaseCommand):
         self.start_step("create")
         self.update_sub(f"Writing row for {email}...")
         await uow.user.create(email=email, password=hashed_password, role=role, is_active=True)
-
+        await uow.commit()

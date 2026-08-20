@@ -1,10 +1,10 @@
 from fastapi import APIRouter, status
 from starlette.requests import Request
 
+from src.core.infra.transport.http import idempotent_endpoint, PaginatedResponseSchema
 from src.modules.user.dependencies import AnyUserIdDep, OptionalUserIdDep
 from .dependencies import OrderFilterParamsSchemaDep, OrderItemFilterParamsSchemaDep, OrderServiceDep
 from .schemas import OrderCreateSchema, OrderItemResponseSchema, OrderResponseSchema
-from src.core.infra.transport.http import GenericSuccessResponseSchema, idempotent_endpoint, PaginatedResponseSchema
 
 orders_router = APIRouter(
     prefix="/orders",
@@ -13,24 +13,24 @@ orders_router = APIRouter(
 )
 
 
-@orders_router.post("", status_code=status.HTTP_201_CREATED, response_model=OrderResponseSchema)
+@orders_router.post("", status_code=status.HTTP_201_CREATED)
 @idempotent_endpoint(ttl=3600)
-async def create_order(
+async def create(
         request: Request,
         body: OrderCreateSchema,
-        order_service: OrderServiceDep,
+        service: OrderServiceDep,
         user_id: OptionalUserIdDep
 ) -> OrderResponseSchema:
-    return await order_service.create(data=body, user_id=user_id)
+    return await service.create(data=body, user_id=user_id)
 
 
-@orders_router.get("/my", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[OrderResponseSchema])
-async def get_my_orders(
-        order_service: OrderServiceDep,
+@orders_router.get("/items")
+async def get_items(
+        service: OrderServiceDep,
         user_id: AnyUserIdDep,
-        filters: OrderFilterParamsSchemaDep
-) -> PaginatedResponseSchema[OrderResponseSchema]:
-    return await order_service.get_all_by_user_id(
+        filters: OrderItemFilterParamsSchemaDep
+) -> PaginatedResponseSchema[OrderItemResponseSchema]:
+    return await service.get_all_items_by_user_id(
         user_id=user_id,
         offset=filters.offset,
         limit=filters.limit,
@@ -39,36 +39,35 @@ async def get_my_orders(
     )
 
 
-@orders_router.patch("/{order_id}/pay", status_code=status.HTTP_200_OK, response_model=GenericSuccessResponseSchema)
+@orders_router.get("", status_code=status.HTTP_200_OK)
+async def get_all(
+        service: OrderServiceDep,
+        user_id: AnyUserIdDep,
+        filters: OrderFilterParamsSchemaDep
+) -> PaginatedResponseSchema[OrderResponseSchema]:
+    return await service.get_all_by_user_id(
+        user_id=user_id,
+        offset=filters.offset,
+        limit=filters.limit,
+        order_by=filters.order_by,
+        filters=filters.specific_filters,
+    )
+
+
+@orders_router.patch("/{order_id}/pay", status_code=status.HTTP_204_NO_CONTENT)
 @idempotent_endpoint(ttl=3600)
 async def pay_order(
         request: Request,
         order_id: int,
-        order_service: OrderServiceDep,
-) -> GenericSuccessResponseSchema:
-    res = await order_service.confirm_payment(obj_id=order_id)
-    return GenericSuccessResponseSchema(success=res)
+        service: OrderServiceDep,
+):
+    await service.confirm_payment(obj_id=order_id)
 
 
-@orders_router.get("/items/my", response_model=PaginatedResponseSchema[OrderItemResponseSchema])
-async def get_my_items(
-        order_service: OrderServiceDep,
-        user_id: AnyUserIdDep,
-        filters: OrderItemFilterParamsSchemaDep
-) -> PaginatedResponseSchema[OrderItemResponseSchema]:
-    return await order_service.get_all_items_by_user_id(
-        user_id=user_id,
-        offset=filters.offset,
-        limit=filters.limit,
-        order_by=filters.order_by,
-        filters=filters.specific_filters,
-    )
-
-
-@orders_router.get("/{order_id}", status_code=status.HTTP_200_OK, response_model=OrderResponseSchema)
-async def get_order(
+@orders_router.get("/{order_id}", status_code=status.HTTP_200_OK)
+async def get(
         order_id: int,
-        order_service: OrderServiceDep,
+        service: OrderServiceDep,
         user_id: AnyUserIdDep
 ) -> OrderResponseSchema:
-    return await order_service.get(user_id=user_id, obj_id=order_id)
+    return await service.get(user_id=user_id, obj_id=order_id)

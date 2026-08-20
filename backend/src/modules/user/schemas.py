@@ -40,12 +40,13 @@ class UserResponseSchema(GenericResponseSchema):
     id: int
     role: UserRole
     username: str
+    is_active: bool
 
 
 class UsersFilterParamsSchema(FilterParamsSchema):
     role: Optional[UserRole] = None
     email: Optional[EmailStr] = None
-    username: Optional[str] = Field(None, min_length=3, max_length=50, strip_whitespace=True, description="Username")
+    username: Optional[str] = Field(None, min_length=3, max_length=50, strip_whitespace=True)
     is_active: Optional[bool] = None
 
     @field_validator("username")

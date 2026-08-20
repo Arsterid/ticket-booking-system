@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
-from src.core.infra.database.repositories import BaseDTO
+from src.core.infra.database import BaseDTO
 
 if TYPE_CHECKING:
     from src.modules.ticket.data_objects import TicketCategoryDTO
