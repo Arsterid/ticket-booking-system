@@ -24,12 +24,3 @@ class ModificationResult:
     @property
     def scalar_returning(self) -> Optional[Any]:
         return self.returning_rows[0][0] if self.returning_rows else None
-
-
-@dataclass(frozen=True)
-class CreationResult(Generic[DTO_T]):
-    dto: Optional[DTO_T] = None
-
-    @property
-    def success(self) -> bool:
-        return self.dto is not None

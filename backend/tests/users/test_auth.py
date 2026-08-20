@@ -27,10 +27,11 @@ class TestUserAuth:
             await create_model_factory(
                 uow, "user", email="duplicate@example.com", username="existing_user", password="somepassword"
             )
+            await uow.commit()
 
         payload = {"email": "duplicate@example.com", "username": "new_user", "password": "securepassword123"}
         response = await api_client.post("/users", json=payload)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_409_CONFLICT
 
     async def test_login_success(self, api_client, setup_uow, pwd_manager, create_model_factory):
         hashed_password = await pwd_manager.hash_password("correct_password")
@@ -38,6 +39,7 @@ class TestUserAuth:
             await create_model_factory(
                 uow, "user", email="login_test@example.com", username="login_tester", password=hashed_password
             )
+            await uow.commit()
 
         payload_login = {"email": "login_test@example.com", "password": "correct_password"}
         response = await api_client.post("/users/login", json=payload_login)
@@ -58,6 +60,7 @@ class TestUserAuth:
             await create_model_factory(
                 uow, "user", email="wrong_pwd@example.com", username="pwd_tester", password="hashed_correct_password"
             )
+            await uow.commit()
 
         payload_login = {"email": email, "password": password}
         response = await api_client.post("/users/login", json=payload_login)
@@ -68,7 +71,7 @@ class TestUserAuth:
         response = await api_client.post("/users/login", json=payload_login)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    async def test_login_banned_user_fails(self, api_client, setup_uow, create_model_factory):
+    async def test_login_banned_user_fails(self, api_client, setup_uow, pwd_manager, create_model_factory):
         async with setup_uow as uow:
             await create_model_factory(
                 uow,
@@ -76,14 +79,11 @@ class TestUserAuth:
                 id=16,
                 email="banned_login@test.com",
                 username="banned_login_user",
-                password="securepassword123",
+                password=await pwd_manager.hash_password("securepassword123"),
                 is_active=False,
             )
+            await uow.commit()
 
         payload = {"email": "banned_login@test.com", "password": "securepassword123"}
         response = await api_client.post("/users/login", json=payload)
-        assert response.status_code in [
-            status.HTTP_400_BAD_REQUEST,
-            status.HTTP_403_FORBIDDEN,
-            status.HTTP_401_UNAUTHORIZED,
-        ]
+        assert response.status_code == status.HTTP_403_FORBIDDEN

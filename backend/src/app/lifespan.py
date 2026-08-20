@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from src.core.database import db_factory
@@ -18,8 +19,9 @@ async def app_lifespan(app: FastAPI):
 
     await broker.shutdown()
 
-    if hasattr(cache_manager, "redis_client"):
-        await cache_manager.redis_client.close()
+    factory = get_cache_manager
+    if hasattr(factory, "close"):
+        factory.close()
 
     engine = db_factory.get_engine()
     await engine.dispose()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.modules.ticket.models import Ticket
+    from src.modules.ticket.models import Ticket, TicketCategory
 
 from enum import StrEnum
 from typing import Optional
@@ -12,7 +12,6 @@ from sqlalchemy import ForeignKey, String, Enum as SQLEnum, CheckConstraint, Int
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.infra.database.orm import AbstractORMModel
-from src.modules.ticket.models import TicketCategory
 
 
 class OrderStatus(StrEnum):

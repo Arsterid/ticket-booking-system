@@ -22,8 +22,6 @@ def seed_order_env(create_model_factory):
         user = await create_model_factory(uow, "user", id=1, email="test@test.com", username="user", password="pwd")
         event_cat = await create_model_factory(uow, "event_category", id=1, name="Music")
 
-        future_date = datetime.now(timezone.utc) + timedelta(days=10)
-
         event = await create_model_factory(
             uow,
             "event",
@@ -34,7 +32,7 @@ def seed_order_env(create_model_factory):
             description="Desc",
             category_id=event_cat.id,
             event_type=EventType.ONLINE,
-            event_date=future_date,
+            event_date=datetime.now(timezone.utc) + timedelta(days=10),
         )
 
         await create_model_factory(

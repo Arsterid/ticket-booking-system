@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.core.infra.database.repositories.query.data_objects import BaseDTO
+from src.core.infra.database import BaseDTO
 from src.modules.event.data_objects import EventDTO
 from src.modules.order.data_objects import OrderItemDTO
 from .models import TicketStatus
@@ -19,7 +19,7 @@ class TicketCategoryDTO(BaseDTO):
     event: Optional[EventDTO] = None
 
     @property
-    def remaining_count(self) -> int:
+    def available_quantity(self) -> int:
         return max(0, self.total_quantity - self.occupied_count)
 
 

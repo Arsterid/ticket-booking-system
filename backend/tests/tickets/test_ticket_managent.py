@@ -1,5 +1,5 @@
-import pytest
 from fastapi import status
+
 from src.modules.order.models import OrderStatus
 from src.modules.ticket.models import TicketStatus
 
@@ -38,7 +38,8 @@ class TestUserTicketsCatalog:
                 order_item_id=order_item.id,
                 status=TicketStatus.PAID
             )
+            await uow.commit()
 
         response = await api_client.get("/tickets/my?limit=10&offset=0")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()["results"]) == 1
+        assert response.json()["count"] == 1

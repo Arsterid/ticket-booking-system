@@ -1,7 +1,6 @@
 from src.core.infra.mail.factory import get_email_service
 from src.core.infra.tasks.config import broker
 from src.core.infra.tasks.factory import logger
-from src.modules.order.dependencies import OrderServiceDep
 from .dependencies import OrderServiceDep
 
 
@@ -63,7 +62,7 @@ async def send_confirmation_mail_task(service: OrderServiceDep, order_id: int) -
 
 
 @broker.task(task_name="order:transfer_anonym_orders")
-async def transfer_anonym_tickets_task(service: OrderServiceDep, email: str,) -> int:
+async def transfer_anonym_tickets_task(service: OrderServiceDep, email: str, ) -> int:
     """
     A task that transfers tickets purchased by an anonymous user to their email address upon registration.
     """

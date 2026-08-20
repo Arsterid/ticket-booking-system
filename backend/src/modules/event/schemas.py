@@ -1,18 +1,16 @@
-from typing import Optional
-
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
-from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
-from src.core.infra.transport.http.utils.schemas import partial_model
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, \
+    partial_model, PositiveInt32
 from .models import EventType
 
 
 class EventCreateSchema(GenericRequestSchema):
-    category_id: int = Field(..., gt=0)
+    category_id: PositiveInt32 = Field(..., gt=0)
     title: str = Field(..., min_length=1, max_length=150, strip_whitespace=True)
     description: str = Field(..., min_length=1, strip_whitespace=True)
     event_type: EventType
-    address: Optional[str] = Field(None, min_length=5, max_length=255, strip_whitespace=True)
+    address: str | None = Field(None, min_length=5, max_length=255, strip_whitespace=True)
     event_date: AwareDatetime
 
     @field_validator("title", "description")
@@ -38,7 +36,7 @@ class EventUpdateSchema(EventCreateSchema):
 
 class EventCategoryCreateSchema(GenericRequestSchema):
     name: str = Field(..., min_length=1, max_length=100, strip_whitespace=True)
-    parent_id: Optional[int] = Field(None, gt=0)
+    parent_id: PositiveInt32 | None = None
 
     @field_validator("name")
     @classmethod
@@ -51,9 +49,9 @@ class EventCategoryCreateSchema(GenericRequestSchema):
 class EventCategoryResponseSchema(GenericResponseSchema):
     id: int
     name: str
-    parent_id: Optional[int] = None
-    can_create_events: Optional[bool] = None
-    can_create_subcategories: Optional[bool] = None
+    parent_id: int | None = None
+    can_create_events: bool | None = None
+    can_create_subcategories: bool | None = None
 
 
 class EventResponseSchema(GenericResponseSchema):
@@ -64,22 +62,22 @@ class EventResponseSchema(GenericResponseSchema):
     status: str
     event_type: EventType
     event_date: AwareDatetime
-    address: Optional[str]
-    views: Optional[int]
+    address: str | None
+    views: int | None
 
 
 class BaseEventFilterParamsSchema(FilterParamsSchema):
-    category_id: Optional[int] = Field(None, gt=0)
-    title__ilike: Optional[str] = Field(None, min_length=1, max_length=150, strip_whitespace=True)
-    event_type: Optional[EventType] = None
-    address: Optional[str] = Field(None, min_length=1, max_length=255, strip_whitespace=True)
-    event_date: Optional[AwareDatetime] = None
-    event_date__gte: Optional[AwareDatetime] = None
-    event_date__lte: Optional[AwareDatetime] = None
+    category_id: PositiveInt32 | None = None
+    title__icontains: str | None = Field(None, min_length=1, max_length=150, strip_whitespace=True)
+    event_type: EventType | None = None
+    address: str | None = Field(None, min_length=1, max_length=255, strip_whitespace=True)
+    event_date: AwareDatetime | None = None
+    event_date__gte: AwareDatetime | None = None
+    event_date__lte: AwareDatetime | None = None
 
-    @field_validator("title__ilike")
+    @field_validator("title__icontains")
     @classmethod
-    def validate_title_filter(cls, v: Optional[str]) -> Optional[str]:
+    def validate_title_filter(cls, v: str | None) -> str | None:
         if v is not None:
             cleaned = v.replace("%", "").strip()
             if not cleaned or len(cleaned) < 2:
@@ -88,7 +86,7 @@ class BaseEventFilterParamsSchema(FilterParamsSchema):
 
     @field_validator("event_date", "event_date__gte", "event_date__lte")
     @classmethod
-    def validate_dates(cls, v: Optional[AwareDatetime]) -> Optional[AwareDatetime]:
+    def validate_dates(cls, v: AwareDatetime | None) -> AwareDatetime | None:
         if v is None or v.year <= 1:
             return v
 
@@ -100,14 +98,14 @@ class BaseEventFilterParamsSchema(FilterParamsSchema):
 
 
 class EventCategoryFilterParamsSchema(FilterParamsSchema):
-    name__ilike: Optional[str] = Field(None, min_length=1, max_length=100, strip_whitespace=True)
-    parent_id: Optional[int] = Field(None, gt=0)
-    can_create_events: Optional[bool] = None
-    can_create_subcategories: Optional[bool] = None
+    name__icontains: str | None = Field(None, min_length=1, max_length=100, strip_whitespace=True)
+    parent_id: PositiveInt32 | None = None
+    can_create_events: bool | None = None
+    can_create_subcategories: bool | None = None
 
-    @field_validator("name__ilike")
+    @field_validator("name__icontains")
     @classmethod
-    def validate_name_filter(cls, v: Optional[str]) -> Optional[str]:
+    def validate_name_filter(cls, v: str | None) -> str | None:
         if v is not None:
             cleaned = v.replace("%", "").strip()
             if not cleaned:
@@ -120,4 +118,4 @@ class EventsByUserFilterParamsSchema(BaseEventFilterParamsSchema):
 
 
 class UpcomingEventsFilterParamsSchema(BaseEventFilterParamsSchema):
-    user_id: Optional[int] = Field(None, gt=0)
+    user_id: PositiveInt32 | None = None

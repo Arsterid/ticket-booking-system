@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Type
+from typing import Any, Generic, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.core.infra.database.repositories import GenericRepository
@@ -14,6 +14,7 @@ from src.core.infra.tasks.managers.abstract import AbstractTaskManager
 
 class GenericService(Generic[UOW_T]):
     _repo_cls: Type["GenericRepository"]
+    _PAGINATED_SCHEMA_CACHE = {}
 
     def __init__(self, uow: UOW_T, tasks: AbstractTaskManager, cache: AbstractCacheManager):
         self.uow = uow
@@ -25,13 +26,25 @@ class GenericService(Generic[UOW_T]):
         if repo is not None:
             cls._repo_cls = repo
 
-    def _paginate(
-        self, schema: Type[PYDANTIC_MODEL_T], items: list[Any], total_items: int, limit: int = 10
-    ) -> PaginatedResponseSchema[PYDANTIC_MODEL_T]:
-        pydantic_items = [schema.model_validate(item) for item in items]
+    def _paginate_raw(
+            self,
+            items: list[Any],
+            total_items: int,
+            limit: int = 10,
+    ) -> dict:
+        return {
+            "count": total_items,
+            "max_pages": limit,
+            "results": items,
+        }
 
-        return PaginatedResponseSchema[PYDANTIC_MODEL_T](
-            count=total_items,
-            max_pages=(total_items + limit - 1) // limit if limit > 0 else 1,
-            results=pydantic_items,
-        )
+    def _paginate(
+            self, schema: Type[PYDANTIC_MODEL_T], items: list[Any], total_items: int, limit: int = 10
+    ) -> PaginatedResponseSchema[PYDANTIC_MODEL_T]:
+        raw = self._paginate_raw(items, total_items, limit)
+
+        if schema not in self._PAGINATED_SCHEMA_CACHE:
+            self._PAGINATED_SCHEMA_CACHE[schema] = PaginatedResponseSchema[schema]
+
+        paginated_cls = self._PAGINATED_SCHEMA_CACHE[schema]
+        return paginated_cls(**raw)

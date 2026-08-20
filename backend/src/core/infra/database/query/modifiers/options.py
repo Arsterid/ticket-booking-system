@@ -1,7 +1,7 @@
 from typing import Any, Sequence
 
-from src.core.infra.database.query_modifiers.base import BaseQueryModifier
-from src.core.infra.database.query_modifiers.expressions import SQLFunction
+from .base import BaseQueryModifier
+from .expressions import SQLFunction
 
 
 class Annotate(BaseQueryModifier):

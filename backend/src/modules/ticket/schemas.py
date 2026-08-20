@@ -1,26 +1,18 @@
-from typing import Optional
-
 from pydantic import Field, field_validator
 
-from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, partial_model
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, \
+    partial_model, PositiveInt32
 from .models import TicketStatus
 
 
 class TicketCreateSchema(GenericRequestSchema):
-    category_id: int = Field(..., gt=0)
+    category_id: PositiveInt32
 
 
 class TicketCategoryBaseRequestSchema(GenericRequestSchema):
     name: str = Field(..., min_length=1, max_length=255)
-    price: int = Field(..., gt=0)
-    total_quantity: int = Field(..., gt=0)
-
-    @field_validator("price")
-    @classmethod
-    def validate_price_limit(cls, v: int) -> int:
-        if v > 100_000_000:
-            raise ValueError("Price value is realistically too high")
-        return v
+    price: PositiveInt32
+    total_quantity: PositiveInt32
 
     @field_validator("name")
     @classmethod
@@ -30,16 +22,9 @@ class TicketCategoryBaseRequestSchema(GenericRequestSchema):
             raise ValueError("Name cannot be empty.")
         return normalized
 
-    @field_validator("total_quantity")
-    @classmethod
-    def validate_total_quantity_limit(cls, v: int) -> int:
-        if v > 10000:
-            raise ValueError("Price value is realistically too high")
-        return v
-
 
 class TicketCategoryCreateSchema(TicketCategoryBaseRequestSchema):
-    event_id: int = Field(..., gt=0)
+    event_id: PositiveInt32
 
 
 @partial_model(TicketCategoryBaseRequestSchema)
@@ -59,33 +44,28 @@ class TicketResponseSchema(GenericResponseSchema):
 
 
 class BaseTicketsFilterParamsSchema(FilterParamsSchema):
-    type_id: Optional[int] = Field(None, gt=0, description="Type id")
-    price__gte: Optional[int] = Field(None, ge=0, description="Price min")
-    price__lte: Optional[int] = Field(None, ge=0, description="Price max")
+    category_id: PositiveInt32 | None = None
+    price__gte: PositiveInt32 | None = None
+    price__lte: PositiveInt32 | None = None
 
     @field_validator("price__gte", "price__lte")
     @classmethod
-    def validate_prices(cls, v: Optional[int]) -> Optional[int]:
+    def validate_prices(cls, v: int | None) -> int | None:
         if v is not None and v > 100_000_000:
             raise ValueError("Price value is realistically too high")
         return v
 
 
 class TicketsFilterParamsSchema(BaseTicketsFilterParamsSchema):
-    event_id: Optional[int] = Field(None, gt=0, description="Event id")
+    event_id: PositiveInt32 | None = Field(None, description="Event id")
 
 
 class TicketsByEventFilterParamsSchema(BaseTicketsFilterParamsSchema):
-    status: Optional[TicketStatus] = Field(None, description="Ticket status")
+    status: TicketStatus | None = Field(None, description="Ticket status")
 
 
 class TicketCategoryFilterParamsSchema(BaseTicketsFilterParamsSchema):
-    name__ilike: Optional[str] = Field(None, description="Search by category name (case-insensitive substring match)")
+    name__icontains: str | None = None
 
-    total_quantity__gte: Optional[int] = Field(None, ge=0, description="Minimum total ticket quantity allocated")
-    total_quantity__lte: Optional[int] = Field(None, ge=0, description="Maximum total ticket quantity allocated")
-
-    occupied_quantity__gte: Optional[int] = Field(None, ge=0,
-                                                  description="Minimum occupied (sold/reserved) ticket quantity")
-    occupied_quantity__lte: Optional[int] = Field(None, ge=0,
-                                                  description="Maximum occupied (sold/reserved) ticket quantity")
+    available_quantity__gte: PositiveInt32 | None = None
+    available_quantity__lte: PositiveInt32 | None = None

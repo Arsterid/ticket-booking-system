@@ -19,6 +19,7 @@ class TestModerationEndpointsPermissions:
     ):
         async with setup_uow as uow:
             await create_model_factory(uow, "user", id=1, email="user@test.com", username="user", password="pwd")
+            await uow.commit()
 
         http_method = getattr(api_client, method.lower())
 

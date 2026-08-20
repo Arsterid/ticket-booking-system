@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, status
+from starlette.requests import Request
 
-from src.core.infra.transport.http import GenericResultRequestSchema, GenericSuccessResponseSchema, \
-    Int32Path, PaginatedResponseSchema
+from src.core.infra.transport.http import cached_endpoint, CacheTag, GenericResultRequestSchema, \
+    Int32Path, invalidates_cache, PaginatedResponseSchema
 from src.modules.event.dependencies import EventCategoryFiltersDep, EventsByUserFiltersDep, EventServiceDep
 from src.modules.event.schemas import EventCategoryCreateSchema, EventCategoryResponseSchema, EventResponseSchema
 from src.modules.user.dependencies import AdminUserIdDep, UserFiltersDep, UserServiceDep
@@ -17,58 +18,43 @@ moderation_router = APIRouter(
 )
 
 
-@moderation_router.get(
-    "/events",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[EventResponseSchema],
-)
+@moderation_router.get("/events", status_code=status.HTTP_200_OK)
 async def get_all_events_up_to_moderation(
-        event_service: EventServiceDep, filters: EventsByUserFiltersDep
+        service: EventServiceDep,
+        filters: EventsByUserFiltersDep
 ) -> PaginatedResponseSchema[EventResponseSchema]:
-    return await event_service.get_for_moderation(
+    return await service.get_for_moderation(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
     )
 
 
-@moderation_router.patch(
-    "/events/{event_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=GenericSuccessResponseSchema,
-)
+@moderation_router.patch("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+@invalidates_cache(tags=CacheTag.UPCOMING_EVENTS)
 async def moderate_event(
-        event_service: EventServiceDep,
+        service: EventServiceDep,
         body: GenericResultRequestSchema,
         event_id: Int32Path,
-) -> GenericSuccessResponseSchema:
-    is_success = await event_service.moderate(event_id=event_id, result=body.result)
-    return GenericSuccessResponseSchema(success=is_success)
+):
+    await service.moderate(event_id=event_id, result=body.result)
 
 
-@moderation_router.get(
-    "/users",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[UserResponseSchema],
-)
+@moderation_router.get("/users", status_code=status.HTTP_200_OK)
 async def get_all_users_up_to_verification(
-        user_service: UserServiceDep, filters: UserFiltersDep
+        service: UserServiceDep,
+        filters: UserFiltersDep
 ) -> PaginatedResponseSchema[UserResponseSchema]:
-    return await user_service.get_for_verification(
+    return await service.get_for_verification(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
     )
 
 
-@moderation_router.patch(
-    "/users/{user_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=GenericSuccessResponseSchema,
-)
+@moderation_router.patch("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def moderate_user(
-        user_service: UserServiceDep,
+        service: UserServiceDep,
         body: GenericResultRequestSchema,
         user_id: Int32Path,
-) -> GenericSuccessResponseSchema:
-    is_success = await user_service.verify(user_id=user_id, result=body.result)
-    return GenericSuccessResponseSchema(success=is_success)
+):
+    await service.verify(user_id=user_id, result=body.result)
 
 
 admin_router = APIRouter(
@@ -79,58 +65,47 @@ admin_router = APIRouter(
 )
 
 
-@admin_router.post(
-    "/categories",
-    status_code=status.HTTP_201_CREATED,
-    response_model=EventCategoryResponseSchema,
-)
-async def create(event_service: EventServiceDep, body: EventCategoryCreateSchema) -> EventCategoryResponseSchema:
-    return await event_service.create_category(data=body)
+@admin_router.post("/categories", status_code=status.HTTP_201_CREATED)
+@invalidates_cache(tags=CacheTag.ADMIN_EVENT_CATEGORIES)
+async def create(
+        service: EventServiceDep,
+        body: EventCategoryCreateSchema
+) -> EventCategoryResponseSchema:
+    return await service.create_category(data=body)
 
 
-@admin_router.get(
-    "/categories", status_code=status.HTTP_200_OK, response_model=PaginatedResponseSchema[EventCategoryResponseSchema]
-)
+@admin_router.get("/categories", status_code=status.HTTP_200_OK)
+@cached_endpoint(tags=CacheTag.ADMIN_EVENT_CATEGORIES)
 async def get_all_categories(
-        event_service: EventServiceDep, filters: EventCategoryFiltersDep
+        request: Request,
+        service: EventServiceDep,
+        filters: EventCategoryFiltersDep,
 ) -> PaginatedResponseSchema[EventCategoryResponseSchema]:
-    return await event_service.get_categories(
+    return await service.get_categories(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
     )
 
 
-@admin_router.get(
-    "/users",
-    status_code=status.HTTP_200_OK,
-    response_model=PaginatedResponseSchema[UserResponseSchema],
-)
+@admin_router.get("/users", status_code=status.HTTP_200_OK)
 async def get_all_users(
-        user_service: UserServiceDep, filters: UserFiltersDep
+        service: UserServiceDep,
+        filters: UserFiltersDep
 ) -> PaginatedResponseSchema[UserResponseSchema]:
-    return await user_service.get_all(
+    return await service.get_all(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
     )
 
 
-@admin_router.patch(
-    "/users/{user_id}/ban",
-    status_code=status.HTTP_200_OK,
-    response_model=GenericSuccessResponseSchema,
-)
-async def ban_user(
-        user_service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep
-) -> GenericSuccessResponseSchema:
-    is_success = await user_service.ban(user_id=user_id, actor_id=actor_id)
-    return GenericSuccessResponseSchema(success=is_success)
+@admin_router.get("/users/{user_id}", status_code=status.HTTP_200_OK)
+async def get_user(service: UserServiceDep, user_id: Int32Path) -> UserResponseSchema:
+    return await service.get(user_id=user_id)
 
 
-@admin_router.patch(
-    "/users/{user_id}/unban",
-    status_code=status.HTTP_200_OK,
-    response_model=GenericSuccessResponseSchema,
-)
-async def unban_user(
-        user_service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep
-) -> GenericSuccessResponseSchema:
-    is_success = await user_service.unban(user_id=user_id, actor_id=actor_id)
-    return GenericSuccessResponseSchema(success=is_success)
+@admin_router.patch("/users/{user_id}/ban", status_code=status.HTTP_204_NO_CONTENT)
+async def ban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep):
+    await service.ban(user_id=user_id, actor_id=actor_id)
+
+
+@admin_router.patch("/users/{user_id}/unban", status_code=status.HTTP_204_NO_CONTENT)
+async def unban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep):
+    await service.unban(user_id=user_id, actor_id=actor_id)

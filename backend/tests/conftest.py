@@ -3,16 +3,18 @@ from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from taskiq import InMemoryBroker
 
-from src.core.settings import get_settings, AppConfig
-from src.core.infra.tasks.config import broker
 from src.app.uow import create_app_uow
-from src.core.infra.transport.http.dependencies import get_jwt_manager, get_password_manager
+from src.core.database import db_factory
 from src.core.infra.cache.factory import get_cache_manager
 from src.core.infra.database.orm.base import AbstractORMModel
-from src.core.database import db_factory
+from src.core.infra.tasks.config import broker
+from src.core.infra.transport.http.dependencies import get_jwt_manager, get_password_manager
 from src.core.security import JWTManager
+from src.core.settings import AppConfig, get_settings
+from src.modules.user.models import UserRole
 
 BASE_DIR = Path(__file__).parent.parent
 SRC_DIR = BASE_DIR / "src"
@@ -60,15 +62,18 @@ async def clean_db():
     await shared_test_cache.clear()
 
     engine = db_factory.get_engine()
+
     async with engine.begin() as conn:
-        for table in reversed(AbstractORMModel.metadata.sorted_tables):
-            await conn.execute(table.delete())
+        table_names = [table.name for table in reversed(AbstractORMModel.metadata.sorted_tables)]
+
+        joined_tables = ", ".join(f'"{name}"' for name in table_names)
+        await conn.execute(text(f"TRUNCATE TABLE {joined_tables} RESTART IDENTITY CASCADE;"))
 
 
 @pytest.fixture(scope="session")
 def get_auth_headers():
-    def _get_headers(user_id, role):
-        token = jwt_manager.create_access_token(data={"sub": str(user_id), "role": role})
+    def _get_headers(user_id: int | str, role: str | UserRole) -> dict[str, str]:
+        token = jwt_manager.create_access_token(data={"sub": str(user_id), "role": str(role)})
         return {"Authorization": f"Bearer {token}"}
 
     return _get_headers
@@ -79,9 +84,7 @@ def setup_global_overrides():
     from src.app.main import app
 
     app.dependency_overrides[get_settings] = lambda: test_config
-    app.dependency_overrides[get_cache_manager] = lambda: shared_test_cache
     app.dependency_overrides[get_jwt_manager] = lambda: jwt_manager
-    app.dependency_overrides[get_password_manager] = lambda: get_password_manager(test_config)
 
     yield
 
@@ -93,21 +96,14 @@ def setup_uow(setup_global_overrides):
     from src.app.main import app
     test_uow = create_app_uow()
 
-    app.dependency_overrides[create_app_uow] = lambda: test_uow
-    if isinstance(broker, InMemoryBroker):
-        broker.dependency_overrides[create_app_uow] = lambda: test_uow
-
     yield test_uow
 
     app.dependency_overrides[get_settings] = lambda: test_config
-    app.dependency_overrides[get_cache_manager] = lambda: shared_test_cache
-    app.dependency_overrides[get_jwt_manager] = lambda: jwt_manager
-    app.dependency_overrides[get_password_manager] = lambda: get_password_manager(test_config)
 
 
 @pytest.fixture(scope="session")
 def pwd_manager():
-    return get_password_manager(test_config)
+    return get_password_manager()
 
 
 @pytest.fixture(scope="session")
@@ -146,3 +142,35 @@ async def api_client(client, request, get_auth_headers):
 
     return client
 
+
+@pytest.fixture
+def as_user(client, get_auth_headers):
+    def _as_user(user_id: int = 1) -> AsyncClient:
+        headers = get_auth_headers(user_id=user_id, role=UserRole.USER)
+        client.headers.update(headers)
+        return client
+
+    return _as_user
+
+
+@pytest.fixture
+def as_verified_user(client, get_auth_headers):
+    def _as_verified_user(user_id: int = 1) -> AsyncClient:
+        headers = get_auth_headers(user_id=user_id, role=UserRole.VERIFIED_USER)
+        client.headers.update(headers)
+        return client
+
+    return _as_verified_user
+
+
+@pytest.fixture
+def as_moderator(client, get_auth_headers):
+    def _as_moderator(user_id: int = 1):
+        headers = get_auth_headers(user_id=user_id, role=UserRole.MODERATOR)
+        client.headers.update(headers)
+        return client
+
+    return _as_moderator
+
+
+pytest_plugins = ["users.conftest"]

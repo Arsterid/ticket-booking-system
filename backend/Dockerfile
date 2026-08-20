@@ -10,6 +10,10 @@ FROM base-builder AS test-env-builder
 RUN uv sync --frozen --no-dev --group test --no-editable
 
 
+FROM base-builder AS load-test-env-builder
+RUN uv sync --frozen --no-dev --group load-test --no-editable
+
+
 FROM base-builder AS lint-env-builder
 RUN uv sync --frozen --no-dev --group lint --no-editable
 
@@ -22,6 +26,16 @@ FROM python:3.14-slim AS tests
 WORKDIR /backend
 
 COPY --from=test-env-builder /backend/.venv /backend/.venv
+
+COPY . .
+
+ENV PATH="/backend/.venv/bin:$PATH"
+
+
+FROM python:3.14-slim AS load-tests
+WORKDIR /backend
+
+COPY --from=load-test-env-builder /backend/.venv /backend/.venv
 
 COPY . .
 

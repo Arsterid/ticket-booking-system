@@ -17,4 +17,4 @@ class TestUserTicketsPagination:
     )
     async def test_get_my_tickets_invalid_params(self, api_client, query_params):
         response = await api_client.get(f"/tickets/my?{query_params}")
-        assert response.status_code in [status.HTTP_422_UNPROCESSABLE_CONTENT, status.HTTP_400_BAD_REQUEST]
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

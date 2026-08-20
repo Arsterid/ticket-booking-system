@@ -1,19 +1,18 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import computed_field, EmailStr, Field
 
-from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema
+from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, PositiveInt32
 from .models import OrderStatus
 
 
 class OrderItemCreateSchema(GenericRequestSchema):
-    category_id: int
-    quantity: int = Field(gt=0)
+    category_id: PositiveInt32
+    quantity: PositiveInt32
 
 
 class OrderCreateSchema(GenericRequestSchema):
-    anonymous_email: Optional[EmailStr] = None
+    anonymous_email: EmailStr | None = None
     items: list[OrderItemCreateSchema] = Field(..., min_length=1)
 
 
@@ -26,21 +25,21 @@ class OrderItemResponseSchema(GenericResponseSchema):
 
 class OrderResponseSchema(GenericResponseSchema):
     id: int
-    user_id: Optional[int]
-    anonymous_email: Optional[EmailStr]
+    user_id: int | None = None
+    anonymous_email: EmailStr | None = None
     status: OrderStatus
     items: list[OrderItemResponseSchema]
 
 
 class OrderFilterParamsSchema(FilterParamsSchema):
-    status: Optional[OrderStatus] = None
+    status: OrderStatus | None = None
 
 
 class OrderItemFilterParamsSchema(FilterParamsSchema):
-    order_id: Optional[int] = Field(None, gt=0)
-    order_status: Optional[OrderStatus] = None
-    category_id: Optional[int] = Field(None, gt=0)
-    quantity: Optional[int] = Field(None, gt=0)
+    order_id: PositiveInt32 | None = None
+    order_status: OrderStatus | None = None
+    category_id: PositiveInt32 | None = None
+    quantity: PositiveInt32 | None = None
 
 
 class OrderEmailItemSchema(GenericResponseSchema):
@@ -56,7 +55,7 @@ class OrderEmailDataSchema(GenericResponseSchema):
 
     event_name: str = Field(validation_alias="items.0.category.event.name")
     event_date: datetime = Field(validation_alias="items.0.category.event.date")
-    event_address: Optional[str] = Field(validation_alias="items.0.category.event.address", default=None)
+    event_address: str | None = Field(validation_alias="items.0.category.event.address", default=None)
 
     items: list[OrderEmailItemSchema]
 

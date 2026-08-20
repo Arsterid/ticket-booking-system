@@ -1,23 +1,23 @@
 from abc import ABC
-from typing import Any, Optional, Type, overload, Union, Sequence, Literal
+from typing import Any, Literal, Optional, overload, Sequence, Type, Union
 
-from sqlalchemy import select, func, Select, Update, Delete, Insert
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import Delete, func, Insert, Update
+from sqlalchemy.exc import DBAPIError, IntegrityError, ResourceClosedError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.annotations import ORM_MODEL_T, DTO_T
-from .query.data_objects import ModificationResult
-from .interfaces.mapper import RepositoryMapper
-from .interfaces.preparer import QueryPreparer
-from .query.builder import RepositoryQuery
+from src.core.annotations import DTO_T, ORM_MODEL_T
+from src.core.infra.database.exceptions import DatabaseExceptionMapper
+from .mapper import RepositoryMapper
+from ..query import ModificationResult, QueryPreparer, QueryBuilder
 
 
 class GenericRepository(ABC, QueryPreparer[ORM_MODEL_T], RepositoryMapper[ORM_MODEL_T, DTO_T]):
     model: Type[ORM_MODEL_T]
     dto: Type[DTO_T]
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, exception_mapper: DatabaseExceptionMapper):
         self._session = session
+        self._exception_mapper = exception_mapper
 
     def __init_subclass__(cls, model: Type[ORM_MODEL_T] = None, dto: Type[DTO_T] = None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -31,22 +31,22 @@ class GenericRepository(ABC, QueryPreparer[ORM_MODEL_T], RepositoryMapper[ORM_MO
         return cls.model.__tablename__.lower() if getattr(cls.model, "__tablename__",
                                                           None) else cls.model.__name__.lower()
 
-    def query(self) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
-        return RepositoryQuery(self)
+    def query(self) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
+        return QueryBuilder(self)
 
-    def with_joined(self, *relations: str) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
+    def with_joined(self, *relations: str) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
         return self.query().with_joined(*relations)
 
-    def with_selectin(self, *relations: str) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
+    def with_selectin(self, *relations: str) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
         return self.query().with_selectin(*relations)
 
-    def filter(self, **kwargs: Any) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
+    def filter(self, **kwargs: Any) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
         return self.query().filter(**kwargs)
 
-    def order_by(self, field: Optional[str]) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
+    def order_by(self, field: Optional[str]) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
         return self.query().order_by(field)
 
-    def options(self, *args: Any) -> RepositoryQuery[ORM_MODEL_T, DTO_T]:
+    def options(self, *args: Any) -> QueryBuilder[ORM_MODEL_T, DTO_T]:
         return self.query().options(*args)
 
     async def get(self, **kwargs: Any) -> Optional[DTO_T]:
@@ -85,10 +85,11 @@ class GenericRepository(ABC, QueryPreparer[ORM_MODEL_T], RepositoryMapper[ORM_MO
         if m_data is not None:
             return await self.query().create(m_data, on_conflict_do_nothing=on_conflict_do_nothing,
                                              index_elements=index_elements)
-
         result = await self.query().create(on_conflict_do_nothing=on_conflict_do_nothing, index_elements=index_elements,
                                            **kwargs)
-        return result[0] if isinstance(result, list) and len(result) > 0 else result
+        if isinstance(result, list):
+            return result[0] if len(result) > 0 else None
+        return result
 
     @overload
     async def update(self, *, returning: Literal[True] = True, **kwargs: Any) -> Optional[DTO_T]:
@@ -125,27 +126,41 @@ class GenericRepository(ABC, QueryPreparer[ORM_MODEL_T], RepositoryMapper[ORM_MO
                 obj_dto = await self.get(**kwargs)
                 return obj_dto, False
 
-    async def _execute_and_paginate_query(self, q: Select[tuple[Any, ...]], *, offset: int = 0, limit: int = 100) -> \
-            tuple[list[Any], int]:
-        count_q = select(func.count()).select_from(q.subquery())
-        total_result = await self._session.execute(count_q)
-        total_count = total_result.scalar_one()
-        paginated_q = q.offset(offset).limit(limit)
+    async def _execute_and_paginate_query(
+            self,
+            q: Any,
+            *,
+            offset: int = 0,
+            limit: int = 100
+    ) -> tuple[list[Any], int]:
+        paginated_q = q.add_columns(func.count().over().label("total_count_over"))
+        paginated_q = paginated_q.offset(offset).limit(limit)
+
         result = await self._session.execute(paginated_q)
-        return list(result.unique().all()), total_count
+        rows = result.unique().all()
+
+        if not rows:
+            return [], 0
+
+        total_count = rows[0]._mapping.get("total_count_over", 0)
+        items_raw = [row[0] for row in rows]
+
+        return items_raw, total_count
 
     async def _execute_modification(self, q: Update | Delete | Insert) -> ModificationResult:
-        res = await self._session.execute(q)
+        try:
+            res = await self._session.execute(q)
+        except DBAPIError as exc:
+            self._exception_mapper.handle(exc)
+
         rowcount = getattr(res, "rowcount", 0)
 
         try:
-            has_returns = bool(res.keys())
-        except Exception:
-            has_returns = False
-
-        returning_rows = list(res.scalars().all()) if has_returns else []
+            returning_rows = list(res.scalars().all())
+        except ResourceClosedError:
+            returning_rows = []
 
         if rowcount is None or rowcount == -1:
             rowcount = len(returning_rows)
-        return ModificationResult(rowcount=rowcount, returning_rows=returning_rows)
 
+        return ModificationResult(rowcount=rowcount, returning_rows=returning_rows)

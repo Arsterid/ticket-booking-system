@@ -1,13 +1,11 @@
-from .generic import GenericIdResponseSchema, GenericRequestSchema, GenericResponseSchema, GenericResultRequestSchema, \
-    GenericSuccessResponseSchema
-from .pagination import PaginationParamsSchema, PaginatedResponseSchema, FilterParamsSchema
+from .generic import GenericIdResponseSchema, GenericRequestSchema, GenericResponseSchema, GenericResultRequestSchema
+from .pagination import FilterParamsSchema, PaginatedResponseSchema, PaginationParamsSchema
 
 __all__ = [
     "GenericIdResponseSchema",
     "GenericRequestSchema",
     "GenericResponseSchema",
     "GenericResultRequestSchema",
-    "GenericSuccessResponseSchema",
     "PaginationParamsSchema",
     "PaginatedResponseSchema",
     "FilterParamsSchema",
