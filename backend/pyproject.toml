@@ -19,6 +19,7 @@ dependencies = [
     "prometheus-fastapi-instrumentator==8.0.0",
     "uvloop==0.22.1",
     "orjson==3.11.9",
+    "faststream[kafka,cli]==0.7.3",
 ]
 
 [dependency-groups]

@@ -18,8 +18,8 @@ class TestUserEventsManagement:
             "category_id": 1,
             "title": "Concert",
             "description": "Rock music event",
-            "event_type": "online",
-            "event_date": (datetime.now(timezone.utc) + timedelta(days=1)).replace(microsecond=0).isoformat(),
+            "format": "online",
+            "started_at": (datetime.now(timezone.utc) + timedelta(days=1)).replace(microsecond=0).isoformat(),
         }
         response = await api_client.post("/events", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
@@ -33,8 +33,8 @@ class TestUserEventsManagement:
             "category_id": 1,
             "title": "",
             "description": "Rock music event",
-            "event_type": "online",
-            "event_date": "2026-06-20T18:00:00+00:00",
+            "format": "online",
+            "started_at": "2026-06-20T18:00:00+00:00",
         }
         response = await api_client.post("/events", json=payload)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -50,8 +50,8 @@ class TestUserEventsManagement:
                 title="Non Draft",
                 description="Desc",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -76,8 +76,8 @@ class TestUserEventsManagement:
                 description="Desc",
                 state="approved",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -97,8 +97,8 @@ class TestUserEventsManagement:
                 description="Desc",
                 state=EventState.DRAFT,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -125,8 +125,8 @@ class TestUserEventsManagement:
                 description="Desc",
                 state=EventState.DRAFT,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -152,8 +152,8 @@ class TestPublicEventsCatalog:
                 description="Desc",
                 state=EventState.APPROVED,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -173,8 +173,8 @@ class TestPublicEventsCatalog:
                 description="Desc",
                 state=EventState.DRAFT,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -190,8 +190,8 @@ class TestPublicEventsCatalog:
             "category_id": 1,
             "title": "Concert",
             "description": "Rock music event",
-            "event_type": "online",
-            "event_date": "2026-06-20T18:00:00+00:00",
+            "format": "online",
+            "started_at": "2026-06-20T18:00:00+00:00",
         }
         response = await api_client.post("/events", json=payload)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -226,8 +226,8 @@ class TestPublicEventsCatalog:
                 description="Future Desc",
                 state=EventState.APPROVED,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -257,8 +257,8 @@ class TestPublicEventsCatalog:
                 description="Desc",
                 state=hidden_state,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 

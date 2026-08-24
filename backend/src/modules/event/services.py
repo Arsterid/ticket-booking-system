@@ -3,6 +3,7 @@ from typing import Any
 from src.app.exceptions import ObjectNotFoundException, ServiceException, UniqueFieldException, WrongStateException
 from src.app.uow import AppUnitOfWork
 from src.core.infra.database.exceptions import UniqueViolationError
+from src.core.infra.database.query import Case, When
 from src.core.infra.transport.http import PaginatedResponseSchema
 from src.domain.services.base import GenericService
 from src.modules.views.mixins import ViewableServiceMixin
@@ -87,7 +88,7 @@ class EventService(GenericService[AppUnitOfWork], ViewableServiceMixin):
                 .filter(id=event_id, user_id=user_id, state=EventState.DRAFT)
                 .update(state=EventState.ON_MODERATION)
             )
-            
+
             if not is_published:
                 event_obj = await self.uow.event.get(id=event_id, user_id=user_id)
                 if not event_obj:
@@ -289,6 +290,16 @@ class EventService(GenericService[AppUnitOfWork], ViewableServiceMixin):
                 .filter(**(filters or {}))
                 .with_selectin("children")
                 .order_by(order_by)
+                .annotate(
+                    can_create_events=Case(
+                        When(then=False, children__has_any=True),
+                        default=True
+                    ),
+                    can_create_subcategories=Case(
+                        When(then=False, events__has_any=True),
+                        default=True
+                    )
+                )
                 .paginate(offset=offset, limit=limit)
             )
 

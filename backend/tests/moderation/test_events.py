@@ -23,8 +23,8 @@ class TestModeratorEvents:
                 description="Pending Desc",
                 state=EventState.ON_MODERATION,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -46,9 +46,9 @@ class TestModeratorEvents:
                 title="Pending Event",
                 description="Pending Desc",
                 category_id=1,
-                event_type="online",
+                format="online",
                 state=EventState.ON_MODERATION,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -85,9 +85,9 @@ class TestModeratorEvents:
                 title="Moderated Event",
                 description="Desc",
                 category_id=1,
-                event_type="online",
+                format="online",
                 state=already_moderated_state,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 

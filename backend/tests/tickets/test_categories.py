@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import status
 
-from src.modules.event.models import EventState, EventType
+from src.modules.event.models import EventState, EventFormat
 
 
 class TestTicketCategories:
@@ -20,8 +20,8 @@ class TestTicketCategories:
                 state=EventState.APPROVED,
                 title="Title 10",
                 description="Desc 10",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=100,
             )
             await create_model_factory(
@@ -56,8 +56,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 11",
                 description="Desc 11",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=101
             )
             await uow.commit()
@@ -77,8 +77,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 12",
                 description="Desc 12",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=102,
             )
             await uow.commit()
@@ -115,8 +115,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 13",
                 description="Desc 13",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=103
             )
             await uow.commit()
@@ -142,8 +142,8 @@ class TestTicketCategories:
                 state=EventState.APPROVED,
                 title="Title 14",
                 description="Desc 14",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=104
             )
             await uow.commit()
@@ -169,8 +169,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 15",
                 description="Desc 15",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=105
             )
             await create_model_factory(
@@ -211,8 +211,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 16",
                 description="Desc 16",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=106
             )
             await create_model_factory(
@@ -244,8 +244,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 17",
                 description="Desc 17",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=107
             )
             await create_model_factory(
@@ -279,8 +279,8 @@ class TestTicketCategories:
                 state=EventState.DRAFT,
                 title="Title 18",
                 description="Desc 18",
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
                 category_id=108
             )
             await create_model_factory(

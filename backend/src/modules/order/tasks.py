@@ -47,7 +47,7 @@ async def send_confirmation_mail_task(service: OrderServiceDep, order_id: int) -
 
         await email_service.send(
             to_email=email_data.user_email,
-            subject=f"Ваш заказ №{email_data.order_id} на мероприятие «{email_data.event_name}» успешно оплачен",
+            subject=f"Ваш заказ №{email_data.order_id} на мероприятие «{email_data.event_title}» успешно оплачен",
             body="",
             template_name="order_confirmation.html",
             lang="ru",

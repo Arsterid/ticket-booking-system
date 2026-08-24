@@ -4,8 +4,7 @@ from sqlalchemy import inspect, select
 from sqlalchemy.orm import joinedload, RelationshipProperty, selectinload
 
 from src.core.annotations import DTO_T, ORM_MODEL_T
-from .executors import MutationQueryExecutor
-from .executors import ReadQueryExecutor
+from .executors import MutationQueryExecutor, ReadQueryExecutor
 from .modifiers import BaseQueryModifier
 
 
@@ -17,6 +16,7 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
         self._options: list[Any] = []
         self._with_for_update: Union[bool, dict[str, Any]] = False
         self._context_history: list[tuple[Type[Any], Any]] = []
+        self._annotations: dict[str, Any] = {}
 
     def filter(self, **kwargs: Any) -> "QueryBuilder[ORM_MODEL_T, DTO_T]":
         clone = self._clone()
@@ -43,6 +43,11 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
             clone._with_for_update = set_val
         return clone
 
+    def annotate(self, **kwargs: Any) -> "QueryBuilder[ORM_MODEL_T, DTO_T]":
+        clone = self._clone()
+        clone._annotations = {**self._annotations, **kwargs}
+        return clone
+
     def _get_current_model(self) -> Type[Any]:
         return self.__dict__.get("_target_model", self._repo.model)
 
@@ -53,6 +58,7 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
         clone._options = [*self._options]
         clone._with_for_update = self._with_for_update
         clone._context_history = [*self._context_history]
+        clone._annotations = {**self._annotations}
 
         if "_target_model" in self.__dict__:
             clone._target_model = self._target_model
@@ -65,19 +71,23 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
     async def _execute(self) -> tuple[Any, list[BaseQueryModifier]]:
         current_model = self._get_current_model()
         if not hasattr(self, "_target_model"):
-            return self._repo._prepare_query(
+            q, modifiers = self._repo._prepare_query(
                 options=self._options,
                 with_for_update=self._with_for_update,
                 order_by=self._order_by,
+                annotations=getattr(self, "_annotations", None),
                 **self._filters
             )
-        q = select(current_model)
-        if self._filters:
-            q = self._repo._build_filtered_query(q, self._filters)
-        if self._order_by:
-            q = self._repo._apply_sorting(q, self._order_by)
-        q = self._build_final_criteria(q)
-        return q, []
+        else:
+            q = select(current_model)
+            if self._filters:
+                q = self._repo._build_filtered_query(q, self._filters, getattr(self, "_annotations", None))
+            if self._order_by:
+                q = self._repo._apply_sorting(q, self._order_by)
+            q = self._build_final_criteria(q)
+            modifiers = []
+
+        return q, modifiers
 
     def __getattr__(self, name: str) -> "QueryBuilder[Any, Any]":
         if name.startswith('_'):
@@ -113,6 +123,7 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
         clone._order_by = None
         clone._options = []
         clone._with_for_update = False
+        clone._annotations = {}
         return clone
 
     def with_joined(self, *relations: str) -> "QueryBuilder[ORM_MODEL_T, DTO_T]":
@@ -124,13 +135,13 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
             parts = rel.split("__")
             model_attr = getattr(current_model, parts[0])
             opt = joinedload(model_attr)
-            parent_model = current_model
+            prop = inspect(model_attr).property
 
             for part in parts[1:]:
-                prop = inspect(getattr(parent_model, parts[0])).property
                 parent_model = prop.mapper.class_
                 next_attr = getattr(parent_model, part)
                 opt = opt.joinedload(next_attr)
+                prop = inspect(next_attr).property
 
             options.append(opt)
 
@@ -183,7 +194,19 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
             m_data: list[dict[str, Any]],
             *,
             on_conflict_do_nothing: bool = False,
-            index_elements: Optional[list[str]] = None
+            index_elements: Optional[list[str]] = None,
+            returning: Literal[False]
+    ) -> int:
+        ...
+
+    @overload
+    async def create(
+            self,
+            m_data: list[dict[str, Any]],
+            *,
+            on_conflict_do_nothing: bool = False,
+            index_elements: Optional[list[str]] = None,
+            returning: Union[Literal[True], Sequence[Any]] = True
     ) -> list[DTO_T]:
         ...
 
@@ -193,6 +216,18 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
             *,
             on_conflict_do_nothing: bool = False,
             index_elements: Optional[list[str]] = None,
+            returning: Literal[False],
+            **kwargs: Any
+    ) -> int:
+        ...
+
+    @overload
+    async def create(
+            self,
+            *,
+            on_conflict_do_nothing: bool = False,
+            index_elements: Optional[list[str]] = None,
+            returning: Union[Literal[True], Sequence[Any]] = True,
             **kwargs: Any
     ) -> Optional[DTO_T]:
         ...
@@ -203,6 +238,7 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
             *,
             on_conflict_do_nothing: bool = False,
             index_elements: Optional[list[str]] = None,
+            returning: Union[bool, Sequence[Any]] = True,
             **kwargs: Any
     ) -> Any:
         if m_data is not None:
@@ -210,12 +246,14 @@ class QueryBuilder(Generic[ORM_MODEL_T, DTO_T]):
                 self,
                 m_data,
                 on_conflict_do_nothing=on_conflict_do_nothing,
-                index_elements=index_elements
+                index_elements=index_elements,
+                returning=returning
             )
         return await MutationQueryExecutor.create(
             self,
             on_conflict_do_nothing=on_conflict_do_nothing,
             index_elements=index_elements,
+            returning=returning,
             **kwargs
         )
 

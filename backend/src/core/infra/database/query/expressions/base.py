@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
+from sqlalchemy.orm import RelationshipProperty
 
 
 class BaseExpression(ABC):
@@ -30,8 +31,8 @@ class BaseExpression(ABC):
             prop = relation_attr.property
             target_model = prop.mapper.class_
 
-            local_col = prop.local_columns.copy().pop()
-            remote_col = prop.remote_side.copy().pop()
+            local_col = list(prop.local_columns)[0]
+            remote_col = list(prop.remote_side)[0]
 
             if stmt is None:
                 stmt = select(target_model).where(remote_col == local_col)
@@ -43,6 +44,12 @@ class BaseExpression(ABC):
 
         if hasattr(model, target_field):
             attr = getattr(model, target_field)
+            try:
+                prop = inspect(attr).property
+                if isinstance(prop, RelationshipProperty):
+                    return attr
+            except Exception:
+                pass
             return stmt.with_only_columns(attr).scalar_subquery()
 
         raise AttributeError(f"Field '{target_field}' not found on model {model.__name__}")

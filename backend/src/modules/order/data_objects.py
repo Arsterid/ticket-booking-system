@@ -8,6 +8,7 @@ from src.core.infra.database import BaseDTO
 
 if TYPE_CHECKING:
     from src.modules.ticket.data_objects import TicketCategoryDTO
+    from src.modules.user.data_objects import UserDTO
 
 
 @dataclass(slots=True)
@@ -28,3 +29,4 @@ class OrderDTO(BaseDTO):
     created_at: datetime
     updated_at: datetime
     items: list[OrderItemDTO] = field(default_factory=list)
+    user: Optional[UserDTO] = None

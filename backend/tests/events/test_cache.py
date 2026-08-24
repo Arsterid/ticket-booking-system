@@ -4,8 +4,8 @@ from src.modules.event.models import EventState
 
 
 class TestEventsCache:
-    async def test_endpoint_cache_hit(self, as_verified_user, seed_event_env, create_event):
-        cat, usr = await seed_event_env()
+    async def test_endpoint_cache_hit(self, as_verified_user: AsUserClient, event_context: EventEnvSeeder, create_event):
+        cat, usr = await event_context()
         await create_event(user_id=usr.id, category_id=cat.id)
 
         client = as_verified_user(user_id=usr.id)
@@ -20,8 +20,9 @@ class TestEventsCache:
 
         assert first_response.json()["count"] == second_response.json()["count"]
 
-    async def test_endpoint_cache_invalidation(self, as_verified_user, as_moderator, seed_event_env, create_event):
-        cat, usr = await seed_event_env()
+    async def test_endpoint_cache_invalidation(self, as_verified_user: AsUserClient, as_moderator,
+                                               event_context: EventEnvSeeder, create_event):
+        cat, usr = await event_context()
 
         client = as_verified_user()
         first_response = await client.get("/events")

@@ -1,8 +1,8 @@
-"""Initial
+"""Initial migration
 
-Revision ID: 1d906f8719bb
+Revision ID: a88025ba4d26
 Revises:
-Create Date: 2026-06-27 20:29:36.966978
+Create Date: 2026-08-26 13:43:00.280205
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1d906f8719bb'
+revision: str = 'a88025ba4d26'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,15 +45,26 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_role'), 'users', ['role'], unique=False)
+    op.create_table('view_logs',
+    sa.Column('object_type', sa.String(length=255), nullable=False),
+    sa.Column('object_id', sa.Integer(), nullable=False),
+    sa.Column('visitor_hash', sa.String(length=32), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('object_type', 'object_id', 'visitor_hash', name='uq_view_logs_object_visitor')
+    )
+    op.create_index(op.f('ix_view_logs_visitor_hash'), 'view_logs', ['visitor_hash'], unique=False)
     op.create_table('events',
     sa.Column('title', sa.String(length=100), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('category_id', sa.Integer(), nullable=False),
     sa.Column('state', sa.Enum('DRAFT', 'ON_MODERATION', 'APPROVED', 'REJECTED', 'CANCELLED', name='eventstate', native_enum=False, length=20), nullable=False),
-    sa.Column('event_type', sa.Enum('OFFLINE', 'ONLINE', name='eventtype', native_enum=False, length=20), nullable=False),
+    sa.Column('format', sa.Enum('OFFLINE', 'ONLINE', name='eventformat', native_enum=False, length=20), nullable=False),
     sa.Column('address', sa.String(length=255), nullable=True),
-    sa.Column('event_date', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
@@ -62,7 +73,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_events_category_id'), 'events', ['category_id'], unique=False)
-    op.create_index(op.f('ix_events_event_type'), 'events', ['event_type'], unique=False)
+    op.create_index(op.f('ix_events_format'), 'events', ['format'], unique=False)
     op.create_index(op.f('ix_events_state'), 'events', ['state'], unique=False)
     op.create_index(op.f('ix_events_user_id'), 'events', ['user_id'], unique=False)
     op.create_table('orders',
@@ -79,18 +90,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_orders_anonymous_email'), 'orders', ['anonymous_email'], unique=False)
     op.create_index(op.f('ix_orders_status'), 'orders', ['status'], unique=False)
     op.create_index(op.f('ix_orders_user_id'), 'orders', ['user_id'], unique=False)
-    op.create_table('view_logs',
-    sa.Column('object_type', sa.String(length=255), nullable=False),
-    sa.Column('object_id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('object_type', 'object_id', 'user_id', name='uq_view_logs_object_user')
-    )
-    op.create_index(op.f('ix_view_logs_user_id'), 'view_logs', ['user_id'], unique=False)
     op.create_table('ticket_categories',
     sa.Column('event_id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -147,17 +146,17 @@ def downgrade() -> None:
     op.drop_table('order_items')
     op.drop_index(op.f('ix_ticket_categories_event_id'), table_name='ticket_categories')
     op.drop_table('ticket_categories')
-    op.drop_index(op.f('ix_view_logs_user_id'), table_name='view_logs')
-    op.drop_table('view_logs')
     op.drop_index(op.f('ix_orders_user_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_status'), table_name='orders')
     op.drop_index(op.f('ix_orders_anonymous_email'), table_name='orders')
     op.drop_table('orders')
     op.drop_index(op.f('ix_events_user_id'), table_name='events')
     op.drop_index(op.f('ix_events_state'), table_name='events')
-    op.drop_index(op.f('ix_events_event_type'), table_name='events')
+    op.drop_index(op.f('ix_events_format'), table_name='events')
     op.drop_index(op.f('ix_events_category_id'), table_name='events')
     op.drop_table('events')
+    op.drop_index(op.f('ix_view_logs_visitor_hash'), table_name='view_logs')
+    op.drop_table('view_logs')
     op.drop_index(op.f('ix_users_role'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')

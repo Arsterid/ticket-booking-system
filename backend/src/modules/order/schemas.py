@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import computed_field, EmailStr, Field
+from pydantic import AliasPath, computed_field, EmailStr, Field
 
 from src.core.infra.transport.http import FilterParamsSchema, GenericRequestSchema, GenericResponseSchema, PositiveInt32
 from .models import OrderStatus
@@ -43,19 +43,19 @@ class OrderItemFilterParamsSchema(FilterParamsSchema):
 
 
 class OrderEmailItemSchema(GenericResponseSchema):
-    category_name: str = Field(validation_alias="category.name")
-    price_paid: float = Field(validation_alias="category.price")
+    category_name: str = Field(validation_alias=AliasPath("category", "name"))
+    price_paid: float = Field(validation_alias=AliasPath("category", "price"))
     quantity: int
 
 
 class OrderEmailDataSchema(GenericResponseSchema):
-    order_id: int = Field(validation_alias="id")
+    order_id: int = Field()
     created_at: datetime
-    user_email: str = Field(validation_alias="anonymous_email")
+    user_email: str = Field()
 
-    event_name: str = Field(validation_alias="items.0.category.event.name")
-    event_date: datetime = Field(validation_alias="items.0.category.event.date")
-    event_address: str | None = Field(validation_alias="items.0.category.event.address", default=None)
+    event_title: str = Field()
+    event_started_at: datetime = Field()
+    event_address: str | None = Field(default=None)
 
     items: list[OrderEmailItemSchema]
 

@@ -1,20 +1,24 @@
+import asyncio
 import importlib
+import random
 from pathlib import Path
 
 import pytest
+from faststream.kafka import TestKafkaBroker
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from taskiq import InMemoryBroker
 
+from core.types import AsAnonymClient, AsUserClient, AuthClientFactory, WithRoleClient
 from src.app.uow import create_app_uow
 from src.core.database import db_factory
 from src.core.infra.cache.factory import get_cache_manager
 from src.core.infra.database.orm.base import AbstractORMModel
-from src.core.infra.tasks.config import broker
 from src.core.infra.transport.http.dependencies import get_jwt_manager, get_password_manager
 from src.core.security import JWTManager
 from src.core.settings import AppConfig, get_settings
 from src.modules.user.models import UserRole
+from src.workers.view_logs.main import broker
 
 BASE_DIR = Path(__file__).parent.parent
 SRC_DIR = BASE_DIR / "src"
@@ -48,17 +52,22 @@ get_cache_manager._instance = shared_test_cache
 
 
 @pytest.fixture(autouse=True)
-def setup_taskiq():
+async def setup_taskiq():
     if isinstance(broker, InMemoryBroker):
         broker.await_inplace = True
+
     yield
+
     if isinstance(broker, InMemoryBroker):
+        await asyncio.sleep(0)
         broker.await_inplace = False
         broker.dependency_overrides.clear()
 
 
 @pytest.fixture(autouse=True)
 async def clean_db():
+    await asyncio.sleep(0.05)
+
     await shared_test_cache.clear()
 
     engine = db_factory.get_engine()
@@ -144,33 +153,72 @@ async def api_client(client, request, get_auth_headers):
 
 
 @pytest.fixture
-def as_user(client, get_auth_headers):
+def auth_client_factory(api_transport, get_auth_headers) -> AuthClientFactory:
+    def _create_client(role: UserRole | None = None, user_id: int = 1) -> AsyncClient:
+        fake_ip = f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
+        fake_ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) TestBrowser/{random.randint(100, 999)}"
+
+        headers = {
+            "X-Forwarded-For": fake_ip,
+            "User-Agent": fake_ua,
+        }
+
+        if role is not None:
+            headers.update(get_auth_headers(user_id=user_id, role=role))
+
+        return AsyncClient(
+            transport=api_transport,
+            base_url="http://test/api/v1",
+            headers=headers
+        )
+
+    return _create_client
+
+
+@pytest.fixture
+def with_role(auth_client_factory) -> WithRoleClient:
+    def _with_role(role: UserRole = UserRole.USER, user_id: int = 1) -> AsyncClient:
+        return auth_client_factory(role=role, user_id=user_id)
+
+    return _with_role
+
+
+@pytest.fixture
+def as_anonym(auth_client_factory) -> AsAnonymClient:
+    def _as_anonym() -> AsyncClient:
+        return auth_client_factory(role=None)
+
+    return _as_anonym
+
+
+@pytest.fixture
+def as_user(auth_client_factory) -> AsUserClient:
     def _as_user(user_id: int = 1) -> AsyncClient:
-        headers = get_auth_headers(user_id=user_id, role=UserRole.USER)
-        client.headers.update(headers)
-        return client
+        return auth_client_factory(role=UserRole.USER, user_id=user_id)
 
     return _as_user
 
 
 @pytest.fixture
-def as_verified_user(client, get_auth_headers):
+def as_verified_user(auth_client_factory) -> AsUserClient:
     def _as_verified_user(user_id: int = 1) -> AsyncClient:
-        headers = get_auth_headers(user_id=user_id, role=UserRole.VERIFIED_USER)
-        client.headers.update(headers)
-        return client
+        return auth_client_factory(role=UserRole.VERIFIED_USER, user_id=user_id)
 
     return _as_verified_user
 
 
 @pytest.fixture
-def as_moderator(client, get_auth_headers):
-    def _as_moderator(user_id: int = 1):
-        headers = get_auth_headers(user_id=user_id, role=UserRole.MODERATOR)
-        client.headers.update(headers)
-        return client
+def as_moderator(auth_client_factory) -> AsUserClient:
+    def _as_moderator(user_id: int = 1) -> AsyncClient:
+        return auth_client_factory(role=UserRole.MODERATOR, user_id=user_id)
 
     return _as_moderator
+
+
+@pytest.fixture
+async def mock_kafka() -> TestKafkaBroker:
+    async with TestKafkaBroker(broker) as br:
+        yield br
 
 
 pytest_plugins = ["users.conftest"]

@@ -25,8 +25,8 @@ class TestUserEvents:
                 description="Desc",
                 state=initial_state,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -61,8 +61,8 @@ class TestUserEvents:
                 description="Desc",
                 state=initial_state,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -84,8 +84,8 @@ class TestUserEvents:
                 description="Desc",
                 state=EventState.ON_MODERATION,
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -104,8 +104,8 @@ class TestUserEvents:
                 description="Desc",
                 state="cancelled",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -136,8 +136,8 @@ class TestUserEvents:
                 title="Concert",
                 description="Rock",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await create_model_factory(
                 uow, "ticket_category", id=1, event_id=1, name="Standard", price=100.0, total_quantity=100
@@ -168,8 +168,8 @@ class TestUserEvents:
                 title="Concert",
                 description="Rock",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 
@@ -205,8 +205,8 @@ class TestPublicEvents:
                 title="Concert",
                 description="Rock",
                 category_id=1,
-                event_type="online",
-                event_date=datetime.now(timezone.utc) + timedelta(days=1),
+                format="online",
+                started_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
             await uow.commit()
 

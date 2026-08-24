@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from src.app.uow import create_app_uow
 from src.cli.colors import CLR_RESET, CLR_GREEN, CLR_CYAN, CLR_YELLOW, CLR_RED, CLR_BOLD, CLR_GRAY
 from src.cli.enums import StepStatus
+from src.core.infra.database.repositories import GenericRepository
+from src.core.infra.database.uow.units import SQLAlchemyUnitOfWork
 
 
 class BaseCommand(ABC):
@@ -100,7 +102,7 @@ class BaseCommand(ABC):
         return {}
 
     @abstractmethod
-    async def handle(self, uow, **options) -> None:
+    async def handle(self, uow: SQLAlchemyUnitOfWork, **options) -> None:
         pass
 
     async def execute(self, args: list[str]) -> None:
@@ -134,7 +136,7 @@ class BaseCommand(ABC):
             print(f"\n{CLR_RED}{CLR_BOLD}[ CRITICAL ] Command '{self.name}' failed with exception: {e}{CLR_RESET}")
             raise e
 
-    async def execute_bulk(self, repo, m_data: list[dict], **kwargs) -> list:
+    async def execute_bulk(self, repo: GenericRepository, m_data: list[dict], **kwargs) -> list:
         if not m_data:
             return []
 

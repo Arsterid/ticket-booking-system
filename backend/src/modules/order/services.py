@@ -5,9 +5,12 @@ from src.app.uow import AppUnitOfWork
 from src.core.infra.database.query import Case, When
 from src.core.infra.transport.http import PaginatedResponseSchema
 from src.domain.services.base import GenericService
+from src.modules.event.data_objects import EventDTO
 from src.modules.ticket.data_objects import TicketCategoryDTO
 from src.modules.ticket.exceptions import NoTicketsAvailableException
 from src.modules.ticket.models import TicketStatus
+from src.modules.user.data_objects import UserDTO
+from .data_objects import OrderDTO
 from .models import OrderStatus
 from .schemas import OrderCreateSchema, OrderEmailDataSchema, OrderItemResponseSchema, OrderResponseSchema
 
@@ -165,19 +168,36 @@ class OrderService(GenericService[AppUnitOfWork]):
 
         return migrated_count
 
-    async def get_email_notification_data(self, order_id: int) -> OrderEmailDataSchema:
+    async def get_email_notification_data(self, order_id: int) -> OrderEmailDataSchema:  # TODO fix
         async with self.uow.as_readonly():
-            order_dto = await (
+            obj: OrderDTO = await (
                 self.uow.order
-                .filter(id=order_id)
-                .with_joined("items__category__event")
-                .first()
+                .with_joined(
+                    "items__category__event",
+                    "user"
+                )
+                .get(id=order_id)
             )
 
-            if not order_dto:
+            if not obj:
                 raise ObjectNotFoundException(table=self.uow.order.get_model_name(), value=order_id)
 
-        return OrderEmailDataSchema.model_validate(order_dto)
+        event_obj: EventDTO = obj.items[0].category.event
+        user_obj: UserDTO = obj.user
+
+        target_email = obj.anonymous_email or user_obj.email
+
+        data = {
+            "order_id": obj.id,
+            "created_at": obj.created_at,
+            "user_email": target_email,
+            "event_title": event_obj.title,
+            "event_started_at": event_obj.started_at,
+            "event_address": event_obj.address,
+            "items": obj.items,
+        }
+
+        return OrderEmailDataSchema.model_validate(data)
 
     async def get_all_by_user_id(
             self,

@@ -1,8 +1,9 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from fastapi import status
 
-from src.modules.event.models import EventState, EventType
+from src.modules.event.models import EventState, EventFormat
 
 
 class TestUserRegistrationTrigger:
@@ -18,8 +19,8 @@ class TestUserRegistrationTrigger:
                 title="E",
                 description="D",
                 category_id=event_cat.id,
-                event_type=EventType.ONLINE,
-                event_date=datetime.now(timezone.utc) + timedelta(days=10),
+                format=EventFormat.ONLINE,
+                started_at=datetime.now(timezone.utc) + timedelta(days=10),
             )
             ticket_cat = await create_model_factory(
                 uow,
@@ -42,6 +43,8 @@ class TestUserRegistrationTrigger:
         response = await api_client.post("/users", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
         user_id = response.json()["id"]
+
+        await asyncio.sleep(0.1)
 
         async with setup_uow as uow:
             order = await uow.order.get(id=10)

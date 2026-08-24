@@ -21,7 +21,7 @@ moderation_router = APIRouter(
 @moderation_router.get("/events", status_code=status.HTTP_200_OK)
 async def get_all_events_up_to_moderation(
         service: EventServiceDep,
-        filters: EventsByUserFiltersDep
+        filters: EventsByUserFiltersDep,
 ) -> PaginatedResponseSchema[EventResponseSchema]:
     return await service.get_for_moderation(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
@@ -41,7 +41,7 @@ async def moderate_event(
 @moderation_router.get("/users", status_code=status.HTTP_200_OK)
 async def get_all_users_up_to_verification(
         service: UserServiceDep,
-        filters: UserFiltersDep
+        filters: UserFiltersDep,
 ) -> PaginatedResponseSchema[UserResponseSchema]:
     return await service.get_for_verification(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
@@ -53,7 +53,7 @@ async def moderate_user(
         service: UserServiceDep,
         body: GenericResultRequestSchema,
         user_id: Int32Path,
-):
+) -> None:
     await service.verify(user_id=user_id, result=body.result)
 
 
@@ -69,7 +69,7 @@ admin_router = APIRouter(
 @invalidates_cache(tags=CacheTag.ADMIN_EVENT_CATEGORIES)
 async def create(
         service: EventServiceDep,
-        body: EventCategoryCreateSchema
+        body: EventCategoryCreateSchema,
 ) -> EventCategoryResponseSchema:
     return await service.create_category(data=body)
 
@@ -89,7 +89,7 @@ async def get_all_categories(
 @admin_router.get("/users", status_code=status.HTTP_200_OK)
 async def get_all_users(
         service: UserServiceDep,
-        filters: UserFiltersDep
+        filters: UserFiltersDep,
 ) -> PaginatedResponseSchema[UserResponseSchema]:
     return await service.get_all(
         offset=filters.offset, limit=filters.limit, order_by=filters.order_by, filters=filters.specific_filters
@@ -102,10 +102,10 @@ async def get_user(service: UserServiceDep, user_id: Int32Path) -> UserResponseS
 
 
 @admin_router.patch("/users/{user_id}/ban", status_code=status.HTTP_204_NO_CONTENT)
-async def ban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep):
+async def ban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep) -> None:
     await service.ban(user_id=user_id, actor_id=actor_id)
 
 
 @admin_router.patch("/users/{user_id}/unban", status_code=status.HTTP_204_NO_CONTENT)
-async def unban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep):
+async def unban_user(service: UserServiceDep, user_id: Int32Path, actor_id: AdminUserIdDep) -> None:
     await service.unban(user_id=user_id, actor_id=actor_id)

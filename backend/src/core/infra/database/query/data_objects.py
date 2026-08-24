@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Optional
-
-from src.core.annotations import DTO_T
+from typing import Any, Optional
 
 
 class BaseDTO:

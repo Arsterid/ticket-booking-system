@@ -34,7 +34,7 @@ services:
       <<: *locust-env
       LOCUST_SKIP_MONKEY_PATCH: 1
     ports:
-      - "{LOCUST_PORT}:8089"
+      - "${LOCUST_PORT:-8089}:8089"
     command: locust -f tests/load/locustfile.py --host http://api:8000
     networks:
       - backend_network

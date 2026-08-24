@@ -12,10 +12,10 @@ class Case(BaseExpression):
         self.default = default
 
     def resolve(self, current_model: Any, operators_map: dict[str, Any] | None = None) -> Any:
-        whens_dict = {}
+        whens_list = []
 
         for when_clause in self.whens:
-            condition = when_clause.resolve(current_model, operators_map)
-            whens_dict[condition] = current_model.id
+            condition, then_val = when_clause.resolve(current_model, operators_map)
+            whens_list.append((condition, then_val))
 
-        return case(whens_dict, else_=self.default)
+        return case(*whens_list, else_=self.default)

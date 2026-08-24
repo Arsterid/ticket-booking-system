@@ -52,7 +52,7 @@ COPY . .
 ENV PATH="/backend/.venv/bin:$PATH"
 
 
-FROM python:3.14-slim AS backend
+FROM python:3.14-slim AS app
 WORKDIR /backend
 
 COPY --from=prod-env-builder /backend/.venv /backend/.venv
