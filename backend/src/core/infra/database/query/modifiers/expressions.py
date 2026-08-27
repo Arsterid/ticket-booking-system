@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from sqlalchemy import select, func, inspect
+from sqlalchemy import func, inspect, select
+
+from ..expressions.base import BaseExpression
 
 
 class SQLFunction(ABC):
@@ -15,7 +17,9 @@ class Count(SQLFunction):
         self.relationship = relationship
 
     def resolve(self, current_model: Any) -> Any:
-        prop = inspect(self.relationship).property
+        resolved_rel = self.relationship.resolve(current_model) if isinstance(self.relationship,
+                                                                              BaseExpression) else self.relationship
+        prop = inspect(resolved_rel).property
         target_model = prop.mapper.class_
         return (
             select(func.count())

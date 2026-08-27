@@ -53,7 +53,7 @@ class RepositoryMapper(Generic[ORM_MODEL_T, DTO_T]):
                 elif hybrid_fields and f in hybrid_fields:
                     loaded_data[f] = getattr(actual_instance, f)
                 elif hasattr(actual_instance, f):
-                    if f not in obj_insp.unloaded:
+                    if f in actual_instance.__dict__ or f not in obj_insp.unloaded:
                         loaded_data[f] = getattr(actual_instance, f)
 
             items_dto.append(self.dto(**loaded_data))

@@ -29,22 +29,35 @@ x-backend-env: &backend_env
   REDIS_POOL_SIZE: $REDIS_POOL_SIZE
   PYTHONUNBUFFERED: $PYTHONUNBUFFERED
   SQL_LOGS: $SQL_LOGS
-  ENABLE_METRICS: $ENABLE_METRICS
-  METRICS_TOKEN: $METRICS_TOKEN
+  ENABLE_METRICS: ${ENABLE_METRICS:-false}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+  KAFKA_HOST: "kafka"
+  KAFKA_PORT: ${KAFKA_PORT:-9092}
+
+x-kafka-env: &kafka_env
+  KAFKA_NODE_ID: 1
+  KAFKA_PROCESS_ROLES: 'broker,controller'
+  KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:9093'
+  KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
+  KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:${KAFKA_PORT:-9092}'
+  KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_TOPICS:-false}
 
 services:
   db:
     image: postgres:16.3-alpine3.20
     container_name: db
     environment: *db_env
-    ports:
-      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - backend_network
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -53,31 +66,44 @@ services:
   redis:
     image: eqalpha/keydb:x86_64_v6.3.4
     container_name: redis
-    ports:
-      - "${REDIS_PORT}:6379"
     networks:
       - backend_network
     healthcheck:
-      test: ["CMD", "keydb-cli", "ping"]
+      test: [ "CMD", "keydb-cli", "ping" ]
       interval: 30s
       timeout: 3s
       retries: 3
       start_period: 5s
 
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: kafka
+    environment: *kafka_env
+    networks:
+      - backend_network
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: backend
+      target: app
     container_name: api
     command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --log-level warning
     ports:
-      - "${BACKEND_PORT}:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     environment: *backend_env
     depends_on:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - frontend_network
@@ -93,7 +119,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: backend
+      target: app
     container_name: taskiq_worker
     command: taskiq worker src.core.infra.tasks.config:broker --workers 1
     environment: *backend_env
@@ -102,6 +128,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - backend_network
 
@@ -109,13 +137,31 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: backend
+      target: app
     container_name: taskiq_scheduler
     command: taskiq scheduler src.core.infra.tasks.config:scheduler --update-interval 5
     environment: *backend_env
     depends_on:
       redis:
         condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - backend_network
+
+  worker-view-logs:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: app
+    container_name: worker-views
+    command: faststream run src.workers.view_logs.main:app --workers 1
+    environment: *backend_env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - backend_network
 

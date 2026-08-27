@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from src.modules.event.models import EventState, EventType
+from src.modules.event.models import EventState, EventFormat
 
 
 @pytest.fixture
@@ -31,8 +31,8 @@ def seed_order_env(create_model_factory):
             title="Test Event",
             description="Desc",
             category_id=event_cat.id,
-            event_type=EventType.ONLINE,
-            event_date=datetime.now(timezone.utc) + timedelta(days=10),
+            format=EventFormat.ONLINE,
+            started_at=datetime.now(timezone.utc) + timedelta(days=10),
         )
 
         await create_model_factory(

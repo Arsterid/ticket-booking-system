@@ -27,6 +27,9 @@ class AppConfig(BaseSettings):
     redis_db: int = 0
     redis_pool_size: Optional[int] = 50
 
+    kafka_host: str = "localhost"
+    kafka_port: int = 9092
+
     jwt_secret_key: str = "<KEY>"
     jwt_algorithm: str = "HS256"
     jwt_expires_in: int = 3600
@@ -46,6 +49,10 @@ class AppConfig(BaseSettings):
     mail_ssl_tls: Optional[bool] = None
     mail_use_credentials: Optional[bool] = None
     mail_validate_certs: Optional[bool] = None
+
+    @property
+    def kafka_url(self) -> str:
+        return f"{self.kafka_host}:{self.kafka_port}"
 
     @property
     def redis_url(self) -> str:

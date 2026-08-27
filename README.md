@@ -15,6 +15,7 @@ The system features advanced asynchronous task queuing, strict data validation p
 * **High-Performance Telemetry System:** Real-time event view counter engine powered by memory-efficient Redis HyperLogLog (`PFADD`, `PFCOUNT`) structures, ensuring fast deduplication of unique visitor interactions.
 * **Production Monitoring Stack:** Native Prometheus metrics engine paired with Grafana dashboards to track latency percentiles, error rates, and request throughput in real time.
 * **Comprehensive Integration Testing:** Automated testing suite leveraging TaskIQ in-memory scheduling running in `await_inplace` mode to catch side-effects within a single structured `asyncio.TaskGroup` lifecycle.
+* **Delayed Data Processing Via a Queue**: Parts of the system that do not require an immediate response to the user are processed via an Apache Kafka queue - this helps reduce the load on the server and database.
 
 ## Tech Stack
 
@@ -47,54 +48,70 @@ The system features advanced asynchronous task queuing, strict data validation p
 * Atomic booking engine processing multi-ticket transactions under heavy concurrent load, preventing race conditions during checkout.
 * Multi-state order lifecycle workflow tracking progression from initial reservation to formal verification and payment.
 * Automated task hooks releasing expired, unpaid order holdings and locked tickets back into available inventory after 15 minutes.
+
+### Universal View Counting System
+
+* The universal view counting system supports counting the number of views for any object in the project.
+* Using queues and bulk inserts helps reduce the load on the database, reducing the number of queries by hundreds of times.
+* The system counts views from any site visitor, filtering out duplicates and obvious fraud.
+* The database is the single source of truth for viewings, preventing duplicate views from being registered by the same visitor.
+* The view caching system reduces the load on the database by filtering out recent duplicate views.
+* Storing views as immutable log entities speeds up the system and makes it independent of the actual state of objects.
+
 ## File Structure
 
 ```text
 .
-├── docker-compose.yml          # Core architecture foundation (API, DB, KeyDB, Workers & internal networks)
-├── docker-compose.dev.yml      # Local development layer (Enables API hot-reload and local backend file mounts)
-├── docker-compose.demo.yml     # Presentation layer (Deploys public Nginx reverse proxy routing)
-├── docker-compose.prod.yml     # Hardened monitoring overlay (Launches isolated Prometheus & Grafana within backend)
-├── docker-compose.test.yml     # Automated verification suite (Isolated containers for pytest, ruff, and mypy)
-├── .env.example                # Blueprint for required environment variables
-├── .gitignore                  # Root Git exclusion rules
-├── LICENSE                     # Project software license agreement
-├── nginx.conf.template         # Dynamic template for Nginx reverse proxy configurations
-└── backend/                    # Core backend service directory
-    ├── Dockerfile              # Multi-stage container build rules (test, lint, backend) using uv
-    ├── pyproject.toml          # Main project metadata and tool configurations
-    ├── uv.lock                 # Strict dependency lockfile
-    ├── prometheus.yml          # Prometheus config file
-    ├── alembic.ini             # Database migration configuration metadata
-    ├── alembic/                # Database migration scripts and environment
-    ├── tests/                  # Integration test cases, fixtures, and conftest
-    └── src/                    # Source root
-        ├── app/                # Application Assembly & Command Center
-        │   ├── main.py         # Main FastAPI application entrypoint and exception mapping
-        │   ├── routes.py       # Global root router mounting point (/api/v1)
-        │   ├── metrics.py      # Prometheus instrumentation and scrapers bootstrapper
-        │   ├── exceptions.py   # Pure domain business exceptions hierarchy
-        │   └── uow.py          # Strict declaration of application-specific Unit of Work
-        ├── cli/                # Terminal-executable administration modules
-        ├── domain/             # Business Logic & Contracts (Pure Python)
-        │   └── services/       # Base generic service implementation contracts
-        ├── core/               # App configuration, security and database infrastructure
-        │   ├── settings.py     # Pydantic Settings global env state parsing
-        │   ├── database.py     # Lazy thread-safe SQLAlchemy AsyncEngine Factory
-        │   ├── annotations.py  # Shared generic TypeVars for strict type checking
-        │   ├── security/       # JWT token utilities and cryptographic password handlers
-        │   └── infra/          # Abstract Technical Framework Wrappers
-        │       ├── cache/      # Lazy CacheManagerFactory (Redis / InMemory implementations)
-        │       ├── tasks/      # Lazy TaskManagerFactory, configurations, and TaskIQ Broker
-        │       ├── mail/       # Flat asynchronous email dispatcher domain (Jinja2, FastMail)
-        │       └── transport/  # HTTP Transport components and Idempotency Decorator
-        └── modules/            # Isolated Domain Partitions (Business Features)
-            ├── admin/          # Administration and system control endpoints
-            ├── event/          # Venues, category mappings, and event routes
-            ├── order/          # Order placement, status workflows, and line item tracking
-            ├── ticket/         # Inventory allocation, checkout, and cleanup tasks
-            ├── user/           # User profiles, weight roles, and validation tasks
-            └── views/          # SSR views, template engines mounting, and page routers
+├── docker-compose.yml                   # Core architecture foundation (API, DB, KeyDB, Workers & internal networks)
+├── docker-compose.dev.yml               # Local development layer (Enables API hot-reload and local backend file mounts)
+├── docker-compose.demo.yml              # Presentation layer (Deploys public Nginx reverse proxy routing)
+├── docker-compose.test.yml              # Automated verification suite (Isolated containers for pytest, ruff, and mypy)
+├── docker-compose.load.yml              # Load testing a project during local development or CI/CD (Container with locust)
+├── docker-compose.telemetry.yml         # A metrics layer for analyzing server load and traffic (Prometheus and Graphana)
+├── docker-compose.telemetry.dev.yml     # Forwards telemetry ports to the host machine for local development.
+├── .env.example                         # Blueprint for required environment variables
+├── .gitignore                           # Root Git exclusion rules
+├── LICENSE                              # Project software license agreement
+├── nginx.conf.template                  # Dynamic template for Nginx reverse proxy configurations
+├── start.sh                             # A ready-made script for launching the required version of the project.
+└── backend/                             # Core backend service directory
+    ├── Dockerfile                       # Multi-stage container build rules (test, lint, backend) using uv
+    ├── pyproject.toml                   # Main project metadata and tool configurations
+    ├── uv.lock                          # Strict dependency lockfile
+    ├── prometheus.yml                   # Prometheus config file
+    ├── alembic.ini                      # Database migration configuration metadata
+    ├── alembic/                         # Database migration scripts and environment
+    ├── tests/                           # Integration test cases, fixtures, and conftest
+    └── src/                             # Source root
+        ├── app/                         # Application Assembly & Command Center
+        │   ├── main.py                  # Main FastAPI application entrypoint and exception mapping
+        │   ├── routes.py                # Global root router mounting point (/api/v1)
+        │   ├── metrics.py               # Prometheus instrumentation and scrapers bootstrapper
+        │   ├── exceptions.py            # Pure domain business exceptions hierarchy
+        │   └── uow.py                   # Strict declaration of application-specific Unit of Work
+        ├── workers/                     # Queue topic handlers.
+        ├── cli/                         # Terminal-executable administration modules
+        ├── domain/                      # Business Logic & Contracts (Pure Python)
+        │   └── services/                # Base generic service implementation contracts
+        ├── core/                        # App configuration, security and database infrastructure
+        │   ├── settings.py              # Pydantic Settings global env state parsing
+        │   ├── annotations.py           # Shared generic TypeVars for strict type checking
+        │   ├── security/                # JWT token utilities and cryptographic password handlers
+        │   └── infra/                   # Abstract Technical Framework Wrappers
+        │       ├── cache/               # Lazy CacheManagerFactory (Redis / InMemory implementations)
+        │       ├── tasks/               # Lazy TaskManagerFactory, configurations, and TaskIQ Broker
+        │       ├── mail/                # Flat asynchronous email dispatcher domain (Jinja2, FastMail)
+        │       └── transport/           # Transport components
+        │           ├── http/            # HTTP transports components and middlewares
+        │           └── queue/           # Queue Management Module
+        │       └── database/            # A database module that includes a fluent Django-like interface built on top of SQLAlchemy.
+        └── modules/                     # Isolated Domain Partitions (Business Features)
+            ├── admin/                   # Administration and system control endpoints
+            ├── event/                   # Venues, category mappings, and event routes
+            ├── order/                   # Order placement, status workflows, and line item tracking
+            ├── ticket/                  # Inventory allocation, checkout, and cleanup tasks
+            ├── user/                    # User profiles, weight roles, and validation tasks
+            └── views/                   # SSR views, template engines mounting, and page routers
 ```
 ## Infrastructure Design
 
@@ -103,7 +120,6 @@ The application separates concerns into distinct execution contexts via an optim
 * **Core Architecture Foundation (`docker-compose.yml`):** The baseline system topology containing the database, high-performance KeyDB cache, API layer, and TaskIQ async workers/scheduler. It establishes secure private virtual boundaries (`frontend_network`, `backend_network`) and disables background code polling for optimal production-grade CPU efficiency.
 * **Local Development Overlay (`docker-compose.dev.yml`):** Stacks on top of the base layer during engineering cycles. It injects code mount points (`volumes`), binds interactive debugging portals directly to host ports (`3000`, `9090`), and safely toggles Uvicorn's active hot-reload mechanisms specifically for local machines.
 * **Demonstration Setup (`docker-compose.demo.yml`):** An operational extension that mounts an enterprise **Nginx** reverse proxy inline with the frontend network loop. It secures application endpoints using real-time configuration templates and completely encapsulates underlying resources from raw host routing.
-* **Hardened Production Overlay (`docker-compose.prod.yml`):** A strict isolation layer that hooks Telemetry services (**Prometheus** and **Grafana**) deep into the private backend perimeter without revealing diagnostic listening sockets to the public internet (`ports: !reset []`).
 * **Optimized Multi-Stage Build (`Dockerfile`):** Implements specialized build target stages (`tests`, `lint`, `backend`) powered by `uv` for minimal image foot-printing. The production tier strips development utilities and verification suites out of final artifacts.
 * **Telemetry & Dependency Guards:** Prometheus targets dynamically poll core operational parameters under static Bearer Token authentication mounted via Docker Secrets. Healthcheck cascades (`pg_isready`, `keydb-cli ping`, `urllib.request`) enforce linear service startups across execution groups.
 
@@ -165,6 +181,12 @@ The repository includes a unified automation script `start.sh` to assemble, laun
   Triggers a standalone verification routine to run integration test benches.
   ```bash
   ./start.sh test
+  ```
+  
+* **Local Load Test Suite**
+  Deploys a container with locust for load testing the project.
+  ```bash
+  ./start.sh load_test
   ```
 
 * **Static Analysis & Linting**
@@ -262,7 +284,7 @@ docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 
 Core modules demonstrating engineering depth for review:
 
-1. `src/core/infra/database/repositories/query.py`: Chainable `RepositoryQuery` engine providing dynamic filter mapping, safe execution context clones, and robust tuple/scalar conversions without `NoInspectionAvailable` side-effects. It handles relationship loading on top of SQLAlchemy using an isolated string-based `__` interface.
+1. `src/core/infra/database/query/builder.py`: Chainable `QueryBuilder` engine providing dynamic filter mapping, safe execution context clones, and robust tuple/scalar conversions without `NoInspectionAvailable` side-effects. It handles relationship loading on top of SQLAlchemy using an isolated string-based `__` interface.
 2. `src/core/infra/transport/http/idempotency.py`: Reusable API decorator utilizing atomic lock check/set routines and automated model serialization to guarantee transaction safety across high-load request loops.
 3. `src/modules/order/services.py` & `src/modules/ticket/services.py`: Implements cascading transactions, state machine boundaries, and multi-ticket quota allocation using completely thin repositories that act as pure фасады to the query builder layer.
 4. `src/app/uow.py` & `src/core/infra/database/uow.py`: Demonstrates decoupling patterns, enabling developers to fully swap out data infrastructures or mock network layers without breaking core features.

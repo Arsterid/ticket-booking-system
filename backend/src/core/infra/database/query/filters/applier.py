@@ -1,4 +1,4 @@
-from typing import Any, Set, Type, Tuple, List
+from typing import Any, List, Set, Tuple, Type
 
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import contains_eager
@@ -12,11 +12,24 @@ class QueryFilterApplier:
             cls: Type["QueryFilterApplier"],
             model: Type[Any],
             filters: dict[str, Any],
-            operators_map: dict[str, Any]
-    ) -> List[Tuple[Any, Any, List[Any]]]:
-        prepared = []
+            operators_map: dict[str, Any],
+            annotations: dict[str, Any] | None = None
+    ) -> Tuple[List[Tuple[Any, Any, List[Any]]], List[Tuple[Any, Any, str]]]:
+        normal_prepared = []
+        annotation_prepared = []
+
         for key, v in filters.items():
             if v is None:
+                continue
+
+            parts = key.split("__")
+            possible_op = parts[-1]
+            base_key = "__".join(parts[:-1]) if possible_op in operators_map else key
+            op = possible_op if possible_op in operators_map else "eq"
+
+            if annotations and base_key in annotations:
+                expr = annotations[base_key].resolve(model, operators_map)
+                annotation_prepared.append((v, expr, op))
                 continue
 
             val = v.resolve(model, operators_map) if hasattr(v, "resolve") else v
@@ -24,8 +37,9 @@ class QueryFilterApplier:
             if res.column is None:
                 continue
 
-            prepared.append((val, res, list(res.relations)))
-        return prepared
+            normal_prepared.append((val, res, list(res.relations)))
+
+        return normal_prepared, annotation_prepared
 
     @classmethod
     def apply_context_filters(
@@ -33,14 +47,15 @@ class QueryFilterApplier:
             stmt: Any,
             model: Type[Any],
             filters: dict[str, Any],
-            operators_map: dict[str, Any]
+            operators_map: dict[str, Any],
+            annotations: dict[str, Any] | None = None
     ) -> Any:
         joined_models: Set[Type[Any]] = set()
         eager_options: dict[Tuple[Any, ...], Any] = {}
 
-        prepared_filters = cls._prepare_filters(model, filters, operators_map)
+        normal_filters, annot_filters = cls._prepare_filters(model, filters, operators_map, annotations)
 
-        for val, res, relations in prepared_filters:
+        for val, res, relations in normal_filters:
             current_eager_chain = None
             relations_path = []
             is_new_path = False
@@ -69,6 +84,16 @@ class QueryFilterApplier:
         if eager_options:
             stmt = stmt.options(*eager_options.values())
 
+        if annotations:
+            annotation_cols = [
+                expr.resolve(model, operators_map).label(name)
+                for name, expr in annotations.items()
+            ]
+            stmt = stmt.add_columns(*annotation_cols)
+
+        for val, expr, op in annot_filters:
+            stmt = stmt.where(operators_map[op](expr, val))
+
         return stmt
 
     @classmethod
@@ -79,9 +104,9 @@ class QueryFilterApplier:
             filters: dict[str, Any],
             operators_map: dict[str, Any]
     ) -> Any:
-        prepared_filters = cls._prepare_filters(model, filters, operators_map)
+        normal_filters, _ = cls._prepare_filters(model, filters, operators_map)
 
-        for val, res, relations in prepared_filters:
+        for val, res, relations in normal_filters:
             if not relations:
                 stmt = stmt.where(operators_map[res.operator](res.column, val))
                 continue

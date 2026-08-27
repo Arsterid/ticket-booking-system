@@ -1,3 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.modules.event.models import Event
+    from src.modules.order.models import Order
+
 from enum import StrEnum
 
 from sqlalchemy import Boolean, CheckConstraint, String
@@ -58,6 +66,7 @@ class User(AbstractORMModel):
     password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    events = relationship("Event", back_populates="user")
+    events: Mapped[Event] = relationship("Event", back_populates="user")
+    orders: Mapped[Order] = relationship("Order", back_populates="user")
 
     __table_args__ = (CheckConstraint("email LIKE '%@%.%'", name="check_email_format"),)

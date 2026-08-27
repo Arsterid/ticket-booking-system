@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from locust import between, task, TaskSet
 
-from src.modules.event.models import EventType
+from src.modules.event.models import EventFormat
 
 
 class VerifiedUserBehavior(TaskSet):
@@ -27,16 +27,16 @@ class VerifiedUserBehavior(TaskSet):
         if not chosen_category_id:
             return
 
-        event_type = random.choice([EventType.ONLINE, EventType.OFFLINE])
-        event_date = (datetime.now(timezone.utc) + timedelta(days=random.randint(1, 30))).isoformat()
+        format = random.choice([EventFormat.ONLINE, EventFormat.OFFLINE])
+        started_at = (datetime.now(timezone.utc) + timedelta(days=random.randint(1, 30))).isoformat()
 
         payload_event = {
             "category_id": chosen_category_id,
             "title": f"Load Test Title {uuid.uuid4().hex[:12]}",
             "description": "Valid non-empty description for performance testing purposes",
-            "event_type": event_type,
-            "event_date": event_date,
-            "address": "Valid City, Test Street, 42" if event_type == EventType.OFFLINE else None
+            "format": format,
+            "started_at": started_at,
+            "address": "Valid City, Test Street, 42" if format == EventFormat.OFFLINE else None
         }
 
         with self.user.client.post(

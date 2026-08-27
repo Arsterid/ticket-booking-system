@@ -5,7 +5,7 @@ from sqlalchemy import asc, desc, select
 from src.core.annotations import ORM_MODEL_T
 from .filters import QueryFilterApplier
 from .modifiers import BaseQueryModifier
-from .operators import _OPERATORS
+from .operators import OPERATORS
 
 
 class QueryPreparer(Generic[ORM_MODEL_T]):
@@ -17,6 +17,7 @@ class QueryPreparer(Generic[ORM_MODEL_T]):
             order_by: str | None = None,
             options: Sequence[Any] | None = None,
             with_for_update: bool | dict[str, Any] = False,
+            annotations: dict[str, Any] | None = None,
             **kwargs: Any,
     ) -> tuple[Any, list[BaseQueryModifier]]:
         q = select(self.model)
@@ -43,12 +44,16 @@ class QueryPreparer(Generic[ORM_MODEL_T]):
                 q = q.with_for_update()
 
         if kwargs:
-            q = self._build_filtered_query(q, kwargs)
+            q = self._build_filtered_query(q, kwargs, annotations)
 
         if order_by:
             q = self._apply_sorting(q, order_by)
 
         return q, modifiers
+
+    def _build_filtered_query(self, query: Any, filters: dict[str, Any],
+                              annotations: dict[str, Any] | None = None) -> Any:
+        return QueryFilterApplier.apply_context_filters(query, self.model, filters, OPERATORS, annotations)
 
     def _process_results(self, rows: Sequence[Any], modifiers: list[BaseQueryModifier]) -> Any:
         if not rows:
@@ -63,9 +68,6 @@ class QueryPreparer(Generic[ORM_MODEL_T]):
 
         cleaned = [row if isinstance(row, tuple) and len(row) > 0 else row for row in instances]
         return cleaned if is_sequence else cleaned[0]
-
-    def _build_filtered_query(self, query: Any, filters: dict[str, Any]) -> Any:
-        return QueryFilterApplier.apply_context_filters(query, self.model, filters, _OPERATORS)
 
     def _apply_sorting(self, query: Any, order_by: str) -> Any:
         if order_by.startswith("-"):

@@ -1,11 +1,13 @@
 import random
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from src.cli.base import BaseCommand
 from src.cli.colors import CLR_CYAN, CLR_MAGENTA, CLR_RESET
+from src.core.infra.database.uow.units import SQLAlchemyUnitOfWork
 from src.core.security.passwords import PasswordManager
 from src.core.settings import get_settings
-from src.modules.event.models import EventState, EventType
+from src.modules.event.models import EventFormat, EventState
 from src.modules.order.models import OrderStatus
 from src.modules.user.models import UserRole
 
@@ -65,7 +67,7 @@ class SeedCommand(BaseCommand):
                     raise ValueError(f"Flag {flag} requires an integer value.")
         return params
 
-    async def handle(self, uow, **options) -> None:
+    async def handle(self, uow: SQLAlchemyUnitOfWork, **options) -> None:
         users_count = options["users_count"]
         events_count = options["events_count"]
         orders_count = options["orders_count"]
@@ -107,7 +109,7 @@ class SeedCommand(BaseCommand):
 
         self._print_dashboard(users_count, events_count, orders_count)
 
-    async def _clean_tables(self, uow) -> None:
+    async def _clean_tables(self, uow: SQLAlchemyUnitOfWork) -> None:
         from sqlalchemy import text
         repos = [uow.view_logs, uow.order_item, uow.order, uow.ticket_category, uow.event, uow.event_category, uow.user]
         for idx, repo in enumerate(repos, 1):
@@ -115,7 +117,7 @@ class SeedCommand(BaseCommand):
             self.update_sub(f"Truncating {table_name} ({idx}/{len(repos)})...")
             await uow._session.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE;"))
 
-    async def _seed_admin(self, uow) -> None:
+    async def _seed_admin(self, uow: SQLAlchemyUnitOfWork) -> None:
         admin_raw_password = "".join(
             random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$", k=14)
         )
@@ -135,7 +137,7 @@ class SeedCommand(BaseCommand):
             self.allowed_event_hosts.append(admin_obj.id)
             self.all_user_ids.append(admin_obj.id)
 
-    async def _seed_users(self, uow, count: int) -> None:
+    async def _seed_users(self, uow: SQLAlchemyUnitOfWork, count: int) -> None:
         self.print_raw_log("-" * 80)
         self.print_raw_log(f"{CLR_CYAN}{'ROLE':<18} | {'EMAIL':<30}{CLR_RESET}")
         self.print_raw_log("-" * 80)
@@ -191,7 +193,7 @@ class SeedCommand(BaseCommand):
             self.print_raw_log(f"{buyer_role:<18} | {buyer_mail:<30}")
         self.print_raw_log("-" * 80)
 
-    async def _seed_categories(self, uow) -> None:
+    async def _seed_categories(self, uow: SQLAlchemyUnitOfWork) -> None:
         existing_cats = await uow.event_category.all()
         cats_cache = {c.name: c for c in existing_cats}
 
@@ -220,7 +222,7 @@ class SeedCommand(BaseCommand):
                 if sub_cat:
                     self.leaf_category_ids.append(sub_cat.id)
 
-    async def _seed_events(self, uow, count: int) -> None:
+    async def _seed_events(self, uow: SQLAlchemyUnitOfWork, count: int) -> None:
         now_utc = datetime.now(timezone.utc)
         historical_limit = max(1, int(count * 0.2))
         bulk_events_data = []
@@ -229,20 +231,20 @@ class SeedCommand(BaseCommand):
         for i in range(1, count + 1):
             title = f"{random.choice(EVENT_ADJECTIVES)} {random.choice(EVENT_NOUNS)} {random.randint(2026, 2027)}"
             description = f"Приглашаем вас на мероприятие '{title}'. Проведи время незабываемо!"
-            e_type = random.choice([EventType.OFFLINE, EventType.ONLINE])
-            address = random.choice(CITIES_POOL) if e_type == EventType.OFFLINE else None
+            e_type = random.choice([EventFormat.OFFLINE, EventFormat.ONLINE])
+            address = random.choice(CITIES_POOL) if e_type == EventFormat.OFFLINE else None
 
             if i <= historical_limit:
-                event_date = now_utc - timedelta(days=random.randint(2, 45))
+                started_at = now_utc - timedelta(days=random.randint(2, 45))
                 state = EventState.APPROVED
             else:
-                event_date = now_utc + timedelta(days=random.randint(10, 200))
+                started_at = now_utc + timedelta(days=random.randint(10, 200))
                 state = random.choice([EventState.APPROVED, EventState.DRAFT, EventState.ON_MODERATION])
 
             bulk_events_data.append({
                 "title": title, "description": description, "user_id": random.choice(self.allowed_event_hosts),
-                "category_id": random.choice(self.leaf_category_ids), "state": state, "event_type": e_type,
-                "address": address, "event_date": event_date
+                "category_id": random.choice(self.leaf_category_ids), "state": state, "format": e_type,
+                "address": address, "started_at": started_at
             })
             event_states_cache.append(state)
 
@@ -274,7 +276,7 @@ class SeedCommand(BaseCommand):
                 else:
                     ticket_cursor += tickets_count
 
-    async def _seed_orders(self, uow, count: int) -> None:
+    async def _seed_orders(self, uow: SQLAlchemyUnitOfWork, count: int) -> None:
         if not self.purchasable_ticket_categories:
             return
 
@@ -314,7 +316,7 @@ class SeedCommand(BaseCommand):
         if bulk_items_data:
             await self.execute_bulk(uow.order_item, bulk_items_data)
 
-    async def _seed_view_logs(self, uow) -> None:
+    async def _seed_view_logs(self, uow: SQLAlchemyUnitOfWork) -> None:
         event_model_name = uow.event.get_model_name()
         total_users = len(self.all_user_ids)
         bulk_views_data = []
@@ -328,15 +330,19 @@ class SeedCommand(BaseCommand):
             else:
                 viewers = []
 
-            if random.random() < 0.7:
-                bulk_views_data.append({"object_type": event_model_name, "object_id": event_id, "user_id": None})
-            for viewer_id in viewers:
-                bulk_views_data.append({"object_type": event_model_name, "object_id": event_id, "user_id": viewer_id})
+            for _ in viewers:
+                bulk_views_data.append(
+                    {
+                        "object_type": event_model_name,
+                        "object_id": event_id,
+                        "visitor_hash": secrets.token_hex(16)
+                    }
+                )
 
         if bulk_views_data:
             await self.execute_bulk(
                 uow.view_logs, bulk_views_data, on_conflict_do_nothing=True,
-                index_elements=["object_type", "object_id", "user_id"]
+                index_elements=["object_type", "object_id", "visitor_hash"]
             )
 
     def _print_dashboard(self, users: int, events: int, orders: int) -> None:

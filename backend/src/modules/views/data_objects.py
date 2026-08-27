@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from src.core.infra.database import BaseDTO
 
@@ -11,3 +11,8 @@ class ViewLogDTO(BaseDTO):
     object_id: int
 
     user_id: Optional[int] = None
+
+
+class VisitorData(NamedTuple):
+    ip_address: str
+    user_agent: str

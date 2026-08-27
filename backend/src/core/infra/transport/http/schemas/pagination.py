@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -18,9 +18,12 @@ class PaginationParamsSchema(GenericRequestSchema):
 
 class FilterParamsSchema(PaginationParamsSchema):
     order_by: str | None = Field(
-        default=None, description="Field to sort by. The '-' sign before the name means DESC."
+        default=None,
+        description="Field to sort by. The '-' sign before the name means DESC.",
+        max_length=100
     )
 
+    ORDERING_FIELDS: ClassVar[set[str]] = set()
     _BASE_FIELDS = {"limit", "offset", "order_by"}
 
     @field_validator("order_by")
@@ -30,6 +33,12 @@ class FilterParamsSchema(PaginationParamsSchema):
             cleaned = v.lstrip("-").strip()
             if not cleaned or not cleaned.isidentifier():
                 raise ValueError("Invalid order_by field name format")
+
+            if cls.ORDERING_FIELDS and cleaned not in cls.ORDERING_FIELDS:
+                raise ValueError(
+                    f"Sorting by '{cleaned}' is not allowed. "
+                    f"Allowed fields: {', '.join(sorted(cls.ORDERING_FIELDS))}"
+                )
         return v
 
     @property

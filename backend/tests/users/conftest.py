@@ -1,5 +1,8 @@
+import uuid
+
 import pytest
 
+from core.types import UserFactory
 from src.app.uow import create_app_uow
 from src.modules.user.data_objects import UserDTO
 from src.modules.user.models import UserRole
@@ -17,16 +20,20 @@ def user_client(client, user_headers):
 
 
 @pytest.fixture
-def create_user():
+def create_user() -> UserFactory:
     async def _create(
-            email: str = "test@test.com",
-            username: str = "test",
+            email: str | None = None,
+            username: str | None = None,
             role: UserRole = UserRole.USER,
     ) -> UserDTO:
+        suffix = uuid.uuid4().hex[:6]
+        final_email = email or f"test_{suffix}@test.com"
+        final_username = username or f"test_{suffix}"
+
         async with create_app_uow() as uow:
             obj = await uow.user.create(
-                email=email,
-                username=username,
+                email=final_email,
+                username=final_username,
                 password="pwd",
                 role=role
             )

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Generic, Type, TYPE_CHECKING
 
+from src.core.infra.transport.queue.producers.abstract import AbstractQueueProducer
+
 if TYPE_CHECKING:
     from src.core.infra.database.repositories import GenericRepository
 
@@ -16,10 +18,17 @@ class GenericService(Generic[UOW_T]):
     _repo_cls: Type["GenericRepository"]
     _PAGINATED_SCHEMA_CACHE = {}
 
-    def __init__(self, uow: UOW_T, tasks: AbstractTaskManager, cache: AbstractCacheManager):
+    def __init__(
+            self,
+            uow: UOW_T,
+            tasks: AbstractTaskManager,
+            cache: AbstractCacheManager,
+            queue: AbstractQueueProducer
+    ):
         self.uow = uow
         self.tasks = tasks
         self.cache = cache
+        self.queue = queue
 
     def __init_subclass__(cls, repo: Type["GenericRepository"] = None, **kwargs):
         super().__init_subclass__(**kwargs)

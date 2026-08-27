@@ -19,7 +19,7 @@
         <p style="font-size: 15px;">Вы успешно оплатили заказ. Информация о вашем бронировании доступна ниже:</p>
 
         <div style="background-color: #f8f9fa; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <h3 style="margin-top: 0; color: #2c3e50; font-size: 18px;">{{ order.event_name }}</h3>
+            <h3 style="margin-top: 0; color: #2c3e50; font-size: 18px;">{{ order.event_title }}</h3>
 
             <table style="width: 100%; margin-top: 15px; font-size: 14px; border-collapse: collapse;">
                 <tr>
@@ -29,7 +29,7 @@
                 <tr>
                     <td style="padding: 5px 0; color: #7f8c8d;">Дата проведения:</td>
                     <td style="padding: 5px 0; font-weight: bold;">
-                        {{ order.event_date.strftime('%d.%m.%Y %H:%M') if order.event_date else 'Уточняется' }}
+                        {{ order.started_at.strftime('%d.%m.%Y %H:%M') if order.started_at else 'Уточняется' }}
                     </td>
                 </tr>
                 <tr>

@@ -1,16 +1,19 @@
-from collections import Counter
-from typing import Any, Optional, overload, Union
+import hashlib
 import logging
+from collections import Counter
+from typing import Any, overload, Union
 
-from src.app.exceptions import ObjectNotFoundException
 from src.core.infra.cache.exceptions import CacheUnavailableError
-from src.core.infra.database.exceptions import ForeignKeyViolationError
+from .data_objects import VisitorData
 from .protocols import ViewableServiceProtocol
 
 logger = logging.getLogger(__name__)
 
 
 class ViewableServiceMixin:
+    def _get_visitor_hash(self, visitor_data: VisitorData) -> str:
+        raw_fingerprint = f"{visitor_data.ip_address}:{visitor_data.user_agent}"
+        return hashlib.md5(raw_fingerprint.encode("utf-8")).hexdigest()
 
     def _get_model_name(self) -> str:
         raise NotImplementedError(
@@ -124,22 +127,27 @@ class ViewableServiceMixin:
                     )
 
     @overload
-    async def increment_views(self: ViewableServiceProtocol, obj_id: int, user_id: Optional[int] = None) -> None:
+    async def increment_views(self: ViewableServiceProtocol, obj_id: int, visitor_data: VisitorData) -> None:
         ...
 
     @overload
-    async def increment_views(self: ViewableServiceProtocol, obj_id: list[int], user_id: Optional[int] = None) -> None:
+    async def increment_views(self: ViewableServiceProtocol, obj_id: list[int], visitor_data: VisitorData) -> None:
         ...
 
-    async def increment_views(self: ViewableServiceProtocol, obj_id: Union[int, list[int]],
-                              user_id: Optional[int] = None) -> None:
-        if not user_id or not obj_id:
+    async def increment_views(
+            self: ViewableServiceProtocol,
+            obj_id: Union[int, list[int]],
+            visitor_data: VisitorData
+    ) -> None:
+        if not visitor_data or not obj_id:
             return
+
+        visitor_hash = self._get_visitor_hash(visitor_data)
 
         if isinstance(obj_id, list):
             try:
                 hll_keys = [self._get_hll_key(oid) for oid in obj_id]
-                uniques_mask = await self.cache.pfadd(hll_keys, user_id)
+                uniques_mask = await self.cache.pfadd(hll_keys, visitor_hash)
                 unique_ids = [oid for oid, is_unique in zip(obj_id, uniques_mask) if is_unique]
 
                 if not unique_ids:
@@ -152,29 +160,19 @@ class ViewableServiceMixin:
                 logger.warning(f"Cache storage down during increment_views (batch) for {self._get_model_name()}: {e}")
                 unique_ids = list(obj_id)
 
-            view_logs_data = [
-                {"object_type": self._get_model_name(), "object_id": oid, "user_id": user_id}
-                for oid in unique_ids
-            ]
-
-            async with self.uow:
-                try:
-                    await self.uow.view_logs.create(
-                        view_logs_data,
-                        on_conflict_do_nothing=True,
-                        index_elements=["object_type", "object_id", "user_id"]
-                    )
-                    await self.uow.commit()
-                except ForeignKeyViolationError:
-                    raise ObjectNotFoundException(
-                        table=self._get_model_name(),
-                        value=unique_ids
-                    )
+            await self.queue.send(
+                destination="view_logs_queue",
+                payload={
+                    "object_type": self._get_model_name(),
+                    "object_ids": unique_ids,
+                    "visitor_hash": visitor_hash
+                }
+            )
             return
 
         try:
             hll_key = self._get_hll_key(obj_id)
-            is_new_view = await self.cache.pfadd(hll_key, user_id)
+            is_new_view = await self.cache.pfadd(hll_key, visitor_hash)
             if is_new_view:
                 cache_key = self._get_cache_key(obj_id)
                 await self.cache.incr(cache_key)
@@ -184,21 +182,16 @@ class ViewableServiceMixin:
             is_new_view = True
 
         if is_new_view:
-            async with self.uow:
-                try:
-                    await self.uow.view_logs.create(
-                        object_type=self._get_model_name(),
-                        object_id=obj_id,
-                        user_id=user_id,
-                        on_conflict_do_nothing=True,
-                        index_elements=["object_type", "object_id", "user_id"]
-                    )
-                    await self.uow.commit()
-                except ForeignKeyViolationError:
-                    raise ObjectNotFoundException(
-                        table=self._get_model_name(),
-                        value=obj_id
-                    )
+            await self.queue.send(
+                destination="view_logs_queue",
+                payload={
+                    "object_type": self._get_model_name(),
+                    "object_ids": [obj_id],
+                    "visitor_hash": visitor_hash
+                }
+            )
+
+
 
     @overload
     async def _enrich_with_views(self: ViewableServiceProtocol, items: Any) -> Any:

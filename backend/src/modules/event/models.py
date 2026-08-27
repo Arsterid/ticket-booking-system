@@ -31,7 +31,7 @@ class EventCategory(AbstractORMModel):
     events: Mapped[list["Event"]] = relationship("Event", back_populates="category")
 
 
-class EventType(StrEnum):
+class EventFormat(StrEnum):
     OFFLINE = "offline"
     ONLINE = "online"
 
@@ -67,10 +67,10 @@ class Event(AbstractORMModel):
         SQLEnum(EventState, native_enum=False, length=20), default=EventState.DRAFT, index=True
     )
 
-    event_type: Mapped[EventType] = mapped_column(SQLEnum(EventType, native_enum=False, length=20), index=True)
+    format: Mapped[EventFormat] = mapped_column(SQLEnum(EventFormat, native_enum=False, length=20), index=True)
 
     address: Mapped[Optional[str]] = mapped_column(String(255), default=None)
-    event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     ticket_categories = relationship("TicketCategory", back_populates="event")
 
@@ -85,7 +85,7 @@ class Event(AbstractORMModel):
         if self.state == EventState.CANCELLED:
             return EventStatus.CANCELLED
 
-        if self.event_date < datetime.now(timezone.utc):
+        if self.started_at < datetime.now(timezone.utc):
             return EventStatus.PAST
         return EventStatus.UPCOMING
 
@@ -97,6 +97,6 @@ class Event(AbstractORMModel):
             (cls.state == EventState.ON_MODERATION, EventStatus.ON_MODERATION.value),
             (cls.state == EventState.REJECTED, EventStatus.REJECTED.value),
             (cls.state == EventState.CANCELLED, EventStatus.CANCELLED.value),
-            (cls.event_date < func.now(), EventStatus.PAST.value),
+            (cls.started_at < func.now(), EventStatus.PAST.value),
             else_=EventStatus.UPCOMING.value,
         )
